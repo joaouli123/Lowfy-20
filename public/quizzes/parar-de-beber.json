@@ -1,0 +1,943 @@
+{
+  "id": 3730,
+  "user_id": 728,
+  "name": "Título Pare De Beber Low - Copy",
+  "nodes": [
+    {
+      "id": "32a5fc69-7f37-4bdf-8198-a3d95fabcf6a",
+      "data": {
+        "slug": "2v2z675v",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "14551ceb-d95e-46b8-9c70-315458c05fac",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p><strong>Análise do seu perfil baseado em suas respostas.</strong></p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "a7c2c134-021e-4386-8770-1a85f8a14b18",
+            "data": {
+              "type": "bars",
+              "style": "default",
+              "content": [
+                {
+                  "id": "2c3e913c-d551-454b-9ca1-6de2202f314c",
+                  "label": "60%",
+                  "score": "60",
+                  "title": "Precisa de intervenção",
+                  "subtitle": "Frequência de Consumo",
+                  "description": null
+                },
+                {
+                  "id": "b19b39f1-7ae3-4378-944f-338038a01694",
+                  "label": "50%",
+                  "score": 50,
+                  "title": "Saúde em perigo",
+                  "subtitle": "Saúde",
+                  "description": null
+                },
+                {
+                  "id": "9f7d6e6f-477c-4404-a8eb-d2798229f319",
+                  "label": "80%",
+                  "score": "80",
+                  "title": "Falta de controle",
+                  "subtitle": "Consumo",
+                  "description": null
+                }
+              ],
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "chart",
+            "title": "Gráfico",
+            "category": "report"
+          },
+          {
+            "id": "b07c33c0-5e68-4664-b4fc-1ee448f35bff",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p></p>",
+              "subtitle": "<p>Temos o guia perfeito para você que  deseja parar de beber e retomar o controle da vida sem a dependência do álcool.</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "c5cf6f9b-58ae-49f4-802e-493b6c400fc4",
+            "data": {
+              "size": "w-full",
+              "image": "7ffce4dd-cd4f-4f9a-8b7e-9827f1fbff3c",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "c1196b4e-2aa7-4054-88a8-45aa8e58917f",
+            "data": {
+              "style": "default",
+              "title": "EU QUERO PARAR AGORA!",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 346,
+      "dragging": false,
+      "position": {
+        "x": 2978.2082249370533,
+        "y": -857.9222593413117
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2978.2082249370533,
+        "y": -857.9222593413117
+      }
+    },
+    {
+      "id": "1a71967c-9d18-459c-a1df-2c8dfcea6eeb",
+      "data": {
+        "slug": "5k2z384v",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "05882d9a-2de8-4ab6-92bd-3a6d6f44e390",
+            "data": {
+              "time": 8000,
+              "style": "default",
+              "title": "Estamos analisando suas respostas...",
+              "absolute": false,
+              "subtitle": "Confira o os resultados baseados em suas respostas aperte no botão abaixo para continuar!",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "loading",
+            "title": "Carregamento",
+            "category": "action"
+          },
+          {
+            "id": "17deb3fb-2b3d-49e9-b7b1-926585510700",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 184,
+      "dragging": false,
+      "position": {
+        "x": 2589.9281903993683,
+        "y": -710.104527092165
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2589.9281903993683,
+        "y": -710.104527092165
+      }
+    },
+    {
+      "id": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "data": {
+        "slug": "4g275a6g",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "e64ad72e-6a13-4680-9013-02018bd16c17",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "570b47d9-0682-4903-ba71-c5134f64f6ea",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Acredita que tem controle sobre o consumo de álcool?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "47cfc3ed-d978-4593-8915-7fa6b1ce8269",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "f7f60456-e722-4605-a459-0e27ea1c4a08",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim."
+                },
+                {
+                  "id": "593771ae-634c-4b92-9c43-1fb8cf547f5c",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Às vezes."
+                },
+                {
+                  "id": "6d49d3ac-9c4a-46fb-bb55-99b65075b3cb",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 2171.92472353031,
+        "y": -590.1817808922633
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2171.92472353031,
+        "y": -590.1817808922633
+      }
+    },
+    {
+      "id": "73299038-a5be-48cd-900e-b959aa151e68",
+      "data": {
+        "slug": "1e1n3h4y",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "eb463e37-43d3-4984-9f7a-77776e0dcedc",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "91c01571-0820-403b-b6cf-b863d058d8d1",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Já usou ajuda profissional ou grupos de apoio?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "f1fa30f0-17e4-4131-ade1-ae20613c72dd",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "75d0965a-70e7-4892-8018-15773539222d",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim."
+                },
+                {
+                  "id": "17ef3db9-dabc-49d7-a658-a1480b72288f",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não, mas penso em tentar."
+                },
+                {
+                  "id": "fcdbda68-6e23-4ed7-9b9d-3eaed66a94dd",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Nunca."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1844.824741269836,
+        "y": -524.9056309635592
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1844.824741269836,
+        "y": -524.9056309635592
+      }
+    },
+    {
+      "id": "72a908da-0e77-4a1b-952e-291a3023f325",
+      "data": {
+        "slug": "2v6s6g0j",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "dd6faaa9-e4b6-471e-a555-c9bd0c2f5079",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "95ba3628-5c28-444b-9fed-92d61f7edfdd",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Qual é o principal motivo para querer parar?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "fdb059ba-4aef-4ef1-811b-9a37fe3ccc9d",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "dd3f0c52-cb6c-4b36-ad42-815b110cb1d3",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Saúde."
+                },
+                {
+                  "id": "ccb87091-6419-4cfc-ac4d-01517a891b64",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Relações pessoais."
+                },
+                {
+                  "id": "b96518c2-4b9f-4f1c-b011-a985149ab388",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Trabalho."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1504.146945752533,
+        "y": -355.7373364478188
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1504.146945752533,
+        "y": -355.7373364478188
+      }
+    },
+    {
+      "id": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "data": {
+        "slug": "382o5a61",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "e37c8cb1-d8f9-4f44-b501-3afa4c787b2b",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "7f4d2d95-d443-464c-b40f-922d6d2d5303",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Com que frequência você consome bebidas alcoólicas?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "56e0bb53-9f3a-4886-b92e-d461f52e8be1",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "0cf134f0-65a5-485e-bcdd-76829de0e65a",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Apenas socialmente."
+                },
+                {
+                  "id": "044182dd-ef94-488d-baf9-fa1dd141cf7d",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Algumas vezes por semana."
+                },
+                {
+                  "id": "c128c51c-3aec-492f-99ed-eeedbf01e8d3",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Diariamente."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1138.1715502138882,
+        "y": -276.56686180144516
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1138.1715502138882,
+        "y": -276.56686180144516
+      }
+    },
+    {
+      "id": "0711226e-9750-4c3a-8d0f-eab84a1bba3c",
+      "data": {
+        "slug": "1q0b0n2c",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "893535a8-4c5d-43d1-926b-9bd38493b245",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "4600ff62-c155-4e2f-9073-afdbe504dd9b",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você já tentou parar de beber antes?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "fdd51001-e7e2-48f1-938d-1def80d58c90",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "8f2cb32c-a74b-4834-8e2f-6d0b32d1ca66",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim, várias vezes."
+                },
+                {
+                  "id": "82101538-a04d-414c-91f8-1c7abc131f63",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Apenas uma vez."
+                },
+                {
+                  "id": "0babaaec-bdf1-4628-8b35-06bec2c33357",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Nunca tentei."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 784.2794056268516,
+        "y": -168.78257262737242
+      },
+      "selected": true,
+      "positionAbsolute": {
+        "x": 784.2794056268516,
+        "y": -168.78257262737242
+      }
+    },
+    {
+      "id": "7539d9b0-7ac2-4d51-b3ee-8015a3e9e8de",
+      "data": {
+        "slug": "212v585w",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "cc5c1fe3-edab-434c-9884-2a4aff80be37",
+            "data": {
+              "size": "w-full",
+              "image": "949898a1-52a7-45d2-a0e6-9b5261436dca",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "a5d51eb3-dd0e-43dc-9bf8-2820cd2eb3c6",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você quer parar de beber e transformar sua vida?</p>",
+              "subtitle": "<p>Sabemos como pode ser difícil abandonar o álcool. Responda este quiz para entender como você pode superar o vício e retomar o controle da sua vida. Receba um guia personalizado para parar de beber!</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "393aee32-f417-48e6-87f2-dce49e812203",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 238,
+      "dragging": false,
+      "position": {
+        "x": 437.33333333333337,
+        "y": -7.999999999999972
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 437.33333333333337,
+        "y": -7.999999999999972
+      }
+    },
+    {
+      "id": "root",
+      "data": {
+        "type": "start",
+        "title": "Início"
+      },
+      "type": "function",
+      "width": 288,
+      "height": 64,
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "draggable": false,
+      "selectable": false,
+      "positionAbsolute": {
+        "x": 100,
+        "y": 150
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-rootrootHandle-7539d9b0-7ac2-4d51-b3ee-8015a3e9e8de7539d9b0-7ac2-4d51-b3ee-8015a3e9e8de",
+      "type": "default",
+      "source": "root",
+      "target": "7539d9b0-7ac2-4d51-b3ee-8015a3e9e8de",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "rootHandle",
+      "targetHandle": "7539d9b0-7ac2-4d51-b3ee-8015a3e9e8de"
+    },
+    {
+      "id": "reactflow__edge-7539d9b0-7ac2-4d51-b3ee-8015a3e9e8de393aee32-f417-48e6-87f2-dce49e812203-0711226e-9750-4c3a-8d0f-eab84a1bba3c0711226e-9750-4c3a-8d0f-eab84a1bba3c",
+      "type": "default",
+      "source": "7539d9b0-7ac2-4d51-b3ee-8015a3e9e8de",
+      "target": "0711226e-9750-4c3a-8d0f-eab84a1bba3c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "393aee32-f417-48e6-87f2-dce49e812203",
+      "targetHandle": "0711226e-9750-4c3a-8d0f-eab84a1bba3c"
+    },
+    {
+      "id": "reactflow__edge-0711226e-9750-4c3a-8d0f-eab84a1bba3c8f2cb32c-a74b-4834-8e2f-6d0b32d1ca66-6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "type": "default",
+      "source": "0711226e-9750-4c3a-8d0f-eab84a1bba3c",
+      "target": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "8f2cb32c-a74b-4834-8e2f-6d0b32d1ca66",
+      "targetHandle": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e"
+    },
+    {
+      "id": "reactflow__edge-0711226e-9750-4c3a-8d0f-eab84a1bba3c82101538-a04d-414c-91f8-1c7abc131f63-6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "type": "default",
+      "source": "0711226e-9750-4c3a-8d0f-eab84a1bba3c",
+      "target": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "82101538-a04d-414c-91f8-1c7abc131f63",
+      "targetHandle": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e"
+    },
+    {
+      "id": "reactflow__edge-0711226e-9750-4c3a-8d0f-eab84a1bba3c0babaaec-bdf1-4628-8b35-06bec2c33357-6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "type": "default",
+      "source": "0711226e-9750-4c3a-8d0f-eab84a1bba3c",
+      "target": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "0babaaec-bdf1-4628-8b35-06bec2c33357",
+      "targetHandle": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e"
+    },
+    {
+      "id": "reactflow__edge-6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e0cf134f0-65a5-485e-bcdd-76829de0e65a-72a908da-0e77-4a1b-952e-291a3023f32572a908da-0e77-4a1b-952e-291a3023f325",
+      "type": "default",
+      "source": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "target": "72a908da-0e77-4a1b-952e-291a3023f325",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "0cf134f0-65a5-485e-bcdd-76829de0e65a",
+      "targetHandle": "72a908da-0e77-4a1b-952e-291a3023f325"
+    },
+    {
+      "id": "reactflow__edge-6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e044182dd-ef94-488d-baf9-fa1dd141cf7d-72a908da-0e77-4a1b-952e-291a3023f32572a908da-0e77-4a1b-952e-291a3023f325",
+      "type": "default",
+      "source": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "target": "72a908da-0e77-4a1b-952e-291a3023f325",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "044182dd-ef94-488d-baf9-fa1dd141cf7d",
+      "targetHandle": "72a908da-0e77-4a1b-952e-291a3023f325"
+    },
+    {
+      "id": "reactflow__edge-6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714ec128c51c-3aec-492f-99ed-eeedbf01e8d3-72a908da-0e77-4a1b-952e-291a3023f32572a908da-0e77-4a1b-952e-291a3023f325",
+      "type": "default",
+      "source": "6f2c7ec2-ca57-41cc-ad7f-3fcd7d78714e",
+      "target": "72a908da-0e77-4a1b-952e-291a3023f325",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "c128c51c-3aec-492f-99ed-eeedbf01e8d3",
+      "targetHandle": "72a908da-0e77-4a1b-952e-291a3023f325"
+    },
+    {
+      "id": "reactflow__edge-72a908da-0e77-4a1b-952e-291a3023f325dd3f0c52-cb6c-4b36-ad42-815b110cb1d3-73299038-a5be-48cd-900e-b959aa151e6873299038-a5be-48cd-900e-b959aa151e68",
+      "type": "default",
+      "source": "72a908da-0e77-4a1b-952e-291a3023f325",
+      "target": "73299038-a5be-48cd-900e-b959aa151e68",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "dd3f0c52-cb6c-4b36-ad42-815b110cb1d3",
+      "targetHandle": "73299038-a5be-48cd-900e-b959aa151e68"
+    },
+    {
+      "id": "reactflow__edge-72a908da-0e77-4a1b-952e-291a3023f325ccb87091-6419-4cfc-ac4d-01517a891b64-73299038-a5be-48cd-900e-b959aa151e6873299038-a5be-48cd-900e-b959aa151e68",
+      "type": "default",
+      "source": "72a908da-0e77-4a1b-952e-291a3023f325",
+      "target": "73299038-a5be-48cd-900e-b959aa151e68",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "ccb87091-6419-4cfc-ac4d-01517a891b64",
+      "targetHandle": "73299038-a5be-48cd-900e-b959aa151e68"
+    },
+    {
+      "id": "reactflow__edge-72a908da-0e77-4a1b-952e-291a3023f325b96518c2-4b9f-4f1c-b011-a985149ab388-73299038-a5be-48cd-900e-b959aa151e6873299038-a5be-48cd-900e-b959aa151e68",
+      "type": "default",
+      "source": "72a908da-0e77-4a1b-952e-291a3023f325",
+      "target": "73299038-a5be-48cd-900e-b959aa151e68",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "b96518c2-4b9f-4f1c-b011-a985149ab388",
+      "targetHandle": "73299038-a5be-48cd-900e-b959aa151e68"
+    },
+    {
+      "id": "reactflow__edge-73299038-a5be-48cd-900e-b959aa151e6875d0965a-70e7-4892-8018-15773539222d-afe96f8b-4614-4cbc-b27e-0fd5393a1de6afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "type": "default",
+      "source": "73299038-a5be-48cd-900e-b959aa151e68",
+      "target": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "75d0965a-70e7-4892-8018-15773539222d",
+      "targetHandle": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6"
+    },
+    {
+      "id": "reactflow__edge-73299038-a5be-48cd-900e-b959aa151e6817ef3db9-dabc-49d7-a658-a1480b72288f-afe96f8b-4614-4cbc-b27e-0fd5393a1de6afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "type": "default",
+      "source": "73299038-a5be-48cd-900e-b959aa151e68",
+      "target": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "17ef3db9-dabc-49d7-a658-a1480b72288f",
+      "targetHandle": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6"
+    },
+    {
+      "id": "reactflow__edge-73299038-a5be-48cd-900e-b959aa151e68fcdbda68-6e23-4ed7-9b9d-3eaed66a94dd-afe96f8b-4614-4cbc-b27e-0fd5393a1de6afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "type": "default",
+      "source": "73299038-a5be-48cd-900e-b959aa151e68",
+      "target": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "fcdbda68-6e23-4ed7-9b9d-3eaed66a94dd",
+      "targetHandle": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6"
+    },
+    {
+      "id": "reactflow__edge-afe96f8b-4614-4cbc-b27e-0fd5393a1de6f7f60456-e722-4605-a459-0e27ea1c4a08-1a71967c-9d18-459c-a1df-2c8dfcea6eeb1a71967c-9d18-459c-a1df-2c8dfcea6eeb",
+      "type": "default",
+      "source": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "target": "1a71967c-9d18-459c-a1df-2c8dfcea6eeb",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "f7f60456-e722-4605-a459-0e27ea1c4a08",
+      "targetHandle": "1a71967c-9d18-459c-a1df-2c8dfcea6eeb"
+    },
+    {
+      "id": "reactflow__edge-afe96f8b-4614-4cbc-b27e-0fd5393a1de6593771ae-634c-4b92-9c43-1fb8cf547f5c-1a71967c-9d18-459c-a1df-2c8dfcea6eeb1a71967c-9d18-459c-a1df-2c8dfcea6eeb",
+      "type": "default",
+      "source": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "target": "1a71967c-9d18-459c-a1df-2c8dfcea6eeb",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "593771ae-634c-4b92-9c43-1fb8cf547f5c",
+      "targetHandle": "1a71967c-9d18-459c-a1df-2c8dfcea6eeb"
+    },
+    {
+      "id": "reactflow__edge-afe96f8b-4614-4cbc-b27e-0fd5393a1de66d49d3ac-9c4a-46fb-bb55-99b65075b3cb-1a71967c-9d18-459c-a1df-2c8dfcea6eeb1a71967c-9d18-459c-a1df-2c8dfcea6eeb",
+      "type": "default",
+      "source": "afe96f8b-4614-4cbc-b27e-0fd5393a1de6",
+      "target": "1a71967c-9d18-459c-a1df-2c8dfcea6eeb",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "6d49d3ac-9c4a-46fb-bb55-99b65075b3cb",
+      "targetHandle": "1a71967c-9d18-459c-a1df-2c8dfcea6eeb"
+    },
+    {
+      "id": "reactflow__edge-1a71967c-9d18-459c-a1df-2c8dfcea6eeb17deb3fb-2b3d-49e9-b7b1-926585510700-32a5fc69-7f37-4bdf-8198-a3d95fabcf6a32a5fc69-7f37-4bdf-8198-a3d95fabcf6a",
+      "type": "default",
+      "source": "1a71967c-9d18-459c-a1df-2c8dfcea6eeb",
+      "target": "32a5fc69-7f37-4bdf-8198-a3d95fabcf6a",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "17deb3fb-2b3d-49e9-b7b1-926585510700",
+      "targetHandle": "32a5fc69-7f37-4bdf-8198-a3d95fabcf6a"
+    }
+  ],
+  "url": "162u1c03",
+  "status": "published",
+  "version": "beta",
+  "theme": {
+    "dark": false,
+    "logo": "d661ae3f-2f6b-4f8c-bd4e-fcd7d37d9487",
+    "color": "#0284c7"
+  },
+  "settings": {
+    "title": "Novo Projeto",
+    "utmify": false,
+    "cloaker": false,
+    "tracking": false,
+    "description": null,
+    "headerScript": null
+  },
+  "variables": [],
+  "deleted_at": null,
+  "created_at": "2024-09-25T17:31:49.000000Z",
+  "updated_at": "2024-09-25T17:31:49.000000Z",
+  "user": {
+    "id": 728,
+    "name": "joao lucas",
+    "email": "vendas.elast@gmail.com"
+  }
+}

@@ -1,0 +1,30 @@
+# Otimização SEO - Crawler Rules
+User-agent: *
+Allow: /
+Allow: /assinatura/
+Allow: /ai-tools/
+Allow: /clonador/
+Allow: /plrs/
+Allow: /courses/
+Allow: /forum/
+Allow: /marketplace/
+
+# Impedir indexação de páginas administrativas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /user/
+Disallow: /dashboard/
+Disallow: /settings/
+
+# Impedir crawling de parâmetros desnecessários
+Disallow: /*?*
+Disallow: /*&*
+Disallow: /*.pdf$
+Disallow: /node_modules/
+
+# Rate limiting para bots
+Crawl-delay: 1
+Request-rate: 30/1m
+
+# Sitemap
+Sitemap: https://lowfy.com.br/sitemap.xml

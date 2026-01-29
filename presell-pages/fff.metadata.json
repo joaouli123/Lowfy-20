@@ -1,0 +1,16 @@
+{
+  "createdAt": "2025-12-03T14:45:09.404Z",
+  "viewCount": 0,
+  "clickCount": 0,
+  "requiresDomain": true,
+  "customDomain": "dfdfd.com",
+  "domainAddedAt": "2025-12-03T14:45:30.001Z",
+  "isActive": true,
+  "cloudflareHostnameId": "4c3b1e32-5ee4-4e67-8cd8-75e0d7d27b04",
+  "cloudflareStatus": "pending",
+  "sslStatus": "initializing",
+  "dcvDelegationCname": null,
+  "dcvDelegationTarget": null,
+  "ownershipTxtName": "_cf-custom-hostname.dfdfd.com",
+  "ownershipTxtValue": "c4049c07-e01e-4333-92fd-c4cafeaf3f44"
+}

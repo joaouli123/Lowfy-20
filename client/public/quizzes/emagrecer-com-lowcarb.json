@@ -1,0 +1,951 @@
+{
+  "id": 3948,
+  "user_id": 728,
+  "name": "Título Emagrecer com Low Carb",
+  "nodes": [
+    {
+      "id": "3b78df61-de0f-431a-b066-6cd38263a56c",
+      "data": {
+        "slug": "184e3r2n",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "d7fddb5a-7b47-418d-832d-b8013c96b0c9",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "52600888-b23b-4d90-b7c7-cb084538f3fe",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Está disposto a fazer mudanças na alimentação?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "29819a9d-d413-4da4-8053-3a9f9f504623",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "e541745a-2303-429c-bad5-3cc59179edaa",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "&nbsp;Sim, completamente."
+                },
+                {
+                  "id": "2e4581d3-a008-4644-98ef-71948ff6bf0a",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Talvez."
+                },
+                {
+                  "id": "3fc3f2a6-1ac0-417c-82e8-329c518a7446",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não tenho certeza."
+                }
+              ],
+              "alignment": "left",
+              "animation": "none",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 2009.036587616566,
+        "y": -756.6765814829091
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2009.036587616566,
+        "y": -756.6765814829091
+      }
+    },
+    {
+      "id": "2a91086d-cb13-4f03-8e1c-236d4868faa2",
+      "data": {
+        "url": "https://pay.kiwify.com.br/fbSUGFP",
+        "slug": "6d0e1x2b",
+        "type": "redirect",
+        "title": "Redirect"
+      },
+      "type": "function",
+      "width": 288,
+      "height": 64,
+      "dragging": false,
+      "position": {
+        "x": 3180.5343744405436,
+        "y": -953.7729822493036
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 3180.5343744405436,
+        "y": -953.7729822493036
+      }
+    },
+    {
+      "id": "8e506d3c-e41a-4742-a88c-55155e8d2022",
+      "data": {
+        "slug": "6061003r",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "23d2fd2b-c8a5-4a8c-9b25-a07591420058",
+            "data": {
+              "type": "bars",
+              "style": "default",
+              "content": [
+                {
+                  "id": "b628e1d2-d301-4a73-833f-00c33e0afeb8",
+                  "label": "75%",
+                  "score": "75",
+                  "title": "Histórico de Dietas",
+                  "subtitle": "Tentativas sem Sucesso",
+                  "description": null
+                },
+                {
+                  "id": "589b522b-4ed7-4cb5-98d1-a1e9c0e3541f",
+                  "label": "20%",
+                  "score": "20",
+                  "title": "Longe do Objetivo",
+                  "subtitle": "Perda de Peso",
+                  "description": null
+                },
+                {
+                  "id": "499348fe-4288-4d00-a9e8-85f43026a044",
+                  "label": "85%",
+                  "score": 85,
+                  "title": "Necessidade de Suporte",
+                  "subtitle": "Dificuldade em Seguir",
+                  "description": null
+                }
+              ],
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "chart",
+            "title": "Gráfico",
+            "category": "report"
+          },
+          {
+            "id": "bf16f49b-9db3-4faa-abc1-2cb4db2aea73",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p></p>",
+              "subtitle": "<p>Descubra como a dieta low carb pode ser a solução definitiva para perder peso de maneira saudável.</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "d451c37a-fbcd-4c7b-98c0-ad891725086e",
+            "data": {
+              "size": "w-full",
+              "image": "78218135-d783-44e3-821c-d91dcd3c9d65",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "d9c8ee7d-929c-425e-8457-9875694ee912",
+            "data": {
+              "style": "default",
+              "title": "QUERO COMEÇAR AGORA!",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 292,
+      "dragging": false,
+      "position": {
+        "x": 2648.9678400154335,
+        "y": -998.7982499849052
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2648.9678400154335,
+        "y": -998.7982499849052
+      }
+    },
+    {
+      "id": "94bfa1ad-93b1-4c8c-9a47-f13542e40cbc",
+      "data": {
+        "slug": "51446k30",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "4e52ea49-652a-472e-96bc-b8d0820bc427",
+            "data": {
+              "time": 8000,
+              "style": "default",
+              "title": "Estamos analisando suas respostas...",
+              "absolute": false,
+              "subtitle": "Confira o os resultados baseados em suas respostas aperte no botão abaixo para continuar!",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "loading",
+            "title": "Carregamento",
+            "category": "action"
+          },
+          {
+            "id": "eeba1b53-e796-4619-842e-4b08cdca23f1",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 184,
+      "dragging": false,
+      "position": {
+        "x": 2317.4141026375178,
+        "y": -894.3786358593375
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2317.4141026375178,
+        "y": -894.3786358593375
+      }
+    },
+    {
+      "id": "9dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "data": {
+        "slug": "5f1d5e6q",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "a4c08af7-6ef9-4757-9f6d-6aa2cc2b18da",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "ef9e5e3d-9865-44bb-b0d1-f5886ca1f27d",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você pratica exercícios regularmente?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "a2b9c5a1-ab39-4ded-9b6c-ad8144cef46d",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "931b0a4d-549c-43d3-8ff4-c693ac5923c6",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim."
+                },
+                {
+                  "id": "7134a4ac-9c84-467e-85c9-4e97b9569a0a",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Às vezes."
+                },
+                {
+                  "id": "12bff175-d054-455a-b4e0-6663d6b79edb",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não."
+                }
+              ],
+              "alignment": "left",
+              "animation": "none",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1708.4444444444446,
+        "y": -483.5555555555555
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1708.4444444444446,
+        "y": -483.5555555555555
+      }
+    },
+    {
+      "id": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "data": {
+        "slug": "67332g0p",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "fd47b440-3bd5-4b33-ad4b-559429ff046b",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "725d3eef-2d84-416b-b4ef-014f31121f9b",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Qual o maior desafio ao tentar emagrecer?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "b3e4f107-9870-4dd4-b26d-5d8b4eb84ba7",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "4a37693f-ff25-4b69-9f29-5eab2058cc82",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Resistir às tentações."
+                },
+                {
+                  "id": "dbf21618-f432-45ba-9b1f-076675be6979",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Seguir o plano."
+                },
+                {
+                  "id": "db28847c-da01-4d71-b931-c41a3b249425",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Falta de tempo."
+                }
+              ],
+              "alignment": "left",
+              "animation": "none",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1376.2222222222222,
+        "y": -386.8888888888888
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1376.2222222222222,
+        "y": -386.8888888888888
+      }
+    },
+    {
+      "id": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "data": {
+        "slug": "5b1t0y4s",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "b4e0a1ec-ba97-4d4a-b476-eaf6644f8fac",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "d6731b2c-ee68-4085-b006-c348b0e82995",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Qual é o seu principal objetivo com a dieta low carb?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "cddba348-acf9-4ba8-aad8-5a61f0587e3f",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "1fdd8f66-327e-47da-a4e5-5ca0014bebc1",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Perder peso."
+                },
+                {
+                  "id": "9e1165bd-7a3f-44cc-9003-c2423243b4ea",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Melhorar a saúde."
+                },
+                {
+                  "id": "2f844529-24ac-4e72-be34-219abef4aa10",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Manter a forma."
+                }
+              ],
+              "alignment": "left",
+              "animation": "none",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1043.9999999999998,
+        "y": -239.11111111111103
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1043.9999999999998,
+        "y": -239.11111111111103
+      }
+    },
+    {
+      "id": "cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12",
+      "data": {
+        "slug": "1m3e6d2r",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "2d545bc4-8aa0-4c40-ab8d-ee86d210afb2",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "f96fcb09-9c07-4e89-a072-07e02b551e76",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Já tentou seguir uma dieta low carb antes?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "f2324dfe-d5bc-4392-8446-370ef7426186",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "5c995383-674f-4c71-b86f-06a29349379f",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim, com bons resultados."
+                },
+                {
+                  "id": "fa211bca-135b-45d4-a462-2f5f6cf83bef",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Sim, mas sem sucesso."
+                },
+                {
+                  "id": "bb2f04c7-cc0c-4b9b-8102-7e07a5205dd9",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Nunca."
+                }
+              ],
+              "alignment": "left",
+              "animation": "none",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 726.2222222222223,
+        "y": -166.88888888888886
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 726.2222222222223,
+        "y": -166.88888888888886
+      }
+    },
+    {
+      "id": "096c1e20-7da8-4b34-9d33-1dc2bb108b82",
+      "data": {
+        "slug": "066s5h23",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "82ac87c5-76f5-42c9-97a2-035a081fefeb",
+            "data": {
+              "size": "w-full",
+              "image": "181d0ccd-c048-44c6-9990-79d4c3e248e2",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "b9b91ad7-4f58-42ce-8786-9d485af46269",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Emagreça com a dieta Low Carb de maneira eficaz</p>",
+              "subtitle": "<p>Quer perder peso sem sofrimento? Participe deste quiz e descubra como a dieta low carb pode ajudar você a atingir seus objetivos de emagrecimento de forma saudável e sustentável. Preparado para mudar?</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "32498b06-2c88-400f-bb63-7e86428bba36",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 238,
+      "dragging": false,
+      "position": {
+        "x": 416.2222222222223,
+        "y": -42.44444444444443
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 416.2222222222223,
+        "y": -42.44444444444443
+      }
+    },
+    {
+      "id": "root",
+      "data": {
+        "type": "start",
+        "title": "Início"
+      },
+      "type": "function",
+      "width": 288,
+      "height": 64,
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "draggable": false,
+      "selectable": false,
+      "positionAbsolute": {
+        "x": 100,
+        "y": 150
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-rootrootHandle-096c1e20-7da8-4b34-9d33-1dc2bb108b82096c1e20-7da8-4b34-9d33-1dc2bb108b82",
+      "type": "default",
+      "source": "root",
+      "target": "096c1e20-7da8-4b34-9d33-1dc2bb108b82",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "rootHandle",
+      "targetHandle": "096c1e20-7da8-4b34-9d33-1dc2bb108b82"
+    },
+    {
+      "id": "reactflow__edge-096c1e20-7da8-4b34-9d33-1dc2bb108b8232498b06-2c88-400f-bb63-7e86428bba36-cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12",
+      "type": "default",
+      "source": "096c1e20-7da8-4b34-9d33-1dc2bb108b82",
+      "target": "cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "32498b06-2c88-400f-bb63-7e86428bba36",
+      "targetHandle": "cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12"
+    },
+    {
+      "id": "reactflow__edge-cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d125c995383-674f-4c71-b86f-06a29349379f-a1005330-b8bb-4bfb-aea0-868e9c88a9b3a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "type": "default",
+      "source": "cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12",
+      "target": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "5c995383-674f-4c71-b86f-06a29349379f",
+      "targetHandle": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3"
+    },
+    {
+      "id": "reactflow__edge-cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12fa211bca-135b-45d4-a462-2f5f6cf83bef-a1005330-b8bb-4bfb-aea0-868e9c88a9b3a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "type": "default",
+      "source": "cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12",
+      "target": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "fa211bca-135b-45d4-a462-2f5f6cf83bef",
+      "targetHandle": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3"
+    },
+    {
+      "id": "reactflow__edge-cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12bb2f04c7-cc0c-4b9b-8102-7e07a5205dd9-a1005330-b8bb-4bfb-aea0-868e9c88a9b3a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "type": "default",
+      "source": "cfb0ae18-01c6-43a6-a6b6-d97f6d7a8d12",
+      "target": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "bb2f04c7-cc0c-4b9b-8102-7e07a5205dd9",
+      "targetHandle": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3"
+    },
+    {
+      "id": "reactflow__edge-a1005330-b8bb-4bfb-aea0-868e9c88a9b31fdd8f66-327e-47da-a4e5-5ca0014bebc1-377bd7a0-c80f-47f0-9270-d4aaf5cfab3b377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "type": "default",
+      "source": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "target": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "1fdd8f66-327e-47da-a4e5-5ca0014bebc1",
+      "targetHandle": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b"
+    },
+    {
+      "id": "reactflow__edge-a1005330-b8bb-4bfb-aea0-868e9c88a9b39e1165bd-7a3f-44cc-9003-c2423243b4ea-377bd7a0-c80f-47f0-9270-d4aaf5cfab3b377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "type": "default",
+      "source": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "target": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "9e1165bd-7a3f-44cc-9003-c2423243b4ea",
+      "targetHandle": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b"
+    },
+    {
+      "id": "reactflow__edge-a1005330-b8bb-4bfb-aea0-868e9c88a9b32f844529-24ac-4e72-be34-219abef4aa10-377bd7a0-c80f-47f0-9270-d4aaf5cfab3b377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "type": "default",
+      "source": "a1005330-b8bb-4bfb-aea0-868e9c88a9b3",
+      "target": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "2f844529-24ac-4e72-be34-219abef4aa10",
+      "targetHandle": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b"
+    },
+    {
+      "id": "reactflow__edge-377bd7a0-c80f-47f0-9270-d4aaf5cfab3b4a37693f-ff25-4b69-9f29-5eab2058cc82-9dc67036-138b-4bf8-aa62-839cf3d76eb79dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "type": "default",
+      "source": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "target": "9dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "4a37693f-ff25-4b69-9f29-5eab2058cc82",
+      "targetHandle": "9dc67036-138b-4bf8-aa62-839cf3d76eb7"
+    },
+    {
+      "id": "reactflow__edge-377bd7a0-c80f-47f0-9270-d4aaf5cfab3bdbf21618-f432-45ba-9b1f-076675be6979-9dc67036-138b-4bf8-aa62-839cf3d76eb79dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "type": "default",
+      "source": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "target": "9dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "dbf21618-f432-45ba-9b1f-076675be6979",
+      "targetHandle": "9dc67036-138b-4bf8-aa62-839cf3d76eb7"
+    },
+    {
+      "id": "reactflow__edge-377bd7a0-c80f-47f0-9270-d4aaf5cfab3bdb28847c-da01-4d71-b931-c41a3b249425-9dc67036-138b-4bf8-aa62-839cf3d76eb79dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "type": "default",
+      "source": "377bd7a0-c80f-47f0-9270-d4aaf5cfab3b",
+      "target": "9dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "db28847c-da01-4d71-b931-c41a3b249425",
+      "targetHandle": "9dc67036-138b-4bf8-aa62-839cf3d76eb7"
+    },
+    {
+      "id": "reactflow__edge-94bfa1ad-93b1-4c8c-9a47-f13542e40cbceeba1b53-e796-4619-842e-4b08cdca23f1-8e506d3c-e41a-4742-a88c-55155e8d20228e506d3c-e41a-4742-a88c-55155e8d2022",
+      "type": "default",
+      "source": "94bfa1ad-93b1-4c8c-9a47-f13542e40cbc",
+      "target": "8e506d3c-e41a-4742-a88c-55155e8d2022",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "eeba1b53-e796-4619-842e-4b08cdca23f1",
+      "targetHandle": "8e506d3c-e41a-4742-a88c-55155e8d2022"
+    },
+    {
+      "id": "reactflow__edge-9dc67036-138b-4bf8-aa62-839cf3d76eb7931b0a4d-549c-43d3-8ff4-c693ac5923c6-3b78df61-de0f-431a-b066-6cd38263a56c3b78df61-de0f-431a-b066-6cd38263a56c",
+      "type": "default",
+      "source": "9dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "target": "3b78df61-de0f-431a-b066-6cd38263a56c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "931b0a4d-549c-43d3-8ff4-c693ac5923c6",
+      "targetHandle": "3b78df61-de0f-431a-b066-6cd38263a56c"
+    },
+    {
+      "id": "reactflow__edge-9dc67036-138b-4bf8-aa62-839cf3d76eb77134a4ac-9c84-467e-85c9-4e97b9569a0a-3b78df61-de0f-431a-b066-6cd38263a56c3b78df61-de0f-431a-b066-6cd38263a56c",
+      "type": "default",
+      "source": "9dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "target": "3b78df61-de0f-431a-b066-6cd38263a56c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "7134a4ac-9c84-467e-85c9-4e97b9569a0a",
+      "targetHandle": "3b78df61-de0f-431a-b066-6cd38263a56c"
+    },
+    {
+      "id": "reactflow__edge-9dc67036-138b-4bf8-aa62-839cf3d76eb712bff175-d054-455a-b4e0-6663d6b79edb-3b78df61-de0f-431a-b066-6cd38263a56c3b78df61-de0f-431a-b066-6cd38263a56c",
+      "type": "default",
+      "source": "9dc67036-138b-4bf8-aa62-839cf3d76eb7",
+      "target": "3b78df61-de0f-431a-b066-6cd38263a56c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "12bff175-d054-455a-b4e0-6663d6b79edb",
+      "targetHandle": "3b78df61-de0f-431a-b066-6cd38263a56c"
+    },
+    {
+      "id": "reactflow__edge-3b78df61-de0f-431a-b066-6cd38263a56ce541745a-2303-429c-bad5-3cc59179edaa-94bfa1ad-93b1-4c8c-9a47-f13542e40cbc94bfa1ad-93b1-4c8c-9a47-f13542e40cbc",
+      "type": "default",
+      "source": "3b78df61-de0f-431a-b066-6cd38263a56c",
+      "target": "94bfa1ad-93b1-4c8c-9a47-f13542e40cbc",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "e541745a-2303-429c-bad5-3cc59179edaa",
+      "targetHandle": "94bfa1ad-93b1-4c8c-9a47-f13542e40cbc"
+    },
+    {
+      "id": "reactflow__edge-3b78df61-de0f-431a-b066-6cd38263a56c2e4581d3-a008-4644-98ef-71948ff6bf0a-94bfa1ad-93b1-4c8c-9a47-f13542e40cbc94bfa1ad-93b1-4c8c-9a47-f13542e40cbc",
+      "type": "default",
+      "source": "3b78df61-de0f-431a-b066-6cd38263a56c",
+      "target": "94bfa1ad-93b1-4c8c-9a47-f13542e40cbc",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "2e4581d3-a008-4644-98ef-71948ff6bf0a",
+      "targetHandle": "94bfa1ad-93b1-4c8c-9a47-f13542e40cbc"
+    },
+    {
+      "id": "reactflow__edge-3b78df61-de0f-431a-b066-6cd38263a56c3fc3f2a6-1ac0-417c-82e8-329c518a7446-94bfa1ad-93b1-4c8c-9a47-f13542e40cbc94bfa1ad-93b1-4c8c-9a47-f13542e40cbc",
+      "type": "default",
+      "source": "3b78df61-de0f-431a-b066-6cd38263a56c",
+      "target": "94bfa1ad-93b1-4c8c-9a47-f13542e40cbc",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "3fc3f2a6-1ac0-417c-82e8-329c518a7446",
+      "targetHandle": "94bfa1ad-93b1-4c8c-9a47-f13542e40cbc"
+    }
+  ],
+  "url": "555i4v3c",
+  "status": "published",
+  "version": "beta",
+  "theme": {
+    "dark": false,
+    "logo": "d661ae3f-2f6b-4f8c-bd4e-fcd7d37d9487",
+    "color": "#0284c7"
+  },
+  "settings": {
+    "title": "Novo Projeto",
+    "utmify": false,
+    "cloaker": false,
+    "tracking": false,
+    "description": null,
+    "headerScript": null
+  },
+  "variables": [],
+  "deleted_at": null,
+  "created_at": "2024-10-01T13:59:39.000000Z",
+  "updated_at": "2024-10-01T14:13:13.000000Z",
+  "user": {
+    "id": 728,
+    "name": "joao lucas",
+    "email": "vendas.elast@gmail.com"
+  }
+}

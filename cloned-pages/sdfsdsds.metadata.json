@@ -1,0 +1,9 @@
+{
+  "trackingCodes": {
+    "head": "<!-- Google Tag Manager -->\n<script>\n(function(w,d,s,l,i){\n    w[l]=w[l]||[];\n    w[l].push({'gtm.start': new Date().getTime(), event:'gtm.js'});\n    var f=d.getElementsByTagName(s)[0],\n        j=d.createElement(s),\n        dl=l!='dataLayer'?'&l='+l:'';\n    j.async=true;\n    j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;\n    f.parentNode.insertBefore(j,f);\n})(window,document,'script','dataLayer','GTM-FAKE1234');\n</script>\n<!-- End Google Tag Manager -->\n",
+    "body": null,
+    "footer": null
+  },
+  "removeOldPixels": true,
+  "lastUpdated": "2025-10-10T12:50:49.918Z"
+}

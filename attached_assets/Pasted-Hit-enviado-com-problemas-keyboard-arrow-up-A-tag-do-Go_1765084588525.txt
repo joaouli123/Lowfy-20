@@ -1,0 +1,49 @@
+Hit enviado com problemas
+keyboard_arrow_up
+A tag do Google não tem o ID da transação
+A tag do Google está enviando dados, mas o ID da transação está faltando ou é inválido. O ID da transação é usado para estabelecer a correspondência entre o site e os dados importados e informar as conversões com precisão. Veja instruções sobre como atualizar o snippet de evento de conversão para incluir o parâmetro que está faltando.
+Detalhes do hit
+Destino
+Ícone de destino
+AW-17785466777
+URL
+https://www.googleadservices.com/pagead/conversion/17785466777/
+Parâmetros
+Valor
+Anúncios não personalizados	npa	0
+Arquitetura do user agent	uaa	x86
+async	async	1
+auid	auid	770729056.1765069694
+bg	bg	ffffff
+capi	capi	1
+cv	cv	11
+data	data	event=page_view;page_path=/ativar-conta
+dma	dma	0
+fmt	fmt	3
+frm	frm	0
+fst	fst	1765084541133
+gcd	gcd	13l3l3l3l1l1
+gcl_ctr	gcl_ctr	27~0
+gtm	gtm	45be5c31v9237090720za200zd9237090720xec
+gtm_ee	gtm_ee	1
+guid	guid	ON
+hn	hn	www.googleadservices.com
+Lista completa de versões do user agent	uafvl	Chromium;142.0.7444.176|Google%20Chrome;142.0.7444.176|Not_A%20Brand;99.0.0.0
+Local da página	url	https://lowfy.com.br/ativar-conta?token=c80209b5-69df-4483-ac98-8b5d1f0a0ebf&gtm_debug=1765084538867
+Modelo do user agent	uam	
+Nome do evento	en	page_view
+Número de bits do user agent	uab	64
+Plataforma do user agent	uap	Windows
+random	random	1765084541133
+Referenciador da página	ref	https://tagassistant.google.com/
+Rótulo de conversão	label	K1z9CPe0qM0bEJnf4qBC
+tag_exp	tag_exp	103116026~103200004~104527906~104528501~104684208~104684211~105391252~115583767~115616985~115938466~115938469~116184927~116184929~116217636~116217638~116474637
+tiba	tiba	Lowfy - Plataforma de Marketing Digital
+u_h	u_h	1080
+u_w	u_w	2560
+Uso do user agent em um dispositivo móvel	uamb	0
+Versão da plataforma do user agent	uapv	19.0.0
+Visualização de depuração	_dbg	1
+WoW64 (Win32 on Win64) do user agent	uaw	0
+Mensagens de onde este hit foi disparado
+8Alteração do histórico

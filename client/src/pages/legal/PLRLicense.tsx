@@ -1,0 +1,179 @@
+import { useState, useEffect } from 'react';
+import Navbar from '@/components/landing/Navbar';
+import { Instagram, Youtube, Facebook, Mail, Phone } from 'lucide-react';
+
+const PLRLicense = () => {
+  const [theme, setTheme] = useState<string>('dark');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('lowfy-theme') || 'dark';
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('lowfy-theme', newTheme);
+    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.add(newTheme);
+  };
+
+  return (
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-[#050505] dark:text-gray-100 font-sans overflow-x-hidden transition-colors duration-500">
+      <Navbar toggleTheme={toggleTheme} isDark={theme === 'dark'} />
+
+      {/* Main Content */}
+      <main className="pt-32 pb-24">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-12">
+            <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4">Licença de PLR</h1>
+            <p className="text-gray-600 dark:text-gray-400 text-lg">Direitos Private Label Rights (PLR) - Termos e Condições</p>
+          </div>
+
+          <div className="prose dark:prose-invert max-w-none">
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">1. O Que é PLR?</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                Private Label Rights (PLR) permite que você compre conteúdo digital (eBooks, vídeos, gráficos, etc.) e o utilize como se fosse seu próprio conteúdo. Você pode modificar, reempacotá-lo e vendê-lo.
+              </p>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">2. O Que Você Pode Fazer Com PLR</h2>
+              <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-2">
+                <li>Modificar e editar o conteúdo conforme desejado</li>
+                <li>Usar o conteúdo em seus próprios produtos e serviços</li>
+                <li>Vender produtos PLR em seu próprio marketplace</li>
+                <li>Reempacotar o conteúdo e revender com royalties</li>
+                <li>Usar como material de treinamento em seus programas</li>
+                <li>Traduzir para outros idiomas</li>
+              </ul>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">3. O Que Você NÃO Pode Fazer</h2>
+              <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-2">
+                <li>Vender o conteúdo PLR original sem modificação significativa</li>
+                <li>Distribuir cópias idênticas do conteúdo baixado da Lowfy</li>
+                <li>Transferir ou revender os direitos PLR para outras pessoas</li>
+                <li>Compartilhar sua conta ou acesso aos PLRs com terceiros</li>
+                <li>Fazer download massivo para revenda em outras plataformas</li>
+                <li>Violar direitos autorais ou propriedade intelectual de terceiros</li>
+                <li>Usar para fins ilegais, fraudulentos ou antiéticos</li>
+              </ul>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">4. Garantias</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                A Lowfy garante que todo o conteúdo PLR fornecido é original, livre de plágio e que todos os direitos autorais foram adquiridos legitimamente. Se você descobrir violação de direitos autorais, notifique-nos imediatamente.
+              </p>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">5. Revenda em Marketplace</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                Você pode vender produtos PLR modificados em nosso marketplace, seguindo estas regras:
+              </p>
+              <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-2">
+                <li>A Lowfy cobra comissão de 20% sobre cada venda</li>
+                <li>O produto deve ser significativamente modificado do original</li>
+                <li>Você garante possuir direitos para venda do conteúdo</li>
+                <li>Pagamentos são liberados 7 dias após confirmação da compra</li>
+                <li>Transferências via PIX para a chave cadastrada</li>
+                <li>Produtos que violem direitos autorais serão removidos</li>
+                <li>Vendedores respondem legalmente por produtos vendidos</li>
+              </ul>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">6. Responsabilidade</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                Você é responsável por garantir que seu uso de conteúdo PLR cumpra todas as leis aplicáveis e regulamentações de marketing. A Lowfy não é responsável por qualquer mal uso do conteúdo.
+              </p>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">7. Suporte e Dúvidas</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                Para dúvidas sobre como usar conteúdo PLR ou limitações específicas, entre em contato com nosso suporte: contato@lowfy.com.br
+              </p>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-white dark:bg-[#050505] pt-16 pb-8 border-t border-gray-200 dark:border-gray-900 transition-colors duration-500 text-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+            <div className="col-span-1 md:col-span-1">
+              <div className="flex items-center gap-3 mb-6">
+                <img src="/logo-white.webp" alt="Lowfy - Plataforma de Marketing Digital" className="h-8 w-auto hidden dark:block transition-all" width="120" height="32" loading="lazy" decoding="async" />
+                <img src="/logo-dark.webp" alt="Lowfy - Plataforma de Marketing Digital" className="h-8 w-auto block dark:hidden transition-all" width="120" height="32" loading="lazy" decoding="async" />
+              </div>
+              <p className="text-gray-500 dark:text-gray-400 leading-relaxed mb-6">
+                O ecossistema definitivo para quem quer dominar o marketing digital sem gastar uma fortuna.
+              </p>
+              <div className="flex gap-4">
+                <a href="https://www.instagram.com/lowfybr/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-800 flex items-center justify-center text-gray-500 hover:text-[#29654f] hover:bg-[#29654f]/10 transition-colors">
+                  <Instagram size={18} />
+                </a>
+                <a href="https://www.facebook.com/p/Lowfy-61551759668769/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-800 flex items-center justify-center text-gray-500 hover:text-[#29654f] hover:bg-[#29654f]/10 transition-colors">
+                  <Facebook size={18} />
+                </a>
+                <a href="https://www.youtube.com/@lowfy_plrs" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-800 flex items-center justify-center text-gray-500 hover:text-[#29654f] hover:bg-[#29654f]/10 transition-colors">
+                  <Youtube size={18} />
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-gray-900 dark:text-white text-base mb-6">Plataforma</h4>
+              <ul className="space-y-4 text-gray-600 dark:text-gray-400">
+                <li><a href="/#features" className="hover:text-[#29654f] dark:hover:text-[#4ade80] transition-colors">Ferramentas</a></li>
+                <li><a href="/#cloner" className="hover:text-[#29654f] dark:hover:text-[#4ade80] transition-colors">Clonador de Páginas</a></li>
+                <li><a href="/#community" className="hover:text-[#29654f] dark:hover:text-[#4ade80] transition-colors">Comunidade</a></li>
+                <li><a href="/#pricing" className="hover:text-[#29654f] dark:hover:text-[#4ade80] transition-colors">Assinar Agora</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-gray-900 dark:text-white text-base mb-6">Legal</h4>
+              <ul className="space-y-4 text-gray-600 dark:text-gray-400">
+                <li><a href="/termos" className="hover:text-[#29654f] dark:hover:text-[#4ade80] transition-colors">Termos de Uso</a></li>
+                <li><a href="/privacidade" className="hover:text-[#29654f] dark:hover:text-[#4ade80] transition-colors">Política de Privacidade</a></li>
+                <li><a href="/licenca-plr" className="hover:text-[#29654f] dark:hover:text-[#4ade80] transition-colors">Licença de PLR</a></li>
+                <li><a href="/direitos-autorais" className="hover:text-[#29654f] dark:hover:text-[#4ade80] transition-colors">Direitos Autorais</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-gray-900 dark:text-white text-base mb-6">Contato</h4>
+              <ul className="space-y-4 text-gray-600 dark:text-gray-400">
+                <li className="flex items-center gap-3">
+                  <Mail size={16} className="text-[#29654f]" />
+                  contato@lowfy.com.br
+                </li>
+                <li className="flex items-center gap-3">
+                  <Phone size={16} className="text-[#29654f]" />
+                  +55 (41) 99907-7637
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-8">
+            <p className="text-gray-500 text-xs">
+              © 2025 Lowfy Tecnologia Ltda. CNPJ 47.394.596/0001-15. Todos os direitos reservados.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default PLRLicense;

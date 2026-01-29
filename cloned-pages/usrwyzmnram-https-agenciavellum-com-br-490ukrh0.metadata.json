@@ -1,0 +1,12 @@
+{
+  "trackingCodes": {
+    "head": "<!-- Google Tag Manager (head) - sbad.com.br - GTM-PSSS2DP3 -->\n<script>\n(function(w,d,s,l,i){\n  w[l]=w[l]||[];\n  w[l].push({'gtm.start': new Date().getTime(), event:'gtm.js'});\n  var f=d.getElementsByTagName(s)[0],\n      j=d.createElement(s),\n      dl=l!='dataLayer'?'&l='+l:'';\n  j.async=true;\n  j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;\n  f.parentNode.insertBefore(j,f);\n})(window,document,'script','dataLayer','GTM-PSSS2DP9');\n</script>\n<!-- End Google Tag Manager (head) -->\n",
+    "body": "<!-- Google Tag Manager (noscript) - colocar imediatamente após <body> -->\n<noscript>\n  <iframe src=\"https://www.googletagmanager.com/ns.html?id=GTM-PSSS2DP3\"\n          height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe>\n</noscript>\n<!-- End Google Tag Manager (noscript) -->\n",
+    "footer": null
+  },
+  "removeOldPixels": true,
+  "deactivateOtherScripts": true,
+  "lastUpdated": "2025-10-10T15:37:11.098Z",
+  "createdAt": "2025-10-10T15:36:11.402Z",
+  "viewCount": 12
+}

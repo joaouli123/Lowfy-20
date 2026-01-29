@@ -1,0 +1,943 @@
+{
+  "id": 3740,
+  "user_id": 728,
+  "name": "Título Se livre do Refluxo Low",
+  "nodes": [
+    {
+      "id": "5bf9f5f8-3478-42c5-a8f4-a97798ae638d",
+      "data": {
+        "slug": "600d2q0w",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "4132c9dd-41d2-44cd-90fa-9118f70fb318",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p><strong>Análise inicial do seu perfil</strong></p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "4f0f5c85-9e17-4458-857b-402a5b51fd5e",
+            "data": {
+              "type": "bars",
+              "style": "default",
+              "content": [
+                {
+                  "id": "195360b6-ee58-4989-960c-301883d8c609",
+                  "label": "70%",
+                  "score": "70",
+                  "title": "Saúde em risco",
+                  "subtitle": "Frequência dos Sintomas",
+                  "description": null
+                },
+                {
+                  "id": "6f0c560a-509d-43aa-a2a3-e89ffbd939a0",
+                  "label": "30%",
+                  "score": "30",
+                  "title": "Necessita de ajuda",
+                  "subtitle": "Mudança na Dieta",
+                  "description": null
+                },
+                {
+                  "id": "7cfa9778-bce2-40c6-b72a-c84dee78e67f",
+                  "label": "95%",
+                  "score": "95",
+                  "title": "Grande Incômodo",
+                  "subtitle": "Impacto na Vida",
+                  "description": null
+                }
+              ],
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "chart",
+            "title": "Gráfico",
+            "category": "report"
+          },
+          {
+            "id": "e72ca23b-e6f3-4ee1-bba7-88e10bead1af",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p></p>",
+              "subtitle": "<p>Aprenda métodos naturais e eficazes para se livrar dos sintomas do refluxo e viver melhor.</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "4ce7bd75-2c54-433d-a33d-1f632cc9b880",
+            "data": {
+              "size": "w-full",
+              "image": "2524c5b8-cfc5-4f80-b297-9caa6db253d1",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "f3ca0cfc-cd9b-4628-b11b-aa2b893d62be",
+            "data": {
+              "style": "default",
+              "title": "EU QUERO ME LIVRAR DO REFLUXO AGROA!",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 346,
+      "dragging": false,
+      "position": {
+        "x": 2760.738685539125,
+        "y": -922.6313043762896
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2760.738685539125,
+        "y": -922.6313043762896
+      }
+    },
+    {
+      "id": "a4aaaa3d-d5d4-4c56-ba37-b94c582fc14d",
+      "data": {
+        "slug": "5v276027",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "689d3ede-c223-426d-92b6-285dd660e97d",
+            "data": {
+              "time": 8000,
+              "style": "default",
+              "title": "Analisando...",
+              "absolute": false,
+              "subtitle": "Estamos analisando suas respostas...",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "loading",
+            "title": "Carregamento",
+            "category": "action"
+          },
+          {
+            "id": "c3c2d666-8c01-47ae-99fc-56fcaafdfda3",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 184,
+      "dragging": false,
+      "position": {
+        "x": 2423.6752037712636,
+        "y": -719.9358210375041
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2423.6752037712636,
+        "y": -719.9358210375041
+      }
+    },
+    {
+      "id": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "data": {
+        "slug": "371d3j56",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "536d2680-17b1-4ecc-94df-4178b08a59e7",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "9559f0e3-d4d3-452f-a166-b931cfe00fdf",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Acredita que mudanças simples na alimentação poderiam ajudar?</p><p></p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "1ff1cc53-9d4c-414a-9414-72e51779a3fb",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "1d25a1dd-f147-44dc-9f14-4da2eca680f6",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim."
+                },
+                {
+                  "id": "3bf46a01-c3cd-48a4-93ec-d560f145a6fc",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Talvez."
+                },
+                {
+                  "id": "a8aea12f-abf4-4a25-b7ce-d97a54325420",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não sei."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 2084.1858135663297,
+        "y": -658.5945400763478
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2084.1858135663297,
+        "y": -658.5945400763478
+      }
+    },
+    {
+      "id": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "data": {
+        "slug": "374m6z25",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "8d833c75-3228-4b87-b248-9e5bf9f8afbc",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "fc0fafc1-401a-450e-b705-523e7900bcba",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você já consultou um médico para refluxo?</p><p></p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "cf56b98d-cdcb-417d-8dc7-699b96d907db",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "cc0b4c5f-5377-4d72-8a81-469f018c1f67",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim."
+                },
+                {
+                  "id": "f407dd6c-6163-4d35-8962-996a12ed114d",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não, mas estou pensando."
+                },
+                {
+                  "id": "7e45d268-c4c4-4660-abc6-bc5ff17b474d",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1756.1065204441804,
+        "y": -553.9353566210624
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1756.1065204441804,
+        "y": -553.9353566210624
+      }
+    },
+    {
+      "id": "96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "data": {
+        "slug": "0t430m48",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "4c06e3ff-6953-4e51-a09c-347cc6e486c5",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "6754bbe6-14c0-407b-9a65-6303b77bdf4e",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Qual é o maior incômodo do refluxo para você?</p><p></p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "8a9e527a-1839-47a1-9163-91c38841f805",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "67647ec7-3cac-4681-932e-a6ba899f5792",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Dor e queimação."
+                },
+                {
+                  "id": "2d46a695-5569-4f60-a33e-1b6235b73fa7",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Dificuldade de dormir."
+                },
+                {
+                  "id": "87dc18fb-2867-411f-8994-cb34d48c5f42",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Outros."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1416.5402437720604,
+        "y": -449.27617316577704
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1416.5402437720604,
+        "y": -449.27617316577704
+      }
+    },
+    {
+      "id": "8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "data": {
+        "slug": "6g1h420g",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "b46ba675-931b-49f8-97ea-28a86ed8cd93",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "22c8d089-d460-406e-80e4-dcf73130f0a5",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Quais tratamentos já tentou para o refluxo?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "bcf5a73c-5c56-436d-bb8f-51f6f5e14a67",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "46e7b283-f493-42eb-b72f-62ef309697c2",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Medicamentos."
+                },
+                {
+                  "id": "518f0e05-968d-4357-ba47-dbbc921e8298",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Mudança na dieta."
+                },
+                {
+                  "id": "0a7d836a-a1da-4e0c-be6a-fe12038e13cb",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Nenhum."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1085.9082876388063,
+        "y": -358.6566362715665
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1085.9082876388063,
+        "y": -358.6566362715665
+      }
+    },
+    {
+      "id": "b05516e3-5cb8-446f-9f31-a48ebdc7611e",
+      "data": {
+        "slug": "645u256l",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "260f7669-8794-4ba0-b734-bd3fc6172bfa",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "39c78bc9-0415-46db-8c01-44e4f88c9d1a",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você sofre de refluxo gástrico frequentemente?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "875a0834-14ab-455d-aa55-a11f3d9de5fd",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "5eb5d5f4-a00e-4c51-8d27-ebc20447c6de",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim, todos os dias."
+                },
+                {
+                  "id": "1a099ac1-5818-4632-a4c0-ef15e34f66b6",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Algumas vezes por semana."
+                },
+                {
+                  "id": "e9cbe830-8c86-4824-9c7c-9996b38b4f95",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "&nbsp;Raramente."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 766.7633150555225,
+        "y": -238.681474749654
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 766.7633150555225,
+        "y": -238.681474749654
+      }
+    },
+    {
+      "id": "16d971e3-30f6-4e8d-8ac2-76559649a6cb",
+      "data": {
+        "slug": "5k1s0z04",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "1d6a47f4-2568-4402-a0c2-f6a6b177b165",
+            "data": {
+              "size": "w-full",
+              "image": "e81030cc-305f-4b4c-a6f6-c61d9a5f3235",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "06ba8fac-1a1f-48d7-9725-09e07ba5983f",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Cansado de sofrer com refluxo gástrico</p>",
+              "subtitle": "<p>Se você lida com refluxo gástrico frequentemente, participe deste quiz. Identifique a melhor forma de tratar os sintomas e melhorar sua qualidade de vida. Vamos te ajudar a encontrar o alívio que você procura!</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "393abf08-2936-4b2f-ab86-b5bc69395d8a",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 238,
+      "dragging": false,
+      "position": {
+        "x": 425.1111111111111,
+        "y": -36.888888888888914
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 425.1111111111111,
+        "y": -36.888888888888914
+      }
+    },
+    {
+      "id": "root",
+      "data": {
+        "type": "start",
+        "title": "Início"
+      },
+      "type": "function",
+      "width": 288,
+      "height": 64,
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "draggable": false,
+      "selectable": false,
+      "positionAbsolute": {
+        "x": 100,
+        "y": 150
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-rootrootHandle-16d971e3-30f6-4e8d-8ac2-76559649a6cb16d971e3-30f6-4e8d-8ac2-76559649a6cb",
+      "type": "default",
+      "source": "root",
+      "target": "16d971e3-30f6-4e8d-8ac2-76559649a6cb",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "rootHandle",
+      "targetHandle": "16d971e3-30f6-4e8d-8ac2-76559649a6cb"
+    },
+    {
+      "id": "reactflow__edge-16d971e3-30f6-4e8d-8ac2-76559649a6cb393abf08-2936-4b2f-ab86-b5bc69395d8a-b05516e3-5cb8-446f-9f31-a48ebdc7611eb05516e3-5cb8-446f-9f31-a48ebdc7611e",
+      "type": "default",
+      "source": "16d971e3-30f6-4e8d-8ac2-76559649a6cb",
+      "target": "b05516e3-5cb8-446f-9f31-a48ebdc7611e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "393abf08-2936-4b2f-ab86-b5bc69395d8a",
+      "targetHandle": "b05516e3-5cb8-446f-9f31-a48ebdc7611e"
+    },
+    {
+      "id": "reactflow__edge-b05516e3-5cb8-446f-9f31-a48ebdc7611e5eb5d5f4-a00e-4c51-8d27-ebc20447c6de-8c56ce7e-ba0d-451c-b933-31578f17c14e8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "type": "default",
+      "source": "b05516e3-5cb8-446f-9f31-a48ebdc7611e",
+      "target": "8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "5eb5d5f4-a00e-4c51-8d27-ebc20447c6de",
+      "targetHandle": "8c56ce7e-ba0d-451c-b933-31578f17c14e"
+    },
+    {
+      "id": "reactflow__edge-b05516e3-5cb8-446f-9f31-a48ebdc7611e1a099ac1-5818-4632-a4c0-ef15e34f66b6-8c56ce7e-ba0d-451c-b933-31578f17c14e8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "type": "default",
+      "source": "b05516e3-5cb8-446f-9f31-a48ebdc7611e",
+      "target": "8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "1a099ac1-5818-4632-a4c0-ef15e34f66b6",
+      "targetHandle": "8c56ce7e-ba0d-451c-b933-31578f17c14e"
+    },
+    {
+      "id": "reactflow__edge-b05516e3-5cb8-446f-9f31-a48ebdc7611ee9cbe830-8c86-4824-9c7c-9996b38b4f95-8c56ce7e-ba0d-451c-b933-31578f17c14e8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "type": "default",
+      "source": "b05516e3-5cb8-446f-9f31-a48ebdc7611e",
+      "target": "8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "e9cbe830-8c86-4824-9c7c-9996b38b4f95",
+      "targetHandle": "8c56ce7e-ba0d-451c-b933-31578f17c14e"
+    },
+    {
+      "id": "reactflow__edge-8c56ce7e-ba0d-451c-b933-31578f17c14e46e7b283-f493-42eb-b72f-62ef309697c2-96c46e05-cd7a-4e5d-ae95-481a397d679c96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "type": "default",
+      "source": "8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "target": "96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "46e7b283-f493-42eb-b72f-62ef309697c2",
+      "targetHandle": "96c46e05-cd7a-4e5d-ae95-481a397d679c"
+    },
+    {
+      "id": "reactflow__edge-8c56ce7e-ba0d-451c-b933-31578f17c14e518f0e05-968d-4357-ba47-dbbc921e8298-96c46e05-cd7a-4e5d-ae95-481a397d679c96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "type": "default",
+      "source": "8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "target": "96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "518f0e05-968d-4357-ba47-dbbc921e8298",
+      "targetHandle": "96c46e05-cd7a-4e5d-ae95-481a397d679c"
+    },
+    {
+      "id": "reactflow__edge-8c56ce7e-ba0d-451c-b933-31578f17c14e0a7d836a-a1da-4e0c-be6a-fe12038e13cb-96c46e05-cd7a-4e5d-ae95-481a397d679c96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "type": "default",
+      "source": "8c56ce7e-ba0d-451c-b933-31578f17c14e",
+      "target": "96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "0a7d836a-a1da-4e0c-be6a-fe12038e13cb",
+      "targetHandle": "96c46e05-cd7a-4e5d-ae95-481a397d679c"
+    },
+    {
+      "id": "reactflow__edge-96c46e05-cd7a-4e5d-ae95-481a397d679c67647ec7-3cac-4681-932e-a6ba899f5792-81eb2e8b-a1d3-430c-a7ca-c3525ea7ac1481eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "type": "default",
+      "source": "96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "target": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "67647ec7-3cac-4681-932e-a6ba899f5792",
+      "targetHandle": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14"
+    },
+    {
+      "id": "reactflow__edge-96c46e05-cd7a-4e5d-ae95-481a397d679c2d46a695-5569-4f60-a33e-1b6235b73fa7-81eb2e8b-a1d3-430c-a7ca-c3525ea7ac1481eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "type": "default",
+      "source": "96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "target": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "2d46a695-5569-4f60-a33e-1b6235b73fa7",
+      "targetHandle": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14"
+    },
+    {
+      "id": "reactflow__edge-96c46e05-cd7a-4e5d-ae95-481a397d679c87dc18fb-2867-411f-8994-cb34d48c5f42-81eb2e8b-a1d3-430c-a7ca-c3525ea7ac1481eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "type": "default",
+      "source": "96c46e05-cd7a-4e5d-ae95-481a397d679c",
+      "target": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "87dc18fb-2867-411f-8994-cb34d48c5f42",
+      "targetHandle": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14"
+    },
+    {
+      "id": "reactflow__edge-81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14cc0b4c5f-5377-4d72-8a81-469f018c1f67-e65c56f4-5391-4bf9-bd34-8b652e66a6a9e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "type": "default",
+      "source": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "target": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "cc0b4c5f-5377-4d72-8a81-469f018c1f67",
+      "targetHandle": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9"
+    },
+    {
+      "id": "reactflow__edge-81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14f407dd6c-6163-4d35-8962-996a12ed114d-e65c56f4-5391-4bf9-bd34-8b652e66a6a9e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "type": "default",
+      "source": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "target": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "f407dd6c-6163-4d35-8962-996a12ed114d",
+      "targetHandle": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9"
+    },
+    {
+      "id": "reactflow__edge-81eb2e8b-a1d3-430c-a7ca-c3525ea7ac147e45d268-c4c4-4660-abc6-bc5ff17b474d-e65c56f4-5391-4bf9-bd34-8b652e66a6a9e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "type": "default",
+      "source": "81eb2e8b-a1d3-430c-a7ca-c3525ea7ac14",
+      "target": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "7e45d268-c4c4-4660-abc6-bc5ff17b474d",
+      "targetHandle": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9"
+    },
+    {
+      "id": "reactflow__edge-e65c56f4-5391-4bf9-bd34-8b652e66a6a91d25a1dd-f147-44dc-9f14-4da2eca680f6-a4aaaa3d-d5d4-4c56-ba37-b94c582fc14da4aaaa3d-d5d4-4c56-ba37-b94c582fc14d",
+      "type": "default",
+      "source": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "target": "a4aaaa3d-d5d4-4c56-ba37-b94c582fc14d",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "1d25a1dd-f147-44dc-9f14-4da2eca680f6",
+      "targetHandle": "a4aaaa3d-d5d4-4c56-ba37-b94c582fc14d"
+    },
+    {
+      "id": "reactflow__edge-e65c56f4-5391-4bf9-bd34-8b652e66a6a93bf46a01-c3cd-48a4-93ec-d560f145a6fc-a4aaaa3d-d5d4-4c56-ba37-b94c582fc14da4aaaa3d-d5d4-4c56-ba37-b94c582fc14d",
+      "type": "default",
+      "source": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "target": "a4aaaa3d-d5d4-4c56-ba37-b94c582fc14d",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "3bf46a01-c3cd-48a4-93ec-d560f145a6fc",
+      "targetHandle": "a4aaaa3d-d5d4-4c56-ba37-b94c582fc14d"
+    },
+    {
+      "id": "reactflow__edge-e65c56f4-5391-4bf9-bd34-8b652e66a6a9a8aea12f-abf4-4a25-b7ce-d97a54325420-a4aaaa3d-d5d4-4c56-ba37-b94c582fc14da4aaaa3d-d5d4-4c56-ba37-b94c582fc14d",
+      "type": "default",
+      "source": "e65c56f4-5391-4bf9-bd34-8b652e66a6a9",
+      "target": "a4aaaa3d-d5d4-4c56-ba37-b94c582fc14d",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "a8aea12f-abf4-4a25-b7ce-d97a54325420",
+      "targetHandle": "a4aaaa3d-d5d4-4c56-ba37-b94c582fc14d"
+    },
+    {
+      "id": "reactflow__edge-a4aaaa3d-d5d4-4c56-ba37-b94c582fc14dc3c2d666-8c01-47ae-99fc-56fcaafdfda3-5bf9f5f8-3478-42c5-a8f4-a97798ae638d5bf9f5f8-3478-42c5-a8f4-a97798ae638d",
+      "type": "default",
+      "source": "a4aaaa3d-d5d4-4c56-ba37-b94c582fc14d",
+      "target": "5bf9f5f8-3478-42c5-a8f4-a97798ae638d",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "c3c2d666-8c01-47ae-99fc-56fcaafdfda3",
+      "targetHandle": "5bf9f5f8-3478-42c5-a8f4-a97798ae638d"
+    }
+  ],
+  "url": "701e5q4a",
+  "status": "published",
+  "version": "beta",
+  "theme": {
+    "dark": false,
+    "logo": "d661ae3f-2f6b-4f8c-bd4e-fcd7d37d9487",
+    "color": "#0284c7"
+  },
+  "settings": {
+    "title": "Novo Projeto",
+    "utmify": false,
+    "cloaker": false,
+    "tracking": false,
+    "description": null,
+    "headerScript": null
+  },
+  "variables": [],
+  "deleted_at": null,
+  "created_at": "2024-09-25T20:06:10.000000Z",
+  "updated_at": "2024-09-26T20:26:06.000000Z",
+  "user": {
+    "id": 728,
+    "name": "joao lucas",
+    "email": "vendas.elast@gmail.com"
+  }
+}

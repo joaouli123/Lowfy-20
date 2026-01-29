@@ -1,0 +1,119 @@
+Auxiliar de carga
+Preencha os campos de parâmetros de dados obrigatórios e recomendados para ver como estruturar a carga ao enviá-la do seu servidor para o Facebook.
+
+Os eventos de loja física, app e web compartilhados usando a API de Conversões exigem parâmetros específicos. A lista de parâmetros obrigatórios está disponível aqui.
+
+Produto selecionado
+selectedProduct
+Site
+​
+Parâmetros do tipo do evento
+Os campos event_name, event_time e action_source
+são obrigatórios para todos os eventos, enquanto event_id é recomendado para deduplication. Além disso, os campos client_user_agent e event_source_url são obrigatórios para eventos do site.
+event_name
+Tipo: string
+Purchase
+​
+event_time
+Tipo: int
+1765652679
+action_source
+Tipo: string
+website
+​
+
+Adicionar parâmetros do tipo do evento
+Parâmetros de informações do cliente
+Inclua pelo menos um parâmetro de informações do cliente para cada evento que deseja enviar. O Facebook usará esses dados para as finalidades descritas em sua Termos das Ferramentas para Empresas, incluindo a atribuição de anúncios e a otimização de veiculação de anúncios.
+Todos os parâmetros de informações do cliente devem ser convertidos em hash como SHA256, exceto o endereço IP do cliente, o agente de usuário do cliente, a identificação do clique e a identificação do navegador. Outros parâmetros de informações do cliente que não forem convertidos em hash serão rejeitados automaticamente pelo Facebook.
+
+Excluir campo
+Email (em)∙ Opcional
+Tipo: string | Deve ser convertida em hash
+7b17fb0bd173f625b58636fb796407c22b3d16fc78302d79f0fd30c2fc2fc068
+Fechar
+
+Normalizar
+
+Hash
+Adicionar outro valor
+
+Excluir campo
+Número de telefone (ph)∙ Opcional
+Tipo: string | Deve ser convertida em hash
+16505551234
+
+Normalizar
+
+Hash
+Adicionar outro valor
+
+Adicionar parâmetros de informações do cliente
+Parâmetros de dados personalizados
+Selecione os parâmetros personalizados que você deseja usar para a atribuição de anúncios ou otimização da veiculação de anúncios ou crie um novo parâmetro personalizado.
+currency∙ Opcional
+Tipo: string
+USD
+Fechar
+value∙ Opcional
+Tipo: float
+142,52
+
+Adicionar parâmetros de dados personalizados
+Adicionar parâmetros de dados
+Selecione os parâmetros de atribuição que você deseja usar para a atribuição de anúncios ou a otimização da veiculação de anúncios.
+attribution_share∙ Opcional
+Tipo: float
+0,3
+
+Adicionar parâmetros de dados de atribuição
+Parâmetros de dados originais para eventos
+Selecione os parâmetros originais para eventos que você deseja usar para a atribuição de anúncios ou otimização da veiculação de anúncios.
+event_name∙ Opcional
+Tipo: string
+Purchase
+Fechar
+event_time∙ Opcional
+Tipo: int
+1765652679
+
+Adicionar parâmetros de dados originais para eventos
+Gerar código
+{
+"data": [
+{
+"event_name": "Purchase",
+"event_time": 1765652679,
+"action_source": "website",
+"user_data": {
+"em": [
+"7b17fb0bd173f625b58636fb796407c22b3d16fc78302d79f0fd30c2fc2fc068"
+],
+"ph": [
+null
+]
+},
+"attribution_data": {
+"attribution_share": "0.3"
+},
+"custom_data": {
+"currency": "USD",
+"value": "142.52"
+},
+"original_event_data": {
+"event_name": "Purchase",
+"event_time": 1765652679
+}
+}
+]
+}
+Copiar código na área de transferência
+​
+Você pode adicionar vários valores à maioria dos parâmetros de informações do cliente.
+Saiba mais
+Não foram encontrados erros.
+Testar esta carga
+Insira uma identificação de conjunto de dados (anteriormente chamado de pixel)
+
+Enviar para Eventos de Teste
+Abrir o Graph Explorer

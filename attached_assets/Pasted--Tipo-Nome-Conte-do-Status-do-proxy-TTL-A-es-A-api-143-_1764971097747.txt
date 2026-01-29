@@ -1,0 +1,366 @@
+		
+Tipo
+
+Nome
+
+Conteúdo
+
+Status do proxy
+
+TTL
+
+Ações
+
+A
+api
+143.198.173.38
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+
+
+A
+app
+34.111.179.208
+
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+
+
+A
+lowfy.com.br
+34.111.179.208
+
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+A
+portainer
+143.198.173.38
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+A
+tools
+34.111.179.208
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+AAAA
+lowfy.com.br
+2a02:4780:4f:8375:d79:d90b:6fbf:a858
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+AAAA
+lowfy.com.br
+2a02:4780:51:e640:8ee2:eb38:fab4:4ab3
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issue sectigo.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issuewild globalsign.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issue comodoca.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issue digicert.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issuewild letsencrypt.org
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issue letsencrypt.org
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issue globalsign.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issue pki.goog
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issuewild pki.goog
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issuewild comodoca.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issuewild digicert.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CAA
+lowfy.com.br
+0 issuewild sectigo.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CNAME
+autoconfig
+autoconfig.mail.hostinger.com
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CNAME
+autodiscover
+autodiscover.mail.hostinger.com
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+
+CNAME
+hostingermail-a._domainkey
+hostingermail-a.dkim.mail.hostinger.com
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+
+CNAME
+hostingermail-b._domainkey
+hostingermail-b.dkim.mail.hostinger.com
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+
+CNAME
+hostingermail-c._domainkey
+hostingermail-c.dkim.mail.hostinger.com
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CNAME
+www
+www.lowfy.com.br.cdn.hstgr.net
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+CNAME
+zcmp
+907125902.zcsend.net
+
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+MX
+lowfy.com.br
+mx2.hostinger.com
+
+10
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+MX
+lowfy.com.br
+mx1.hostinger.com
+
+5
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+NS
+lowfy.com.br
+ns1.dns-parking.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+NS
+lowfy.com.br
+ns2.dns-parking.com
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+271134._domainkey
+"k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDWp7t77/Sn8JMOKEhhJVsQ5rQxgkQUM6XcGZtFTsOwjMhKvB+/lYnOmaB7RIa/P7AbuqGnzzA7bh+YUWW0B6TsBUAWb/xQOtm80gBps7cnDiqTH+L2EKkzZ66gLztptCxRlimLeTjrYzln1Wyx+NWWOGueMWJSi5ePTaIns1fvSwIDAQAB"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+app
+"replit-verify=673edcf3-c91b-4562-8327-713cbc129a0b"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+_dmarc
+"v=DMARC1; p=none; rua=mailto:0500b7843abb4fe883bb5906829b7145@dmarc-reports.cloudflare.net,mailto:nao-responda@lowfy.com.br"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+_dmarc
+"v=DMARC1; p=quarantine; rua=mailto:0500b7843abb4fe883bb5906829b7145@dmarc-reports.cloudflare.net,mailto:dmarc@lowfy.com.br"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+_dmarc
+"v=DMARC1; p=none; rua=mailto:0500b7843abb4fe883bb5906829b7145@dmarc-reports.cloudflare.net;"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+lowfy.com.br
+"v=spf1 include:spf.mx.hostinger.com include:relay.mailchannels.net ~all"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+lowfy.com.br
+"google-site-verification=yfe4WAefPSRYkodaoxVceDAEPfhQkpbh2lYddAzOqTk"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+lowfy.com.br
+"replit-verify=673edcf3-c91b-4562-8327-713cbc129a0b"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+proxy
+"replit-verify=673edcf3-c91b-4562-8327-713cbc129a0b"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+TXT
+_vercel
+"vc-domain-verify=app.lowfy.com.br,fca62f38ee79af2c9c82"
+Somente DNS
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.
+
+Worker
+proxy.lowfy.com.br
+restless-disk-8c23lowfy-proxy
+
+Com proxy
+
+Auto
+EditarQuando aberta, uma linha de tabela adicional será adicionada abaixo dessa linha para permitir a edição de registros de DNS.

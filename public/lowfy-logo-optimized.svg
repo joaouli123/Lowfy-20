@@ -1,0 +1,24 @@
+<svg width="200" height="60" viewBox="0 0 980 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Ícone do livro (quadrado arredondado com página) -->
+  <rect x="10" y="10" width="260" height="260" rx="60" fill="#3A6B5F"/>
+  <path d="M70 70 L210 70 L210 210 L140 150 L70 210 Z" fill="#0A1F1A"/>
+  
+  <!-- Texto "lowfy" -->
+  <g transform="translate(300, 0)">
+    <!-- l -->
+    <rect x="0" y="40" width="60" height="200" fill="#3A6B5F"/>
+    
+    <!-- o -->
+    <circle cx="155" cy="140" r="70" fill="#3A6B5F"/>
+    <circle cx="155" cy="140" r="40" fill="#ffffff"/>
+    
+    <!-- w -->
+    <path d="M250 80 L290 240 L330 160 L370 240 L410 80 L370 80 L350 180 L330 130 L310 180 L290 80 Z" fill="#3A6B5F"/>
+    
+    <!-- f -->
+    <path d="M440 40 L500 40 L500 80 L460 80 L460 120 L490 120 L490 160 L460 160 L460 240 L440 240 Z" fill="#3A6B5F"/>
+    
+    <!-- y -->
+    <path d="M530 80 L570 170 L610 80 L650 80 L590 200 L590 280 L550 280 L550 200 L490 80 Z" fill="#3A6B5F"/>
+  </g>
+</svg>

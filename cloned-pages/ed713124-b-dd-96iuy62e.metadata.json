@@ -1,0 +1,14 @@
+{
+  "userId": "ed713124-bfbf-45d9-a530-59ca08c39c42",
+  "originalName": "dd",
+  "createdAt": "2025-12-03T00:55:02.459Z",
+  "viewCount": 0,
+  "requiresDomain": true,
+  "customDomain": "teste5.sistemadetestes.shop",
+  "domainAddedAt": "2025-12-03T14:46:04.286Z",
+  "isActive": true,
+  "deactivatedAt": null,
+  "cloudflareHostnameId": "9dd53b72-5c4b-4ed2-ab94-431ab8063953",
+  "cloudflareStatus": "pending",
+  "sslStatus": "initializing"
+}

@@ -1,0 +1,12 @@
+{
+  "trackingCodes": {
+    "head": "<!-- Meta Pixel Code -->\n<script>\n  !function(f,b,e,v,n,t,s)\n  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?\n  n.callMethod.apply(n,arguments):n.queue.push(arguments)};\n  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';\n  n.queue=[];t=b.createElement(e);t.async=!0;\n  t.src=v;s=b.getElementsByTagName(e)[0];\n  s.parentNode.insertBefore(t,s)}(window, document,'script',\n  'https://connect.facebook.net/en_US/fbevents.js');\n  fbq('init', '585567379246219'); \n  fbq('track', 'PageView');\n</script>\n<noscript>\n  <img height=\"1\" width=\"1\" style=\"display:none\"\n  src=\"https://www.facebook.com/tr?id=585567379246219&ev=PageView&noscript=1\"/>\n</noscript>\n<!-- End Meta Pixel Code -->\n\n\n\n<!-- Google Tag Manager -->\n<script>\n(function(w,d,s,l,i){\n    w[l]=w[l]||[];\n    w[l].push({'gtm.start': new Date().getTime(), event:'gtm.js'});\n    var f=d.getElementsByTagName(s)[0],\n        j=d.createElement(s),\n        dl=l!='dataLayer'?'&l='+l:'';\n    j.async=true;\n    j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;\n    f.parentNode.insertBefore(j,f);\n})(window,document,'script','dataLayer','GTM-PSSS2DP3');\n</script>\n<!-- End Google Tag Manager -->\n",
+    "body": null,
+    "footer": null
+  },
+  "removeOldPixels": true,
+  "deactivateOtherScripts": true,
+  "lastUpdated": "2025-10-10T14:19:54.014Z",
+  "createdAt": "2025-10-10T14:16:44.301Z",
+  "viewCount": 28
+}

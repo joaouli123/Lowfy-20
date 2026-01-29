@@ -1,0 +1,929 @@
+{
+  "id": 3719,
+  "user_id": 728,
+  "name": "Título Autismo Low",
+  "nodes": [
+    {
+      "id": "38191e0b-e851-4ff0-8681-9ffa2476bfc6",
+      "data": {
+        "slug": "3d1b5p6p",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "f9d7fa67-f959-430e-9edf-3c3a5dc8c816",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Análise do seu perfil baseado em suas respostas.</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "c1aa63fa-0605-4fe3-9f07-1e17bfb0aeca",
+            "data": {
+              "type": "bars",
+              "style": "default",
+              "content": [
+                {
+                  "id": "8f64c0cf-4fc0-484d-bd8c-ad7656a16af2",
+                  "label": "30%",
+                  "score": "30",
+                  "title": "Necessita de conhecimento",
+                  "subtitle": "Familiaridade com Autismo:",
+                  "description": null
+                },
+                {
+                  "id": "af8cd262-511d-4a10-8d3f-ab98187204b4",
+                  "label": "80%",
+                  "score": "80",
+                  "title": "Necessita de apoio",
+                  "subtitle": "Desafios Diários",
+                  "description": null
+                },
+                {
+                  "id": "aed32cef-4cd8-458b-a098-0d97238079a1",
+                  "label": "90%",
+                  "score": "90",
+                  "title": "Precisa de ajuda",
+                  "subtitle": "Terapias",
+                  "description": null
+                }
+              ],
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "chart",
+            "title": "Gráfico",
+            "category": "report"
+          },
+          {
+            "id": "12c42cec-36ea-4bf2-9156-1ffbe9e5b00b",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p></p>",
+              "subtitle": "<p>Temos o e-book é ideal para você que busca compreender melhor o autismo e encontrar maneiras de lidar com os desafios.</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "65a66013-a528-4faa-8b9a-a9607a4f788f",
+            "data": {
+              "size": "w-full",
+              "image": "f66a62e5-2538-49fc-991d-eb7938b74e6a",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "6206b797-4847-4773-95ce-a6eebbe8cd79",
+            "data": {
+              "style": "default",
+              "title": "EU QUERO COMEÇAR AGORA!",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 346,
+      "dragging": false,
+      "position": {
+        "x": 2736.779625654628,
+        "y": -790.7616982572404
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2736.779625654628,
+        "y": -790.7616982572404
+      }
+    },
+    {
+      "id": "b8823120-30ed-4c91-a820-79354439ee6c",
+      "data": {
+        "slug": "3v3v1k0p",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "193e0b00-d5fe-49d9-9ab2-230d7dd367ef",
+            "data": {
+              "time": 8000,
+              "style": "default",
+              "title": "Estamos analisando suas respostas...",
+              "absolute": false,
+              "subtitle": "Confira o os resultados baseados em suas respostas aperte no botão abaixo para continuar!",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "loading",
+            "title": "Carregamento",
+            "category": "action"
+          },
+          {
+            "id": "00eaf5a9-e0b4-440f-a214-dde32bc4b7eb",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 184,
+      "dragging": false,
+      "position": {
+        "x": 2376.808364627562,
+        "y": -641.8008240932369
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2376.808364627562,
+        "y": -641.8008240932369
+      }
+    },
+    {
+      "id": "08ead388-10f5-4512-9500-140468342794",
+      "data": {
+        "slug": "4424231r",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "048234aa-9773-4a40-b7a4-e79a46a0a20d",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "47bee999-23b9-4600-9674-d345fedb32f5",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Gostaria de aprender mais sobre o autismo?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "cb452eb9-43a6-4837-ac95-cb69a883d620",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "6c8f68d9-fb8c-449e-8321-881fd3ffd55d",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim, preciso de mais informações."
+                },
+                {
+                  "id": "5040d90b-c49b-436c-a38c-0b90992ae016",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Talvez."
+                },
+                {
+                  "id": "b0d89ef0-63c2-4940-b6d6-5e04fb0ffb18",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não tenho certeza."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 2026.5098876371192,
+        "y": -570.2222222222223
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2026.5098876371192,
+        "y": -570.2222222222223
+      }
+    },
+    {
+      "id": "dbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "data": {
+        "slug": "5z4h0j2x",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "3e019c5f-c0e7-41f5-8ebb-a8522d10ebcb",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "c4d87144-439d-45c2-ae58-af7627eb14f0",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Está familiarizado com terapias para autismo?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "5b0611b0-7946-498a-8d44-ebb866bfee9a",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "df9db846-4e58-48de-aab7-66bd1d9ac4b3",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim, conheço várias."
+                },
+                {
+                  "id": "b9343ce0-ccb8-4af7-afab-6d6d01003032",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Conheço algumas."
+                },
+                {
+                  "id": "853011fd-c6b1-4a1c-bf36-d2ccd5710a5f",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1689.5555555555552,
+        "y": -466.8888888888889
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1689.5555555555552,
+        "y": -466.8888888888889
+      }
+    },
+    {
+      "id": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "data": {
+        "slug": "621j1r1c",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "969ab435-987e-41d5-8178-1a3045b52b02",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "7f210a65-0248-4b65-8238-7b786f5b05e5",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você já procurou ajuda profissional?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "e2800d18-e7fc-43ff-86cd-affdef730cb5",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "d7d31ddf-0afe-4b24-a070-cd6c7eee285d",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim, regularmente."
+                },
+                {
+                  "id": "88ac4a8c-e900-46d6-bf93-44c4a05923d9",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Algumas vezes."
+                },
+                {
+                  "id": "bc9d0882-1c01-4ed8-a533-09533861f57e",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1371.7777777777774,
+        "y": -345.7777777777778
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1371.7777777777774,
+        "y": -345.7777777777778
+      }
+    },
+    {
+      "id": "d6236a8d-81b6-4455-9b69-027bce95b13c",
+      "data": {
+        "slug": "0l492p1f",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "8abd5879-17ee-426a-9cf4-229de2cb33ae",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "78581d18-5c83-4b87-ab0b-2bb36ffd3ac3",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Como você lida com os desafios relacionados ao autismo?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "295cc4ed-efcc-4e9b-a53e-9f0d2c3fc53a",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "71421b04-d828-447e-8b67-6a5befb6aa32",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Com dificuldade."
+                },
+                {
+                  "id": "8496de4e-ba36-443e-be33-90e50576c6fd",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Depende da situação."
+                },
+                {
+                  "id": "94abe707-c1e9-40f7-a4fa-54ac616d19d4",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Bem."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1049.803670421974,
+        "y": -238.32721596337635
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1049.803670421974,
+        "y": -238.32721596337635
+      }
+    },
+    {
+      "id": "ca765600-1afd-4be1-929e-af984811f186",
+      "data": {
+        "slug": "0g536u5t",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "d839df17-2d24-4538-9330-4b8512420a0e",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "d5dbc887-110c-4090-84eb-2abc8e7cc964",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você ou alguém próximo foi diagnosticado com autismo?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "5c03cd81-7307-418d-87db-b6c6c6a0df2a",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "52228f3c-3c76-4052-9da9-bab0427fa6a1",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim."
+                },
+                {
+                  "id": "7ef24462-db00-43b9-bf68-a40fc27c5765",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não, mas suspeito."
+                },
+                {
+                  "id": "2f96d9a9-35cf-4c38-8bd9-769081dc1b53",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não"
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 740.6666666666666,
+        "y": -90.22222222222226
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 740.6666666666666,
+        "y": -90.22222222222226
+      }
+    },
+    {
+      "id": "7fda7df7-7fcc-4355-999a-739a22265f7a",
+      "data": {
+        "slug": "09721s4j",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "5c26b0c2-6c97-44c5-9175-8c4b4d734aa6",
+            "data": {
+              "size": "w-full",
+              "image": "203b8163-66ba-4035-ad7a-f118252b7d3c",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "1c739d3f-1132-4256-9149-e8c6a31d79b5",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Quer entender melhor o autismo e seus desafios</p>",
+              "subtitle": "<p>Se você ou alguém próximo foi diagnosticado com autismo, este quiz pode te ajudar a entender melhor o assunto. Responda às perguntas e receba estratégias para lidar com os desafios diários do autismo.</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "be635748-5ce8-405e-9571-ee95d814744f",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 238,
+      "dragging": false,
+      "position": {
+        "x": 432.8888888888888,
+        "y": -18.00000000000003
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 432.8888888888888,
+        "y": -18.00000000000003
+      }
+    },
+    {
+      "id": "root",
+      "data": {
+        "type": "start",
+        "title": "Início"
+      },
+      "type": "function",
+      "width": 288,
+      "height": 64,
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "draggable": false,
+      "selectable": false,
+      "positionAbsolute": {
+        "x": 100,
+        "y": 150
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-rootrootHandle-7fda7df7-7fcc-4355-999a-739a22265f7a7fda7df7-7fcc-4355-999a-739a22265f7a",
+      "type": "default",
+      "source": "root",
+      "target": "7fda7df7-7fcc-4355-999a-739a22265f7a",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "rootHandle",
+      "targetHandle": "7fda7df7-7fcc-4355-999a-739a22265f7a"
+    },
+    {
+      "id": "reactflow__edge-7fda7df7-7fcc-4355-999a-739a22265f7abe635748-5ce8-405e-9571-ee95d814744f-ca765600-1afd-4be1-929e-af984811f186ca765600-1afd-4be1-929e-af984811f186",
+      "type": "default",
+      "source": "7fda7df7-7fcc-4355-999a-739a22265f7a",
+      "target": "ca765600-1afd-4be1-929e-af984811f186",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "be635748-5ce8-405e-9571-ee95d814744f",
+      "targetHandle": "ca765600-1afd-4be1-929e-af984811f186"
+    },
+    {
+      "id": "reactflow__edge-ca765600-1afd-4be1-929e-af984811f18652228f3c-3c76-4052-9da9-bab0427fa6a1-d6236a8d-81b6-4455-9b69-027bce95b13cd6236a8d-81b6-4455-9b69-027bce95b13c",
+      "type": "default",
+      "source": "ca765600-1afd-4be1-929e-af984811f186",
+      "target": "d6236a8d-81b6-4455-9b69-027bce95b13c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "52228f3c-3c76-4052-9da9-bab0427fa6a1",
+      "targetHandle": "d6236a8d-81b6-4455-9b69-027bce95b13c"
+    },
+    {
+      "id": "reactflow__edge-ca765600-1afd-4be1-929e-af984811f1867ef24462-db00-43b9-bf68-a40fc27c5765-d6236a8d-81b6-4455-9b69-027bce95b13cd6236a8d-81b6-4455-9b69-027bce95b13c",
+      "type": "default",
+      "source": "ca765600-1afd-4be1-929e-af984811f186",
+      "target": "d6236a8d-81b6-4455-9b69-027bce95b13c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "7ef24462-db00-43b9-bf68-a40fc27c5765",
+      "targetHandle": "d6236a8d-81b6-4455-9b69-027bce95b13c"
+    },
+    {
+      "id": "reactflow__edge-ca765600-1afd-4be1-929e-af984811f1862f96d9a9-35cf-4c38-8bd9-769081dc1b53-d6236a8d-81b6-4455-9b69-027bce95b13cd6236a8d-81b6-4455-9b69-027bce95b13c",
+      "type": "default",
+      "source": "ca765600-1afd-4be1-929e-af984811f186",
+      "target": "d6236a8d-81b6-4455-9b69-027bce95b13c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "2f96d9a9-35cf-4c38-8bd9-769081dc1b53",
+      "targetHandle": "d6236a8d-81b6-4455-9b69-027bce95b13c"
+    },
+    {
+      "id": "reactflow__edge-d6236a8d-81b6-4455-9b69-027bce95b13c71421b04-d828-447e-8b67-6a5befb6aa32-0f476e6b-c6fe-4677-a182-6e6a38cff2f40f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "type": "default",
+      "source": "d6236a8d-81b6-4455-9b69-027bce95b13c",
+      "target": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "71421b04-d828-447e-8b67-6a5befb6aa32",
+      "targetHandle": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4"
+    },
+    {
+      "id": "reactflow__edge-d6236a8d-81b6-4455-9b69-027bce95b13c8496de4e-ba36-443e-be33-90e50576c6fd-0f476e6b-c6fe-4677-a182-6e6a38cff2f40f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "type": "default",
+      "source": "d6236a8d-81b6-4455-9b69-027bce95b13c",
+      "target": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "8496de4e-ba36-443e-be33-90e50576c6fd",
+      "targetHandle": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4"
+    },
+    {
+      "id": "reactflow__edge-d6236a8d-81b6-4455-9b69-027bce95b13c94abe707-c1e9-40f7-a4fa-54ac616d19d4-0f476e6b-c6fe-4677-a182-6e6a38cff2f40f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "type": "default",
+      "source": "d6236a8d-81b6-4455-9b69-027bce95b13c",
+      "target": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "94abe707-c1e9-40f7-a4fa-54ac616d19d4",
+      "targetHandle": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4"
+    },
+    {
+      "id": "reactflow__edge-0f476e6b-c6fe-4677-a182-6e6a38cff2f4d7d31ddf-0afe-4b24-a070-cd6c7eee285d-dbe65f15-5ff5-478c-b047-42ccdb70a67edbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "type": "default",
+      "source": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "target": "dbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "d7d31ddf-0afe-4b24-a070-cd6c7eee285d",
+      "targetHandle": "dbe65f15-5ff5-478c-b047-42ccdb70a67e"
+    },
+    {
+      "id": "reactflow__edge-0f476e6b-c6fe-4677-a182-6e6a38cff2f488ac4a8c-e900-46d6-bf93-44c4a05923d9-dbe65f15-5ff5-478c-b047-42ccdb70a67edbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "type": "default",
+      "source": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "target": "dbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "88ac4a8c-e900-46d6-bf93-44c4a05923d9",
+      "targetHandle": "dbe65f15-5ff5-478c-b047-42ccdb70a67e"
+    },
+    {
+      "id": "reactflow__edge-0f476e6b-c6fe-4677-a182-6e6a38cff2f4bc9d0882-1c01-4ed8-a533-09533861f57e-dbe65f15-5ff5-478c-b047-42ccdb70a67edbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "type": "default",
+      "source": "0f476e6b-c6fe-4677-a182-6e6a38cff2f4",
+      "target": "dbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "bc9d0882-1c01-4ed8-a533-09533861f57e",
+      "targetHandle": "dbe65f15-5ff5-478c-b047-42ccdb70a67e"
+    },
+    {
+      "id": "reactflow__edge-dbe65f15-5ff5-478c-b047-42ccdb70a67edf9db846-4e58-48de-aab7-66bd1d9ac4b3-08ead388-10f5-4512-9500-14046834279408ead388-10f5-4512-9500-140468342794",
+      "type": "default",
+      "source": "dbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "target": "08ead388-10f5-4512-9500-140468342794",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "df9db846-4e58-48de-aab7-66bd1d9ac4b3",
+      "targetHandle": "08ead388-10f5-4512-9500-140468342794"
+    },
+    {
+      "id": "reactflow__edge-dbe65f15-5ff5-478c-b047-42ccdb70a67eb9343ce0-ccb8-4af7-afab-6d6d01003032-08ead388-10f5-4512-9500-14046834279408ead388-10f5-4512-9500-140468342794",
+      "type": "default",
+      "source": "dbe65f15-5ff5-478c-b047-42ccdb70a67e",
+      "target": "08ead388-10f5-4512-9500-140468342794",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "b9343ce0-ccb8-4af7-afab-6d6d01003032",
+      "targetHandle": "08ead388-10f5-4512-9500-140468342794"
+    },
+    {
+      "id": "reactflow__edge-08ead388-10f5-4512-9500-1404683427946c8f68d9-fb8c-449e-8321-881fd3ffd55d-b8823120-30ed-4c91-a820-79354439ee6cb8823120-30ed-4c91-a820-79354439ee6c",
+      "type": "default",
+      "source": "08ead388-10f5-4512-9500-140468342794",
+      "target": "b8823120-30ed-4c91-a820-79354439ee6c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "6c8f68d9-fb8c-449e-8321-881fd3ffd55d",
+      "targetHandle": "b8823120-30ed-4c91-a820-79354439ee6c"
+    },
+    {
+      "id": "reactflow__edge-08ead388-10f5-4512-9500-1404683427945040d90b-c49b-436c-a38c-0b90992ae016-b8823120-30ed-4c91-a820-79354439ee6cb8823120-30ed-4c91-a820-79354439ee6c",
+      "type": "default",
+      "source": "08ead388-10f5-4512-9500-140468342794",
+      "target": "b8823120-30ed-4c91-a820-79354439ee6c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "5040d90b-c49b-436c-a38c-0b90992ae016",
+      "targetHandle": "b8823120-30ed-4c91-a820-79354439ee6c"
+    },
+    {
+      "id": "reactflow__edge-08ead388-10f5-4512-9500-140468342794b0d89ef0-63c2-4940-b6d6-5e04fb0ffb18-b8823120-30ed-4c91-a820-79354439ee6cb8823120-30ed-4c91-a820-79354439ee6c",
+      "type": "default",
+      "source": "08ead388-10f5-4512-9500-140468342794",
+      "target": "b8823120-30ed-4c91-a820-79354439ee6c",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "b0d89ef0-63c2-4940-b6d6-5e04fb0ffb18",
+      "targetHandle": "b8823120-30ed-4c91-a820-79354439ee6c"
+    },
+    {
+      "id": "reactflow__edge-b8823120-30ed-4c91-a820-79354439ee6c00eaf5a9-e0b4-440f-a214-dde32bc4b7eb-38191e0b-e851-4ff0-8681-9ffa2476bfc638191e0b-e851-4ff0-8681-9ffa2476bfc6",
+      "type": "default",
+      "source": "b8823120-30ed-4c91-a820-79354439ee6c",
+      "target": "38191e0b-e851-4ff0-8681-9ffa2476bfc6",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "00eaf5a9-e0b4-440f-a214-dde32bc4b7eb",
+      "targetHandle": "38191e0b-e851-4ff0-8681-9ffa2476bfc6"
+    }
+  ],
+  "url": "091o2122",
+  "status": "published",
+  "version": "beta",
+  "theme": {
+    "dark": false,
+    "logo": "d661ae3f-2f6b-4f8c-bd4e-fcd7d37d9487",
+    "color": "#0284c7"
+  },
+  "settings": {
+    "title": "Novo Projeto",
+    "utmify": false,
+    "cloaker": false,
+    "tracking": false,
+    "description": null,
+    "headerScript": null
+  },
+  "variables": [],
+  "deleted_at": null,
+  "created_at": "2024-09-25T13:10:20.000000Z",
+  "updated_at": "2024-09-25T14:15:24.000000Z",
+  "user": {
+    "id": 728,
+    "name": "joao lucas",
+    "email": "vendas.elast@gmail.com"
+  }
+}

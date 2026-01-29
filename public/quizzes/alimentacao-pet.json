@@ -1,0 +1,955 @@
+{
+  "id": 3690,
+  "user_id": 728,
+  "name": "Título Adestramento Pet Low",
+  "nodes": [
+    {
+      "id": "54f431aa-3f42-461b-b90d-12c5cb180f68",
+      "data": {
+        "slug": "3r300y69",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "7e7b94d1-0361-4e50-8d27-f275aecc754d",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "47538fc4-84ac-4aa5-8e02-379f6fd251c9",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p><strong>Análise inicial do seu perfil</strong></p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "dcb9812f-0ca8-4f3d-9592-5348e8677603",
+            "data": {
+              "type": "bars",
+              "style": "default",
+              "content": [
+                {
+                  "id": "866fd109-6e1e-4c46-8a3a-6a74ae1a3e6b",
+                  "label": "70%",
+                  "score": "70",
+                  "title": "Indisciplinado",
+                  "subtitle": "Nível de Comportamento",
+                  "description": null
+                },
+                {
+                  "id": "717ad626-d99d-42e3-900b-fe597eac8179",
+                  "label": "30%",
+                  "score": "30",
+                  "title": "Baixo",
+                  "subtitle": "Tempo Ideal",
+                  "description": null
+                },
+                {
+                  "id": "dc8c09ed-3abd-4573-b36c-5c7375e0b562",
+                  "label": "60%",
+                  "score": "60",
+                  "title": "Problemas em alta",
+                  "subtitle": "Problemas Comportamentais",
+                  "description": null
+                }
+              ],
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "chart",
+            "title": "Gráfico",
+            "category": "report"
+          },
+          {
+            "id": "d636f239-c46f-4266-b34a-e47c789f48f5",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p></p>",
+              "subtitle": "<p>Para transformar seu pet em um cão bem-educado, temos um e-book que te ajudará com técnicas eficazes de adestramento.</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "4e5b65c8-137b-4773-8849-d412e3905e0d",
+            "data": {
+              "size": "w-full",
+              "image": "e35c609d-162f-4eb5-b32b-6903b9883f04",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "29d18cb1-104f-42dd-9857-bc602b7b7fa5",
+            "data": {
+              "style": "default",
+              "title": "QUERO COMEÇAR AGORA!",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 392,
+      "dragging": false,
+      "position": {
+        "x": 2903.138695847738,
+        "y": -850.7733377186895
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2903.138695847738,
+        "y": -850.7733377186895
+      }
+    },
+    {
+      "id": "279a6867-7429-4e53-aeda-7e997a3839d8",
+      "data": {
+        "slug": "3n1o1c3s",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "35279f06-94f4-4bf4-a75a-b7181c4e2c8b",
+            "data": {
+              "time": 8000,
+              "style": "default",
+              "title": "Estamos analisando suas respostas...",
+              "absolute": false,
+              "subtitle": "Confira o os resultados baseados em suas respostas aperte no botão abaixo para continuar!",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "loading",
+            "title": "Carregamento",
+            "category": "action"
+          },
+          {
+            "id": "add674fb-20b9-4109-a232-787da54fd3d0",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 184,
+      "dragging": false,
+      "position": {
+        "x": 2537.682590366898,
+        "y": -668.8873497374418
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2537.682590366898,
+        "y": -668.8873497374418
+      }
+    },
+    {
+      "id": "248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "data": {
+        "slug": "4r3i233c",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "d32e1d9d-19a4-4b58-b749-1a944596a313",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "4919457d-467f-4d54-9b37-667eec6c8493",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você já usou técnicas de adestramento antes?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "c185af5d-9646-4184-821e-9c971d5112d0",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "c3e23ed5-f4db-4cce-a7b7-98e63d900fc1",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Não, sou iniciante."
+                },
+                {
+                  "id": "4900c475-b9a5-4c98-9750-151375224067",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Sim, mas não tive sucesso."
+                },
+                {
+                  "id": "37403e50-d886-4799-b2ef-ee316aca06c1",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Sim, e tive resultados moderados."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1832.2110933715855,
+        "y": -547.0842359554968
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1832.2110933715855,
+        "y": -547.0842359554968
+      }
+    },
+    {
+      "id": "79011b7d-27b3-435b-8aa8-0105376c71b4",
+      "data": {
+        "slug": "2i576i10",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "ed485d47-2216-4139-9d98-2986aeba82cb",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "7fe06143-0bbb-4960-95a0-dce804792cce",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Seu cachorro tem problemas comportamentais como latir muito ou roer móveis?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "56f5b69a-ddda-41d9-8b72-b997bb8b9930",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "d7ea460b-1daf-44fd-bf17-131a1073690f",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim, isso é um grande problema."
+                },
+                {
+                  "id": "8743443b-a7ac-43ed-beca-1e273510cff2",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Às vezes acontece."
+                },
+                {
+                  "id": "418edef6-eb63-4a4f-8fe0-2db1e1eb44e8",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não, ele é bem comportado."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1449.9888711493634,
+        "y": -360.4175692888301
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1449.9888711493634,
+        "y": -360.4175692888301
+      }
+    },
+    {
+      "id": "3c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "data": {
+        "slug": "6z175x5a",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "15d05488-1f2d-4a4c-a2fa-cf380e63ad51",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "68456340-4e29-47d4-ab26-38075d16ecbc",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Quantas horas por semana você dedica ao adestramento?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "fb9563b0-21f2-4f12-8cd1-d6a7bc876f40",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "63bebe83-913c-4c0d-9243-3da56522d7f4",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Menos de 1 hora."
+                },
+                {
+                  "id": "51fde2aa-e7ce-4fb0-9db8-b87423143b4b",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Entre 1 e 3 horas."
+                },
+                {
+                  "id": "e475ed05-1a32-4173-a6fe-802a5682f380",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Mais de 3 horas."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 1114.4333155938075,
+        "y": -259.306458177719
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1114.4333155938075,
+        "y": -259.306458177719
+      }
+    },
+    {
+      "id": "939329af-7ac6-4812-8993-70cda0105e30",
+      "data": {
+        "slug": "4z6i400k",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "4b19f92e-6d12-4eac-86b6-381b1f14b740",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "bdd6277b-8c71-44b8-8057-81e90553972b",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Quais comportamentos você gostaria de melhorar em seu cão?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "e5a61553-7e9f-4057-8eda-7df5c6768040",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "f5f0b334-9d6e-439a-8d13-bbe041d0dff7",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Parar de latir excessivamente."
+                },
+                {
+                  "id": "6eb3fd09-a315-4ba9-98c4-e3d02ce5acc2",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Parar de destruir objetos."
+                },
+                {
+                  "id": "906b43f4-dc0b-490c-9a0d-c89cc597d670",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Aprender novos comandos e truques."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 2204,
+        "y": -636.8888888888889
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 2204,
+        "y": -636.8888888888889
+      }
+    },
+    {
+      "id": "27891a9f-4b88-4452-8f7a-193e9c78fc5a",
+      "data": {
+        "slug": "3p2h5r4k",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "15f6e77f-2390-46b1-a21b-d16bbf23c8af",
+            "data": {
+              "end": 10,
+              "start": 0,
+              "style": "default",
+              "animation": "none"
+            },
+            "type": "progress",
+            "title": "Progresso",
+            "category": "heading"
+          },
+          {
+            "id": "b445b46b-1767-482c-80d0-09370cf36f54",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p>Você tem dificuldades para treinar seu cão?</p>",
+              "subtitle": "<p></p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "5e309699-8d09-421e-b0db-e57b555d1af3",
+            "data": {
+              "model": "text-only",
+              "columns": "grid-cols-1",
+              "content": [
+                {
+                  "id": "47164034-0c61-4050-8d8e-40a688aa2a36",
+                  "emoji": "021",
+                  "image": "d7f4ab85-80de-4674-abc8-8e13370c2b86",
+                  "title": "Sim, é muito difícil."
+                },
+                {
+                  "id": "aebb0872-1323-4573-9ab3-803c9ab4a843",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Às vezes consigo, mas nem sempre."
+                },
+                {
+                  "id": "b8311ddd-efc7-4d2b-a583-3a9706209dde",
+                  "emoji": "050",
+                  "image": "7f5e5b60-78d2-45e9-9fde-79f9cd13511c",
+                  "title": "Não, consigo treinar bem."
+                }
+              ],
+              "alignment": "left",
+              "animation": "fade-in",
+              "placement": "image-bottom"
+            },
+            "type": "quiz",
+            "title": "Quiz",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 354,
+      "dragging": false,
+      "position": {
+        "x": 788.8777600382524,
+        "y": -220.41756928883007
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 788.8777600382524,
+        "y": -220.41756928883007
+      }
+    },
+    {
+      "id": "66e0fb6b-775d-48b9-9cc8-cfaf7c3cb5da",
+      "data": {
+        "slug": "1p4q2v4s",
+        "title": "Nova Página",
+        "content": [
+          {
+            "id": "3d7e3bef-d38b-41a0-8ed3-45f7a13ae5a2",
+            "data": {
+              "size": "w-full",
+              "image": "574470f0-d23a-4f11-91c9-09e0fd91ac18",
+              "style": "default",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "image",
+            "title": "Imagem",
+            "category": "midea"
+          },
+          {
+            "id": "0bc26ac6-a302-48e7-aa7c-4f348596219e",
+            "data": {
+              "size": "text-xl",
+              "style": "default",
+              "title": "<p><strong>Descubra como transformar seu pet em um cão bem-educado!</strong></p>",
+              "subtitle": "<p>Aperte em continuar para responder algumas perguntas sobre você e seu pet!</p>",
+              "alignment": "center",
+              "animation": "fade-in"
+            },
+            "type": "title",
+            "title": "Título",
+            "category": "heading"
+          },
+          {
+            "id": "050c6a45-9c47-427c-9cfd-442b91c5e7e7",
+            "data": {
+              "style": "default",
+              "title": "Continuar",
+              "vturb": false,
+              "absolute": false,
+              "alignment": "center",
+              "animation": "pulse",
+              "vturbTime": 10
+            },
+            "type": "button",
+            "title": "Botão",
+            "category": "action"
+          }
+        ]
+      },
+      "type": "page",
+      "width": 288,
+      "height": 238,
+      "dragging": false,
+      "position": {
+        "x": 465.1111111111111,
+        "y": -81.33333333333329
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 465.1111111111111,
+        "y": -81.33333333333329
+      }
+    },
+    {
+      "id": "root",
+      "data": {
+        "type": "start",
+        "title": "Início"
+      },
+      "type": "function",
+      "width": 288,
+      "height": 64,
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "draggable": false,
+      "selectable": false,
+      "positionAbsolute": {
+        "x": 100,
+        "y": 150
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-rootrootHandle-66e0fb6b-775d-48b9-9cc8-cfaf7c3cb5da66e0fb6b-775d-48b9-9cc8-cfaf7c3cb5da",
+      "type": "default",
+      "source": "root",
+      "target": "66e0fb6b-775d-48b9-9cc8-cfaf7c3cb5da",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "rootHandle",
+      "targetHandle": "66e0fb6b-775d-48b9-9cc8-cfaf7c3cb5da"
+    },
+    {
+      "id": "reactflow__edge-66e0fb6b-775d-48b9-9cc8-cfaf7c3cb5da050c6a45-9c47-427c-9cfd-442b91c5e7e7-27891a9f-4b88-4452-8f7a-193e9c78fc5a27891a9f-4b88-4452-8f7a-193e9c78fc5a",
+      "type": "default",
+      "source": "66e0fb6b-775d-48b9-9cc8-cfaf7c3cb5da",
+      "target": "27891a9f-4b88-4452-8f7a-193e9c78fc5a",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "050c6a45-9c47-427c-9cfd-442b91c5e7e7",
+      "targetHandle": "27891a9f-4b88-4452-8f7a-193e9c78fc5a"
+    },
+    {
+      "id": "reactflow__edge-27891a9f-4b88-4452-8f7a-193e9c78fc5a47164034-0c61-4050-8d8e-40a688aa2a36-3c044e2e-57af-4248-8cc8-92f199fdd4b43c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "type": "default",
+      "source": "27891a9f-4b88-4452-8f7a-193e9c78fc5a",
+      "target": "3c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "47164034-0c61-4050-8d8e-40a688aa2a36",
+      "targetHandle": "3c044e2e-57af-4248-8cc8-92f199fdd4b4"
+    },
+    {
+      "id": "reactflow__edge-27891a9f-4b88-4452-8f7a-193e9c78fc5aaebb0872-1323-4573-9ab3-803c9ab4a843-3c044e2e-57af-4248-8cc8-92f199fdd4b43c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "type": "default",
+      "source": "27891a9f-4b88-4452-8f7a-193e9c78fc5a",
+      "target": "3c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "aebb0872-1323-4573-9ab3-803c9ab4a843",
+      "targetHandle": "3c044e2e-57af-4248-8cc8-92f199fdd4b4"
+    },
+    {
+      "id": "reactflow__edge-27891a9f-4b88-4452-8f7a-193e9c78fc5ab8311ddd-efc7-4d2b-a583-3a9706209dde-3c044e2e-57af-4248-8cc8-92f199fdd4b43c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "type": "default",
+      "source": "27891a9f-4b88-4452-8f7a-193e9c78fc5a",
+      "target": "3c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "b8311ddd-efc7-4d2b-a583-3a9706209dde",
+      "targetHandle": "3c044e2e-57af-4248-8cc8-92f199fdd4b4"
+    },
+    {
+      "id": "reactflow__edge-3c044e2e-57af-4248-8cc8-92f199fdd4b463bebe83-913c-4c0d-9243-3da56522d7f4-79011b7d-27b3-435b-8aa8-0105376c71b479011b7d-27b3-435b-8aa8-0105376c71b4",
+      "type": "default",
+      "source": "3c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "target": "79011b7d-27b3-435b-8aa8-0105376c71b4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "63bebe83-913c-4c0d-9243-3da56522d7f4",
+      "targetHandle": "79011b7d-27b3-435b-8aa8-0105376c71b4"
+    },
+    {
+      "id": "reactflow__edge-3c044e2e-57af-4248-8cc8-92f199fdd4b451fde2aa-e7ce-4fb0-9db8-b87423143b4b-79011b7d-27b3-435b-8aa8-0105376c71b479011b7d-27b3-435b-8aa8-0105376c71b4",
+      "type": "default",
+      "source": "3c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "target": "79011b7d-27b3-435b-8aa8-0105376c71b4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "51fde2aa-e7ce-4fb0-9db8-b87423143b4b",
+      "targetHandle": "79011b7d-27b3-435b-8aa8-0105376c71b4"
+    },
+    {
+      "id": "reactflow__edge-3c044e2e-57af-4248-8cc8-92f199fdd4b4e475ed05-1a32-4173-a6fe-802a5682f380-79011b7d-27b3-435b-8aa8-0105376c71b479011b7d-27b3-435b-8aa8-0105376c71b4",
+      "type": "default",
+      "source": "3c044e2e-57af-4248-8cc8-92f199fdd4b4",
+      "target": "79011b7d-27b3-435b-8aa8-0105376c71b4",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "e475ed05-1a32-4173-a6fe-802a5682f380",
+      "targetHandle": "79011b7d-27b3-435b-8aa8-0105376c71b4"
+    },
+    {
+      "id": "reactflow__edge-79011b7d-27b3-435b-8aa8-0105376c71b4d7ea460b-1daf-44fd-bf17-131a1073690f-248e0020-bab3-4e1a-bbdd-15fdc30c078d248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "type": "default",
+      "source": "79011b7d-27b3-435b-8aa8-0105376c71b4",
+      "target": "248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "d7ea460b-1daf-44fd-bf17-131a1073690f",
+      "targetHandle": "248e0020-bab3-4e1a-bbdd-15fdc30c078d"
+    },
+    {
+      "id": "reactflow__edge-79011b7d-27b3-435b-8aa8-0105376c71b48743443b-a7ac-43ed-beca-1e273510cff2-248e0020-bab3-4e1a-bbdd-15fdc30c078d248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "type": "default",
+      "source": "79011b7d-27b3-435b-8aa8-0105376c71b4",
+      "target": "248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "8743443b-a7ac-43ed-beca-1e273510cff2",
+      "targetHandle": "248e0020-bab3-4e1a-bbdd-15fdc30c078d"
+    },
+    {
+      "id": "reactflow__edge-79011b7d-27b3-435b-8aa8-0105376c71b4418edef6-eb63-4a4f-8fe0-2db1e1eb44e8-248e0020-bab3-4e1a-bbdd-15fdc30c078d248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "type": "default",
+      "source": "79011b7d-27b3-435b-8aa8-0105376c71b4",
+      "target": "248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "418edef6-eb63-4a4f-8fe0-2db1e1eb44e8",
+      "targetHandle": "248e0020-bab3-4e1a-bbdd-15fdc30c078d"
+    },
+    {
+      "id": "reactflow__edge-248e0020-bab3-4e1a-bbdd-15fdc30c078dc3e23ed5-f4db-4cce-a7b7-98e63d900fc1-939329af-7ac6-4812-8993-70cda0105e30939329af-7ac6-4812-8993-70cda0105e30",
+      "type": "default",
+      "source": "248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "target": "939329af-7ac6-4812-8993-70cda0105e30",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "c3e23ed5-f4db-4cce-a7b7-98e63d900fc1",
+      "targetHandle": "939329af-7ac6-4812-8993-70cda0105e30"
+    },
+    {
+      "id": "reactflow__edge-248e0020-bab3-4e1a-bbdd-15fdc30c078d4900c475-b9a5-4c98-9750-151375224067-939329af-7ac6-4812-8993-70cda0105e30939329af-7ac6-4812-8993-70cda0105e30",
+      "type": "default",
+      "source": "248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "target": "939329af-7ac6-4812-8993-70cda0105e30",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "4900c475-b9a5-4c98-9750-151375224067",
+      "targetHandle": "939329af-7ac6-4812-8993-70cda0105e30"
+    },
+    {
+      "id": "reactflow__edge-248e0020-bab3-4e1a-bbdd-15fdc30c078d37403e50-d886-4799-b2ef-ee316aca06c1-939329af-7ac6-4812-8993-70cda0105e30939329af-7ac6-4812-8993-70cda0105e30",
+      "type": "default",
+      "source": "248e0020-bab3-4e1a-bbdd-15fdc30c078d",
+      "target": "939329af-7ac6-4812-8993-70cda0105e30",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "37403e50-d886-4799-b2ef-ee316aca06c1",
+      "targetHandle": "939329af-7ac6-4812-8993-70cda0105e30"
+    },
+    {
+      "id": "reactflow__edge-279a6867-7429-4e53-aeda-7e997a3839d8add674fb-20b9-4109-a232-787da54fd3d0-54f431aa-3f42-461b-b90d-12c5cb180f6854f431aa-3f42-461b-b90d-12c5cb180f68",
+      "type": "default",
+      "source": "279a6867-7429-4e53-aeda-7e997a3839d8",
+      "target": "54f431aa-3f42-461b-b90d-12c5cb180f68",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "add674fb-20b9-4109-a232-787da54fd3d0",
+      "targetHandle": "54f431aa-3f42-461b-b90d-12c5cb180f68"
+    },
+    {
+      "id": "reactflow__edge-939329af-7ac6-4812-8993-70cda0105e30f5f0b334-9d6e-439a-8d13-bbe041d0dff7-279a6867-7429-4e53-aeda-7e997a3839d8279a6867-7429-4e53-aeda-7e997a3839d8",
+      "type": "default",
+      "source": "939329af-7ac6-4812-8993-70cda0105e30",
+      "target": "279a6867-7429-4e53-aeda-7e997a3839d8",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "f5f0b334-9d6e-439a-8d13-bbe041d0dff7",
+      "targetHandle": "279a6867-7429-4e53-aeda-7e997a3839d8"
+    },
+    {
+      "id": "reactflow__edge-939329af-7ac6-4812-8993-70cda0105e306eb3fd09-a315-4ba9-98c4-e3d02ce5acc2-279a6867-7429-4e53-aeda-7e997a3839d8279a6867-7429-4e53-aeda-7e997a3839d8",
+      "type": "default",
+      "source": "939329af-7ac6-4812-8993-70cda0105e30",
+      "target": "279a6867-7429-4e53-aeda-7e997a3839d8",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "6eb3fd09-a315-4ba9-98c4-e3d02ce5acc2",
+      "targetHandle": "279a6867-7429-4e53-aeda-7e997a3839d8"
+    },
+    {
+      "id": "reactflow__edge-939329af-7ac6-4812-8993-70cda0105e30906b43f4-dc0b-490c-9a0d-c89cc597d670-279a6867-7429-4e53-aeda-7e997a3839d8279a6867-7429-4e53-aeda-7e997a3839d8",
+      "type": "default",
+      "source": "939329af-7ac6-4812-8993-70cda0105e30",
+      "target": "279a6867-7429-4e53-aeda-7e997a3839d8",
+      "markerEnd": {
+        "type": "arrow",
+        "color": "#0ea5e9",
+        "width": 20,
+        "height": 25
+      },
+      "sourceHandle": "906b43f4-dc0b-490c-9a0d-c89cc597d670",
+      "targetHandle": "279a6867-7429-4e53-aeda-7e997a3839d8"
+    }
+  ],
+  "url": "371f0309",
+  "status": "published",
+  "version": "beta",
+  "theme": {
+    "dark": false,
+    "logo": "d661ae3f-2f6b-4f8c-bd4e-fcd7d37d9487",
+    "color": "#0284c7"
+  },
+  "settings": {
+    "title": "Novo Projeto",
+    "utmify": false,
+    "cloaker": false,
+    "tracking": false,
+    "description": null,
+    "headerScript": null
+  },
+  "variables": [],
+  "deleted_at": null,
+  "created_at": "2024-09-24T18:30:37.000000Z",
+  "updated_at": "2024-09-24T19:47:04.000000Z",
+  "user": {
+    "id": 728,
+    "name": "joao lucas",
+    "email": "vendas.elast@gmail.com"
+  }
+}

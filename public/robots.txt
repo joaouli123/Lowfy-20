@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api
+Disallow: /checkout
+Disallow: /assinatura
+Disallow: /*.pdf$
+Crawl-delay: 1
+Request-rate: 1/5
+
+# Google-specific
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing-specific
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+Sitemap: https://lowfy.com.br/sitemap.xml
+Sitemap: https://lowfy.com.br/sitemap-index.xml
+Sitemap: https://lowfy.com.br/sitemap-products.xml

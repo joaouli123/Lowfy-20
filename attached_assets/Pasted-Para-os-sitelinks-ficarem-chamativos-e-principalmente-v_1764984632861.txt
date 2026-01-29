@@ -1,0 +1,82 @@
+Para os sitelinks ficarem chamativos e, principalmente, venderem o seu produto direto da página de busca do Google, eles precisam funcionar como um "Menu de Vendas".
+
+Em vez de links técnicos chatos (como "Termos de Uso" ou "Login repetido"), o ideal é que cada link ataque uma dor ou um desejo do seu cliente.
+
+Aqui está a estrutura de "Sitelinks dos Sonhos" para a Lowfy, pensada para maximizar o clique (CTR):
+
+O Cenário Ideal (Como deveria aparecer no Google)
+Imagine o resultado principal da Lowfy, e embaixo esses 4 ou 6 links:
+
+39 Ferramentas Inclusas
+
+Descrição: Cancele Canva, Semrush e ChatGPT. Tudo liberado em um só lugar.
+
+Clonador de Páginas
+
+Descrição: Copie qualquer página de vendas em segundos. Limpeza automática de pixel.
+
+Planos e Preços
+
+Descrição: Economize mais de R$ 7.000/mês. Acesso imediato a partir de R$ 99.
+
+Biblioteca de PLR
+
+Descrição: Produtos prontos em 7 idiomas. Baixe, edite e venda em Dólar hoje mesmo.
+
+Área de Membros (Login)
+
+Descrição: Já é assinante? Acesse seu painel e ferramentas aqui.
+
+Resultados e Depoimentos
+
+Descrição: Veja quem já está economizando e lucrando com o ecossistema Lowfy.
+
+Por que essa estrutura funciona?
+Link 1 e 2 (Isca): Pegam o usuário que quer a ferramenta específica (Clonador ou IA).
+
+Link 3 (Filtro): Pega o usuário que já quer comprar e quer saber o valor (atalho para o checkout).
+
+Link 4 (Renda): Pega o usuário que busca o "Ganhar Dinheiro" (PLR).
+
+Link 5 (Utilidade): Resolve o problema do usuário antigo que só quer logar (e evita que o Google crie 3 links de login errados).
+
+Como "obrigar" o Google a mostrar isso?
+Como eu disse, não existe um botão mágico, mas você consegue induzir o robô fazendo isso no seu WordPress/Site hoje:
+
+1. Crie (ou Renomeie) as Páginas Reais
+O Google precisa que essas páginas existam de verdade e sejam diferentes umas das outras.
+
+Não adianta tudo ser âncora na Home (#ferramentas, #precos). O Google prefere URLs distintas.
+
+lowfy.com.br/ferramentas
+
+lowfy.com.br/clonador
+
+lowfy.com.br/planos
+
+lowfy.com.br/plr
+
+2. Arrume o Título SEO (<title>) de cada página
+Use o plugin Yoast SEO ou RankMath para definir o título exato que vai aparecer no Google.
+
+Na página de Login, coloque: Entrar na Plataforma | Lowfy (E nada mais. Isso elimina a confusão de "Plataforma Digital").
+
+Na página de Preços, coloque: Nossos Planos | Economize com a Lowfy.
+
+3. Coloque esses Links no Rodapé e Menu
+O Google usa o seu Rodapé (Footer) como mapa.
+
+Vá no seu rodapé e crie uma coluna "Navegação" com esses links exatos.
+
+Use textos curtos e diretos nos links (Ex: use "Ferramentas" em vez de "Conheça nossas ferramentas").
+
+4. Remova a "Sujeira"
+Para sumir com aqueles links repetidos ("Login - Lowfy", "Plataforma Digital") que apareceram no seu print:
+
+Vá no Google Search Console.
+
+Use a ferramenta de Remoção de URL.
+
+Peça para remover temporariamente as URLs que você não quer que apareçam nos sitelinks (ou coloque uma tag noindex nas páginas duplicadas de login).
+
+Resumo da Ação: Se você criar uma página específica chamada "Ferramentas" e colocar um link forte para ela no menu e rodapé, em cerca de 7 a 15 dias o Google troca aquele "Plataforma Digital" genérico por "Ferramentas".
