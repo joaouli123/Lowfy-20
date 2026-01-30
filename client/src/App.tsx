@@ -363,7 +363,6 @@ function App() {
                   <MetaPixelInitializer />
                   <GoogleAnalyticsInitializer />
                   <Toaster />
-                  <LovableCreditsPopup />
                   <Router />
                 </SEOProvider>
               </TooltipProvider>
