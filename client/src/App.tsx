@@ -349,8 +349,6 @@ function GoogleAnalyticsInitializer() {
   return null;
 }
 
-import { LovableCreditsPopup } from "@/components/LovableCreditsPopup";
-
 function App() {
   return (
     <ErrorBoundary>
