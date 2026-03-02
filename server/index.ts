@@ -9,6 +9,10 @@ import helmet from "helmet";
 import compression from "compression";
 import path from "path";
 import fs from "fs";
+import { db } from "./db";
+import { customDomainMappings } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
+import { acquireSchedulerLeadership } from "./utils/scheduler-lock";
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -83,6 +87,32 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ limit: '10mb', extended: false }));
 
+app.get('/healthz', (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: 'lowfy-api',
+    ts: new Date().toISOString(),
+  });
+});
+
+app.get('/readyz', async (_req, res) => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    res.status(200).json({
+      ok: true,
+      db: 'up',
+      ts: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('[Readiness] Database check failed:', error);
+    res.status(503).json({
+      ok: false,
+      db: 'down',
+      ts: new Date().toISOString(),
+    });
+  }
+});
+
 // Middleware para servir vídeos com suporte a Range Requests
 app.use('/videos', (req, res, next) => {
   res.setHeader('Accept-Ranges', 'bytes');
@@ -107,11 +137,17 @@ const KNOWN_APP_DOMAIN_SUFFIXES = [
   '.lowfy.com.br'
 ];
 
-// Cache de domínios personalizados para evitar I/O excessivo
-// Formato: { [domain]: { type, slug, htmlPath, lastChecked } }
-const customDomainCache = new Map<string, { type: 'cloned' | 'presell', slug: string, htmlPath: string, metadataPath: string } | null>();
+type CustomDomainCacheEntry = {
+  type: 'cloned' | 'presell';
+  slug: string;
+  htmlPath: string;
+  metadataPath?: string;
+};
+
+const customDomainCache = new Map<string, CustomDomainCacheEntry>();
 const CACHE_TTL = 60000; // 1 minuto
 let lastCacheRefresh = 0;
+let domainCacheRefreshPromise: Promise<void> | null = null;
 
 function isKnownAppDomain(hostname: string): boolean {
   if (!hostname) return true; // Se não tem hostname, tratar como app
@@ -121,101 +157,155 @@ function isKnownAppDomain(hostname: string): boolean {
   );
 }
 
-// Atualiza cache de domínios personalizados
-function refreshDomainCache(): void {
+const parseDomainMapping = (pageType: string, pageSlug: string): CustomDomainCacheEntry | null => {
+  const type = pageType === 'presell' ? 'presell' : pageType === 'cloned' ? 'cloned' : null;
+  if (!type || !pageSlug) return null;
+
+  const baseDir = type === 'cloned' ? 'cloned-pages' : 'presell-pages';
+  return {
+    type,
+    slug: pageSlug,
+    htmlPath: path.join(process.cwd(), baseDir, `${pageSlug}.html`),
+    metadataPath: path.join(process.cwd(), baseDir, `${pageSlug}.metadata.json`),
+  };
+};
+
+async function refreshDomainCache(): Promise<void> {
   const now = Date.now();
   if (now - lastCacheRefresh < CACHE_TTL) return;
-  
-  lastCacheRefresh = now;
-  customDomainCache.clear();
-  
-  // Scan páginas clonadas
-  const clonedDir = path.join(process.cwd(), 'cloned-pages');
-  if (fs.existsSync(clonedDir)) {
+  if (domainCacheRefreshPromise) return domainCacheRefreshPromise;
+
+  domainCacheRefreshPromise = (async () => {
+    lastCacheRefresh = now;
+    customDomainCache.clear();
+
     try {
-      const files = fs.readdirSync(clonedDir).filter(f => f.endsWith('.metadata.json'));
-      for (const file of files) {
+      const mappings = await db
+        .select({
+          domain: customDomainMappings.domain,
+          pageType: customDomainMappings.pageType,
+          pageSlug: customDomainMappings.pageSlug,
+        })
+        .from(customDomainMappings)
+        .where(eq(customDomainMappings.isActive, true));
+
+      for (const mapping of mappings) {
+        const parsed = parseDomainMapping(mapping.pageType, mapping.pageSlug);
+        if (!parsed) continue;
+
+        const normalizedDomain = mapping.domain.toLowerCase();
+        customDomainCache.set(normalizedDomain, parsed);
+
+        if (normalizedDomain.startsWith('www.')) {
+          customDomainCache.set(normalizedDomain.replace(/^www\./, ''), parsed);
+        }
+      }
+    } catch (error) {
+      logger.warn('[CUSTOM DOMAIN] Falha ao carregar mapeamentos do DB:', error);
+    }
+
+    const includeFsFallback = process.env.CUSTOM_DOMAIN_FS_FALLBACK !== 'false';
+    if (!includeFsFallback) {
+      logger.debug(`🔄 [CUSTOM DOMAIN] Cache atualizado via DB: ${customDomainCache.size} domínios registrados`);
+      return;
+    }
+
+    const clonedDir = path.join(process.cwd(), 'cloned-pages');
+    try {
+      const files = await fs.promises.readdir(clonedDir);
+      const metadataFiles = files.filter(f => f.endsWith('.metadata.json'));
+      for (const file of metadataFiles) {
         try {
           const metadataPath = path.join(clonedDir, file);
-          const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+          const metadata = JSON.parse(await fs.promises.readFile(metadataPath, 'utf-8'));
           if (metadata.customDomain && metadata.isActive !== false) {
             const domain = metadata.customDomain.replace(/^www\./, '').toLowerCase();
             const slug = file.replace('.metadata.json', '');
-            customDomainCache.set(domain, {
-              type: 'cloned',
-              slug,
-              htmlPath: path.join(clonedDir, `${slug}.html`),
-              metadataPath
-            });
+            if (!customDomainCache.has(domain)) {
+              customDomainCache.set(domain, {
+                type: 'cloned',
+                slug,
+                htmlPath: path.join(clonedDir, `${slug}.html`),
+                metadataPath,
+              });
+            }
           }
         } catch {}
       }
     } catch {}
-  }
-  
-  // Scan páginas presell
-  const presellDir = path.join(process.cwd(), 'presell-pages');
-  if (fs.existsSync(presellDir)) {
+
+    const presellDir = path.join(process.cwd(), 'presell-pages');
     try {
-      const files = fs.readdirSync(presellDir).filter(f => f.endsWith('.metadata.json'));
-      for (const file of files) {
+      const files = await fs.promises.readdir(presellDir);
+      const metadataFiles = files.filter(f => f.endsWith('.metadata.json'));
+      for (const file of metadataFiles) {
         try {
           const metadataPath = path.join(presellDir, file);
-          const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+          const metadata = JSON.parse(await fs.promises.readFile(metadataPath, 'utf-8'));
           if (metadata.customDomain && metadata.isActive !== false) {
             const domain = metadata.customDomain.replace(/^www\./, '').toLowerCase();
             const slug = file.replace('.metadata.json', '');
-            customDomainCache.set(domain, {
-              type: 'presell',
-              slug,
-              htmlPath: path.join(presellDir, `${slug}.html`),
-              metadataPath
-            });
+            if (!customDomainCache.has(domain)) {
+              customDomainCache.set(domain, {
+                type: 'presell',
+                slug,
+                htmlPath: path.join(presellDir, `${slug}.html`),
+                metadataPath,
+              });
+            }
           }
         } catch {}
       }
     } catch {}
+
+    logger.debug(`🔄 [CUSTOM DOMAIN] Cache atualizado: ${customDomainCache.size} domínios registrados`);
+  })();
+
+  try {
+    await domainCacheRefreshPromise;
+  } finally {
+    domainCacheRefreshPromise = null;
   }
-  
-  logger.debug(`🔄 [CUSTOM DOMAIN] Cache atualizado: ${customDomainCache.size} domínios registrados`);
 }
 
-// Busca página por domínio usando cache
-function findPageByCustomDomain(hostname: string): { type: 'cloned' | 'presell', slug: string, html: string } | null {
-  // Normalizar hostname
+async function incrementCustomDomainViewCount(metadataPath?: string): Promise<void> {
+  if (!metadataPath) return;
+
+  try {
+    const metadataRaw = await fs.promises.readFile(metadataPath, 'utf-8');
+    const metadata = JSON.parse(metadataRaw);
+    metadata.viewCount = (metadata.viewCount || 0) + 1;
+    await fs.promises.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+  } catch {
+    // no-op: tracking best effort
+  }
+}
+
+async function findPageByCustomDomain(hostname: string): Promise<{ type: 'cloned' | 'presell', slug: string, html: string } | null> {
   const normalizedHost = hostname.replace(/^www\./, '').split(':')[0].toLowerCase();
-  
-  // Atualizar cache se necessário
-  refreshDomainCache();
-  
-  // Buscar no cache
+
+  await refreshDomainCache();
+
   const cached = customDomainCache.get(normalizedHost);
   if (!cached) return null;
-  
-  // Verificar se arquivo HTML existe e ler
+
   try {
-    if (fs.existsSync(cached.htmlPath)) {
-      const html = fs.readFileSync(cached.htmlPath, 'utf-8');
-      
-      // Incrementar view count assíncronamente (não bloqueia resposta)
-      setImmediate(() => {
-        try {
-          const metadata = JSON.parse(fs.readFileSync(cached.metadataPath, 'utf-8'));
-          metadata.viewCount = (metadata.viewCount || 0) + 1;
-          fs.writeFileSync(cached.metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
-        } catch {}
-      });
-      
-      logger.debug(`🌐 [CUSTOM DOMAIN] Servindo página ${cached.type} "${cached.slug}" para ${normalizedHost}`);
-      return { type: cached.type, slug: cached.slug, html };
-    }
-  } catch {}
-  
-  return null;
+    const html = await fs.promises.readFile(cached.htmlPath, 'utf-8');
+
+    setImmediate(() => {
+      void incrementCustomDomainViewCount(cached.metadataPath);
+    });
+
+    logger.debug(`🌐 [CUSTOM DOMAIN] Servindo página ${cached.type} "${cached.slug}" para ${normalizedHost}`);
+    return { type: cached.type, slug: cached.slug, html };
+  } catch {
+    customDomainCache.delete(normalizedHost);
+    return null;
+  }
 }
 
 // Middleware para detectar e servir páginas de domínios personalizados
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   // Apenas processar requisições GET na raiz ou paths específicos
   if (req.method !== 'GET') return next();
   
@@ -239,7 +329,7 @@ app.use((req, res, next) => {
   
   // Tentar servir página de domínio customizado
   try {
-    const page = findPageByCustomDomain(hostname);
+    const page = await findPageByCustomDomain(hostname);
     
     if (page) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -447,51 +537,66 @@ if (!isProduction) {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
-    
-    import('./sync-scheduler').then(({ startWeeklySync }) => {
-      startWeeklySync();
-    }).catch(error => {
-      logger.error('Sync scheduler error:', error);
-    });
-    
-    import('./gamification-scheduler').then(async ({ startGamificationSchedulers }) => {
-      await startGamificationSchedulers();
-    }).catch(error => {
-      logger.error('Gamification scheduler error:', error);
-    });
-    
-    import('./balance-scheduler').then(({ startBalanceReleaseScheduler }) => {
-      startBalanceReleaseScheduler();
-    }).catch(error => {
-      logger.error('Balance scheduler error:', error);
-    });
-    
-    import('./subscription-scheduler').then(({ startSubscriptionScheduler }) => {
-      startSubscriptionScheduler();
-    }).catch(error => {
-      logger.error('Subscription scheduler error:', error);
-    });
-    
-    import('./cron/subscriptionPageManager').then(async ({ initSubscriptionPageManager, runInitialSubscriptionSync }) => {
-      initSubscriptionPageManager();
-      // Executar sincronização inicial após 10 segundos (dar tempo do servidor estabilizar)
-      setTimeout(async () => {
-        await runInitialSubscriptionSync();
-      }, 10000);
-    }).catch(error => {
-      logger.error('Page manager error:', error);
-    });
-    
-    import('./checkout-recovery-scheduler').then(({ startCheckoutRecoveryScheduler }) => {
-      startCheckoutRecoveryScheduler();
-    }).catch(error => {
-      logger.error('Checkout recovery scheduler error:', error);
-    });
-    
-    import('./checkout-recovery-whatsapp-scheduler').then(({ startWhatsAppRecoveryScheduler }) => {
-      startWhatsAppRecoveryScheduler();
-    }).catch(error => {
-      logger.error('WhatsApp recovery scheduler error:', error);
-    });
+
+    const shouldRunSchedulers = process.env.RUN_SCHEDULERS !== 'false';
+    if (!shouldRunSchedulers) {
+      logger.info('[Schedulers] RUN_SCHEDULERS=false, pulando inicialização');
+      return;
+    }
+
+    void (async () => {
+      const isLeader = await acquireSchedulerLeadership();
+      if (!isLeader) {
+        logger.info('[Schedulers] Outra instância já é líder. Schedulers não serão iniciados nesta instância.');
+        return;
+      }
+
+      logger.info('[Schedulers] Liderança adquirida. Iniciando schedulers...');
+
+      import('./sync-scheduler').then(({ startWeeklySync }) => {
+        startWeeklySync();
+      }).catch(error => {
+        logger.error('Sync scheduler error:', error);
+      });
+
+      import('./gamification-scheduler').then(async ({ startGamificationSchedulers }) => {
+        await startGamificationSchedulers();
+      }).catch(error => {
+        logger.error('Gamification scheduler error:', error);
+      });
+
+      import('./balance-scheduler').then(({ startBalanceReleaseScheduler }) => {
+        startBalanceReleaseScheduler();
+      }).catch(error => {
+        logger.error('Balance scheduler error:', error);
+      });
+
+      import('./subscription-scheduler').then(({ startSubscriptionScheduler }) => {
+        startSubscriptionScheduler();
+      }).catch(error => {
+        logger.error('Subscription scheduler error:', error);
+      });
+
+      import('./cron/subscriptionPageManager').then(async ({ initSubscriptionPageManager, runInitialSubscriptionSync }) => {
+        initSubscriptionPageManager();
+        setTimeout(async () => {
+          await runInitialSubscriptionSync();
+        }, 10000);
+      }).catch(error => {
+        logger.error('Page manager error:', error);
+      });
+
+      import('./checkout-recovery-scheduler').then(({ startCheckoutRecoveryScheduler }) => {
+        startCheckoutRecoveryScheduler();
+      }).catch(error => {
+        logger.error('Checkout recovery scheduler error:', error);
+      });
+
+      import('./checkout-recovery-whatsapp-scheduler').then(({ startWhatsAppRecoveryScheduler }) => {
+        startWhatsAppRecoveryScheduler();
+      }).catch(error => {
+        logger.error('WhatsApp recovery scheduler error:', error);
+      });
+    })();
   });
 })();

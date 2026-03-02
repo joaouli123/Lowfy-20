@@ -565,56 +565,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           domain: mapping.domain
         });
       }
-      
-      // 2. FALLBACK: Buscar em páginas clonadas (filesystem - para compatibilidade)
+
+      const enableFsFallback = process.env.ENABLE_DOMAIN_LOOKUP_FS_FALLBACK === 'true';
+      if (!enableFsFallback) {
+        return res.json({ found: false });
+      }
+
       const clonedDir = path.join(process.cwd(), 'cloned-pages');
-      if (fs.existsSync(clonedDir)) {
-        const files = fs.readdirSync(clonedDir).filter(f => f.endsWith('.metadata.json'));
-        for (const file of files) {
+      try {
+        const files = await fs.promises.readdir(clonedDir);
+        const metadataFiles = files.filter(f => f.endsWith('.metadata.json'));
+        for (const file of metadataFiles) {
           try {
             const metadataPath = path.join(clonedDir, file);
-            const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
-            // NÃO normaliza www - comparação exata do domínio
-            if (metadata.customDomain && 
-                metadata.customDomain.toLowerCase() === domain &&
-                metadata.isActive !== false) {
+            const metadata = JSON.parse(await fs.promises.readFile(metadataPath, 'utf-8'));
+            if (
+              metadata.customDomain &&
+              metadata.customDomain.toLowerCase() === domain &&
+              metadata.isActive !== false
+            ) {
               const slug = file.replace('.metadata.json', '');
               return res.json({
                 found: true,
                 type: 'cloned',
                 slug,
                 path: `/pages/${slug}`,
-                domain: metadata.customDomain
+                domain: metadata.customDomain,
               });
             }
           } catch {}
         }
-      }
-      
-      // 3. FALLBACK: Buscar em páginas presell (filesystem - para compatibilidade)
+      } catch {}
+
       const presellDir = path.join(process.cwd(), 'presell-pages');
-      if (fs.existsSync(presellDir)) {
-        const files = fs.readdirSync(presellDir).filter(f => f.endsWith('.metadata.json'));
-        for (const file of files) {
+      try {
+        const files = await fs.promises.readdir(presellDir);
+        const metadataFiles = files.filter(f => f.endsWith('.metadata.json'));
+        for (const file of metadataFiles) {
           try {
             const metadataPath = path.join(presellDir, file);
-            const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
-            // NÃO normaliza www - comparação exata do domínio
-            if (metadata.customDomain && 
-                metadata.customDomain.toLowerCase() === domain &&
-                metadata.isActive !== false) {
+            const metadata = JSON.parse(await fs.promises.readFile(metadataPath, 'utf-8'));
+            if (
+              metadata.customDomain &&
+              metadata.customDomain.toLowerCase() === domain &&
+              metadata.isActive !== false
+            ) {
               const slug = file.replace('.metadata.json', '');
               return res.json({
                 found: true,
                 type: 'presell',
                 slug,
                 path: `/presell/${slug}`,
-                domain: metadata.customDomain
+                domain: metadata.customDomain,
               });
             }
           } catch {}
         }
-      }
+      } catch {}
       
       // Não encontrado
       res.json({ found: false });
@@ -21592,9 +21599,17 @@ MOOD: Invitation, welcome, 'this is your moment'.`
 
   // ==================== END OF ROUTES ====================
 
+  const isProduction = process.env.NODE_ENV === 'production';
+  const socketAllowedOrigins = process.env.SOCKET_IO_ALLOWED_ORIGINS
+    ?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: "*",
+      origin: isProduction
+        ? (socketAllowedOrigins && socketAllowedOrigins.length > 0 ? socketAllowedOrigins : ['https://lowfy.com.br'])
+        : "*",
       methods: ["GET", "POST"]
     }
   });
