@@ -113,6 +113,65 @@ app.get('/readyz', async (_req, res) => {
   }
 });
 
+const runtimeMetrics = {
+  startedAt: Date.now(),
+  totalRequests: 0,
+  totalErrors: 0,
+  totalLatencyMs: 0,
+  statusCounts: {} as Record<string, number>,
+  routeCounts: {} as Record<string, number>,
+};
+
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+
+  res.on('finish', () => {
+    const durationMs = Date.now() - startedAt;
+    runtimeMetrics.totalRequests += 1;
+    runtimeMetrics.totalLatencyMs += durationMs;
+
+    const statusKey = String(res.statusCode);
+    runtimeMetrics.statusCounts[statusKey] = (runtimeMetrics.statusCounts[statusKey] || 0) + 1;
+
+    const routeKey = `${req.method} ${req.path}`;
+    runtimeMetrics.routeCounts[routeKey] = (runtimeMetrics.routeCounts[routeKey] || 0) + 1;
+
+    if (res.statusCode >= 500) {
+      runtimeMetrics.totalErrors += 1;
+    }
+  });
+
+  next();
+});
+
+app.get('/metricsz', (_req, res) => {
+  const uptimeSec = Math.floor((Date.now() - runtimeMetrics.startedAt) / 1000);
+  const avgLatencyMs = runtimeMetrics.totalRequests > 0
+    ? Number((runtimeMetrics.totalLatencyMs / runtimeMetrics.totalRequests).toFixed(2))
+    : 0;
+
+  res.status(200).json({
+    ok: true,
+    uptimeSec,
+    requests: {
+      total: runtimeMetrics.totalRequests,
+      errors5xx: runtimeMetrics.totalErrors,
+      avgLatencyMs,
+      statusCounts: runtimeMetrics.statusCounts,
+      topRoutes: Object.entries(runtimeMetrics.routeCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20),
+    },
+    process: {
+      pid: process.pid,
+      rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      heapTotalMb: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+    },
+    ts: new Date().toISOString(),
+  });
+});
+
 // Middleware para servir vídeos com suporte a Range Requests
 app.use('/videos', (req, res, next) => {
   res.setHeader('Accept-Ranges', 'bytes');

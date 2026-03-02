@@ -70,7 +70,7 @@ import path from "path";
 import fs from "fs";
 import axios from "axios";
 import cookieParser from "cookie-parser";
-import rateLimit from "express-rate-limit";
+import { createDistributedRateLimiter } from "./middleware/distributedRateLimit";
 import { removeOldTrackingScripts, deactivateNonEssentialScripts, intelligentScriptInjection } from "./page-utils";
 import { createPixTransaction, createWithdrawal, getBalance, getPodpayServiceSafe } from "./services/podpay";
 import { createCreditCardPayment as createAsaasCardPayment, calculateInstallmentSurcharge, getAsaasServiceSafe, createPixTransfer, createRecurringSubscription, deleteSubscription, updateSubscriptionCard, listSubscriptionPayments, getPaymentStatus as getAsaasPaymentStatus } from "./services/asaas";
@@ -229,93 +229,69 @@ async function emitNotificationToUser(userId: string, notificationId: string) {
 }
 
 // SECURITY: Rate limiting para rotas de pagamento
-const paymentLimiter = rateLimit({
+const paymentLimiter = createDistributedRateLimiter({
+  name: 'payment',
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 10, // Máximo 10 tentativas de pagamento por 15 minutos
   message: 'Muitas tentativas de pagamento. Tente novamente em 15 minutos.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-  handler: (req, res) => {
+  keyMode: 'user-or-ip',
+  onBlocked: (req) => {
     logger.warn(`[Rate Limit] Payment attempt blocked for user: ${(req as any).user?.id || 'anonymous'}`);
-    res.status(429).json({
-      message: 'Muitas tentativas de pagamento. Tente novamente em 15 minutos.',
-    });
   },
 });
 
-const withdrawalLimiter = rateLimit({
+const withdrawalLimiter = createDistributedRateLimiter({
+  name: 'withdrawal',
   windowMs: 60 * 60 * 1000, // 1 hora
   max: 5, // Máximo 5 solicitações de saque por hora
   message: 'Muitas solicitações de saque. Tente novamente em 1 hora.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-  handler: (req, res) => {
+  keyMode: 'user-or-ip',
+  onBlocked: (req) => {
     logger.warn(`[Rate Limit] Withdrawal attempt blocked for user: ${(req as any).user?.id || 'anonymous'}`);
-    res.status(429).json({
-      message: 'Muitas solicitações de saque. Tente novamente em 1 hora.',
-    });
   },
 });
 
-const smsSendLimiter = rateLimit({
+const smsSendLimiter = createDistributedRateLimiter({
+  name: 'sms-send',
   windowMs: 60 * 60 * 1000, // 1 hora
   max: 3, // Máximo 3 SMS por hora por IP
   message: 'Muitas tentativas de envio de SMS. Tente novamente em 1 hora.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-  handler: (req, res) => {
+  keyMode: 'ip',
+  onBlocked: (req) => {
     logger.warn(`[Rate Limit] SMS send attempt blocked from IP: ${req.ip}`);
-    res.status(429).json({
-      message: 'Muitas tentativas de envio de SMS. Tente novamente em 1 hora.',
-    });
   },
 });
 
-const smsVerifyLimiter = rateLimit({
+const smsVerifyLimiter = createDistributedRateLimiter({
+  name: 'sms-verify',
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 5, // Máximo 5 tentativas de verificação por 15 minutos
   message: 'Muitas tentativas de verificação. Tente novamente em 15 minutos.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-  handler: (req, res) => {
+  keyMode: 'ip',
+  onBlocked: (req) => {
     logger.warn(`[Rate Limit] SMS verification attempt blocked from IP: ${req.ip}`);
-    res.status(429).json({
-      message: 'Muitas tentativas de verificação. Tente novamente em 15 minutos.',
-    });
   },
 });
 
-const orderLookupLimiter = rateLimit({
+const orderLookupLimiter = createDistributedRateLimiter({
+  name: 'order-lookup',
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 30, // Máximo 30 buscas por 15 minutos por IP
   message: 'Muitas tentativas de busca. Tente novamente em alguns minutos.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-  handler: (req, res) => {
+  keyMode: 'ip',
+  onBlocked: (req) => {
     logger.warn(`[Rate Limit] Order lookup attempt blocked from IP: ${req.ip}`);
-    res.status(429).json({
-      message: 'Muitas tentativas de busca. Tente novamente em alguns minutos.',
-    });
   },
 });
 
-const subscriptionCheckoutLimiter = rateLimit({
+const subscriptionCheckoutLimiter = createDistributedRateLimiter({
+  name: 'subscription-checkout',
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 5, // Máximo 5 tentativas de checkout por 15 minutos
   message: 'Muitas tentativas de checkout. Tente novamente em 15 minutos.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-  handler: (req, res) => {
+  keyMode: 'ip',
+  onBlocked: (req) => {
     logger.warn(`[Rate Limit] Subscription checkout attempt blocked from IP: ${req.ip}`);
-    res.status(429).json({
-      message: 'Muitas tentativas de checkout. Tente novamente em 15 minutos.',
-    });
   },
 });
 
@@ -1644,13 +1620,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rate limiter para reenvio de 2FA (proteção contra spam)
-  const resend2FALimiter = rateLimit({
+  const resend2FALimiter = createDistributedRateLimiter({
+    name: 'resend-2fa',
     windowMs: 60 * 1000, // 1 minuto
     max: 3, // Máximo 3 tentativas por minuto por IP
-    message: { message: 'Muitas tentativas. Aguarde 1 minuto antes de tentar novamente.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    validate: { trustProxy: false },
+    message: 'Muitas tentativas. Aguarde 1 minuto antes de tentar novamente.',
+    keyMode: 'ip',
   });
 
   // Reenviar código 2FA por email
@@ -1953,13 +1928,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoint de teste de emails de recuperação de checkout (Admin only + rate limited)
-  const testEmailLimiter = rateLimit({
+  const testEmailLimiter = createDistributedRateLimiter({
+    name: 'test-email',
     windowMs: 60 * 60 * 1000, // 1 hora
     max: 10, // Máximo 10 emails de teste por hora
     message: 'Limite de emails de teste atingido. Tente novamente em 1 hora.',
-    standardHeaders: true,
-    legacyHeaders: false,
-    validate: { trustProxy: false },
+    keyMode: 'user-or-ip',
   });
   
   app.post('/api/test/checkout-recovery-emails', testEmailLimiter, authMiddleware, adminMiddleware, async (req: any, res) => {
