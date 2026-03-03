@@ -5,6 +5,8 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { logger } from "./utils/logger";
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
+
 import { setupAuth, authMiddleware, optionalAuthMiddleware, adminMiddleware, subscriptionMiddleware, isSubscriptionActive, getSubscriptionDaysExpired, hashPassword, verifyPassword, createSession, deleteSession, generate2FACode, create2FAVerification, verify2FACode } from "./auth";
 import { 
   sendEmail, 
@@ -18983,20 +18985,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gerar Headlines com GPT-4o-mini
   async function generateHeadlineWithGPT(productName: string, emotion: string, painPoint: string, variation: number): Promise<string> {
     try {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{
-          role: "user",
-          content: `Crie um headline IRRESISTÍVEL e ESPECÍFICO para ${productName} que resolve a dor "${painPoint}". Emoção: ${emotion}. Máximo 15 palavras. Copie o tom do melhor marketing em português. Responda APENAS com o headline, sem explicações.`
-        }],
-        max_tokens: 100,
-        temperature: 0.8
+      const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
+      const prompt = `Crie um headline IRRESISTÍVEL e ESPECÍFICO para ${productName} que resolve a dor "${painPoint}". Emoção: ${emotion}. Máximo 15 palavras. Copie o tom do melhor marketing em português. Responda APENAS com o headline, sem explicações.`;
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          temperature: 0.8,
+          maxOutputTokens: 100,
+        }
       });
-      totalRegeneratePromptTokens += response.usage?.prompt_tokens || 0;
-      totalRegenerateCompletionTokens += response.usage?.completion_tokens || 0;
-      return response.choices[0].message.content?.trim() || generateCompleteHeadline(productName, emotion, painPoint, variation);
+      return response.text?.trim() || generateCompleteHeadline(productName, emotion, painPoint, variation);
     } catch (e) {
+      console.error('Error generating headline with Gemini:', e);
       return generateCompleteHeadline(productName, emotion, painPoint, variation);
     }
   }
@@ -19004,12 +19006,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gerar Primary Text com copywritter focado em Gemini 3.1
   async function generatePrimaryTextWithGPT(productName: string, description: string, painPoint: string, emotion: string, objective: string): Promise<string> {
     try {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini", // Integrando estrutura Gemini 3.1 internamente
-        messages: [{
-          role: "user",
-          content: `Aja como o Gemini 3.1 (Modelo Super Copywriter de Alta Conversão).
+      const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
+      const prompt = `Aja como o Gemini 3.1 (Modelo Super Copywriter de Alta Conversão).
 Crie um COPY IRRESISTÍVEL para anúncio de ${productName}.
 Descrição: ${description}
 Dor resolvida: ${painPoint}
@@ -19023,15 +19021,19 @@ O copy DEVE seguir a estrutura Nanbana 2 de Copywriting:
 4. PROVA SOCIAL INDIRETA / AUTORIDADE
 5. CALL TO ACTION CLARO (Direcionando para o objetivo: ${objective})
 
-Mantenha em 3 a 5 parágrafos curtos, linguagem brasileira autêntica, conversacional e hipnótica.`
-        }],
-        max_tokens: 600,
-        temperature: 0.9
+Mantenha em 3 a 5 parágrafos curtos, linguagem brasileira autêntica, conversacional e hipnótica.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          temperature: 0.9,
+          maxOutputTokens: 600,
+        }
       });
-      totalRegeneratePromptTokens += response.usage?.prompt_tokens || 0;
-      totalRegenerateCompletionTokens += response.usage?.completion_tokens || 0;
-      return response.choices[0].message.content?.trim() || generateCompletePrimaryText(productName, description, painPoint, emotion, objective);
+      return response.text?.trim() || generateCompletePrimaryText(productName, description, painPoint, emotion, objective);
     } catch (e) {
+      console.error('Error generating primary text with Gemini:', e);
       return generateCompletePrimaryText(productName, description, painPoint, emotion, objective);
     }
   }
