@@ -18986,41 +18986,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   async function generateActualImageWithGemini(prompt: string): Promise<string> {
     try {
       const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
-      const response = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-002',
-        prompt: prompt,
-        config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/jpeg',
-          aspectRatio: '1:1'
-        }
-      });
-      
-      if (response.generatedImages && response.generatedImages.length > 0) {
-        const imgBytes = response.generatedImages[0].image?.imageBytes || response.generatedImages[0].imageBytes;
-        if (imgBytes) {
-          return `data:image/jpeg;base64,${imgBytes}`;
-        }
-      }
-      return '';
-    } catch (e) {
-      console.error('Error generating image with Google AI Studio (Imagen 3):', e);
-      return '';
-    }
-  }
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.1-flash-image-preview',
+          contents: prompt,
+          config: {
+            responseModalities: ["IMAGE"]
+          }
+        });
 
-  // Registrar o Job de Vídeo Real via Veo 2.0 (Google AI Studio)
-  async function generateActualVideoWithVeo(prompt: string): Promise<string> {
-    try {
-      const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
-      const response = (await ai.models.generateVideos({
-        model: 'veo-2.0-generate-001',
-        prompt: prompt
-      })) as any;
-      return `Vídeo enviado para renderização (Veo 2.0). ID da Operação: ${response.name || 'Em fila'}`;
-    } catch (e) {
-      console.error('Error generating video with Google AI Studio (Veo 2):', e);
-      return 'Falha ao conectar com motor Veo 2.0 (API experimental/não liberada ou limite atingido para sua key).';
+        const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+        if (inlineData?.data) {
+          return `data:${inlineData.mimeType || 'image/png'};base64,${inlineData.data}`;
+        }
+        return '';
+      } catch (e) {
+        console.error('Error generating image with Google AI Studio (Nano Banana 2 / Gemini 3.1):', e);
+
+// Registrar o Job de Vídeo Real via Veo 3.1 (Google AI Studio)
+    async function generateActualVideoWithVeo(prompt: string): Promise<string> {
+      try {
+        const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
+        const response = (await ai.models.generateVideos({
+          model: 'veo-3.1-generate-preview',
+          prompt: prompt
+        })) as any;
+        return `Vídeo enviado para renderização (Veo 3.1). ID da Operação: ${response.name || 'Em fila'}`;
+      } catch (e) {
+        console.error('Error generating video with Google AI Studio (Veo 3.1):', e);
+        return 'Falha ao conectar com motor Veo 3.1 (API experimental/não liberada ou limite atingido para sua key).';
     }
   }
 
@@ -19031,7 +19024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prompt = `Crie um headline IRRESISTÍVEL e ESPECÍFICO para ${productName} que resolve a dor "${painPoint}". Emoção: ${emotion}. Máximo 15 palavras. Copie o tom do melhor marketing em português. Responda APENAS com o headline, sem explicações.`;
       
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.1-pro-preview',
         contents: prompt,
         config: {
           temperature: 0.8,
@@ -19066,7 +19059,7 @@ O copy DEVE seguir a estrutura Nanbana 2 de Copywriting:
 Mantenha em 3 a 5 parágrafos curtos, linguagem brasileira autêntica, conversacional e hipnótica.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.1-pro-preview',
         contents: prompt,
         config: {
           temperature: 0.9,
