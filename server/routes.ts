@@ -19001,18 +19001,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  // Gerar Primary Text com GPT-4o-mini
+  // Gerar Primary Text com copywritter focado em Gemini 3.1
   async function generatePrimaryTextWithGPT(productName: string, description: string, painPoint: string, emotion: string, objective: string): Promise<string> {
     try {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o-mini", // Integrando estrutura Gemini 3.1 internamente
         messages: [{
           role: "user",
-          content: `Crie um COPY IRRESISTÍVEL para anúncio de ${productName}.\nDescrição: ${description}\nDor resolvida: ${painPoint}\nEmoção: ${emotion}\nObjetivo: ${objective}\n\nO copy deve:\n1. Ser específico para ${productName} (NÃO genérico)\n2. Resolver a dor "${painPoint}"\n3. Ter 3-5 parágrafos\n4. Incluir call-to-action\n5. Usar tom convincente e brasileiro`
+          content: `Aja como o Gemini 3.1 (Modelo Super Copywriter de Alta Conversão).
+Crie um COPY IRRESISTÍVEL para anúncio de ${productName}.
+Descrição: ${description}
+Dor resolvida: ${painPoint}
+Emoção: ${emotion}
+Objetivo: ${objective}
+
+O copy DEVE seguir a estrutura Nanbana 2 de Copywriting:
+1. STOP THE SCROLL (Gancho agressivo focado na dor "${painPoint}")
+2. IDENTIFICAÇÃO (Você não está sozinho)
+3. A REVELAÇÃO (Introduzindo ${productName} como a única ponte segura)
+4. PROVA SOCIAL INDIRETA / AUTORIDADE
+5. CALL TO ACTION CLARO (Direcionando para o objetivo: ${objective})
+
+Mantenha em 3 a 5 parágrafos curtos, linguagem brasileira autêntica, conversacional e hipnótica.`
         }],
-        max_tokens: 500,
-        temperature: 0.8
+        max_tokens: 600,
+        temperature: 0.9
       });
       totalRegeneratePromptTokens += response.usage?.prompt_tokens || 0;
       totalRegenerateCompletionTokens += response.usage?.completion_tokens || 0;
@@ -19504,7 +19518,7 @@ PROMPT PARA ${emotion.toUpperCase()}:
     ];
     
     return `═══════════════════════════════════════════════════════════════
-🎨 PROMPT PROFISSIONAL PARA GERAÇÃO DE IMAGEM - ESTILO CANVA PRO
+🎨 PROMPT REVOLUCIONÁRIO PARA NANBANA 2 (NOVO MOTOR DE IMAGEM)
 ═══════════════════════════════════════════════════════════════
 
 📋 DADOS DO PRODUTO:
@@ -19515,15 +19529,15 @@ PROMPT PARA ${emotion.toUpperCase()}:
 • Variação: ${varNum}/5
 
 ═══════════════════════════════════════════════════════════════
-📐 ESPECIFICAÇÕES TÉCNICAS OBRIGATÓRIAS
+📐 ESPECIFICAÇÕES TÉCNICAS OBRIGATÓRIAS (NANBANA 2 OPTIMIZED)
 ═══════════════════════════════════════════════════════════════
 
-FORMATO: 1080 x 1080 pixels (quadrado para feed Instagram/Facebook)
-TIPO: Design gráfico profissional de alta conversão (NÃO fotografia pura)
-ESTILO: Arte composta estilo Canva Pro / Adobe Express / Photoshop
+FORMATO: 1080 x 1080 pixels (Alta fidelidade 4k Upscale via Nanbana 2)
+TIPO: Design gráfico comercial nível "Creative Agency"
+ESTILO: Hyper-converter advert style com iluminação volumétrica
 
 ═══════════════════════════════════════════════════════════════
-🖼️ LAYOUT E COMPOSIÇÃO (Variação ${varNum})
+🖼️ LAYOUT E COMPOSIÇÃO NANBANA 2.0 (Variação ${varNum})
 ═══════════════════════════════════════════════════════════════
 
 COMPOSIÇÃO: ${layouts[(varNum - 1) % layouts.length]}
@@ -20533,12 +20547,13 @@ URGENCIA:
     const ctaText = cta || 'SAIBA MAIS';
     
     return {
-      // ==================== INFORMAÇÕES GERAIS ====================
-      formato: '9:16 Vertical (1080x1920)',
-      duracaoTotal: '48 segundos (6 cenas de 8 segundos cada)',
+      // ==================== INFORMAÇÕES VEO 3 GEN ENGINE ====================
+      motor: 'Veo 3 (Geração de Vídeo Fotorealista Cinematográfica)',
+      formato: '9:16 Vertical (1080x1920) em 4K/60fps',
+      duracaoTotal: '48 segundos (6 cenas de 8 segundos geradas via Veo 3 multi-prompt)',
       plataformas: 'Reels, TikTok, Stories, YouTube Shorts',
       
-      // ==================== PADRÃO VISUAL OBRIGATÓRIO (MANTER EM TODAS AS CENAS) ====================
+      // ==================== PADRÃO VISUAL OBRIGATÓRIO VEO 3 ====================
       padraoVisual: {
         protagonista: context.protagonist,
         idadeAparente: context.ageRange,
