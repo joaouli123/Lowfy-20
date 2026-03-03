@@ -174,22 +174,29 @@ export default function MetaAdsAndromeda() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-8" data-testid="meta-ads-andromeda-page">
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+    <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-8" data-testid="meta-ads-andromeda-page">
+      {/* HEADER VISUALMENTE MELHORADO */}
+      <div className="relative rounded-2xl bg-gradient-to-br from-card to-background border shadow-sm p-8 overflow-hidden">
+        {/* Elemento de background decorativo */}
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 rounded-full bg-green-500/5 blur-3xl pointer-events-none" />
+        
+        <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6 z-10">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
-              <Sparkles className="w-8 h-8 text-green-600 dark:text-green-400" />
+            <div className="inline-flex items-center justify-center p-2.5 bg-green-100 dark:bg-green-900/30 rounded-xl mb-4 shadow-sm">
+              <Sparkles className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+            <h1 className="text-4xl font-extrabold tracking-tight mb-3 text-transparent bg-clip-text bg-gradient-to-r from-primary via-green-600 to-green-500 dark:to-green-400">
               Meta Ads Andromeda
             </h1>
-            <p className="text-muted-foreground">
-              Crie campanhas inteligentes com criativos gerados por IA baseados na nova atualização Andromeda
+            <p className="text-muted-foreground max-w-2xl text-lg">
+              Crie campanhas inteligentes e converta mais usando painéis interativos gerados por inteligência artificial, baseados na nova versão Andromeda.
             </p>
           </div>
           <Button
             onClick={() => setShowCreateForm(!showCreateForm)}
             size="lg"
-            className="gap-2"
+            className="gap-2 shadow-lg shadow-primary/25 hover:scale-105 transition-all duration-300 rounded-full px-8 h-12"
             data-testid="button-create-campaign"
           >
             <Plus className="w-5 h-5" />
@@ -211,64 +218,80 @@ export default function MetaAdsAndromeda() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : campaigns.length === 0 && !showCreateForm ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Sparkles className="w-16 h-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhuma campanha criada ainda</h3>
-            <p className="text-muted-foreground text-center mb-4">
-              Comece criando sua primeira campanha Meta Ads com estratégia Andromeda
+        <Card className="border-dashed bg-muted/30 hover:bg-muted/50 transition-colors duration-500">
+          <CardContent className="flex flex-col items-center justify-center py-20 px-4">
+            <div className="bg-background p-6 rounded-full shadow-sm mb-6 border">
+              <Sparkles className="w-12 h-12 text-primary/70 dark:text-primary/50" />
+            </div>
+            <h3 className="text-2xl font-bold mb-3 tracking-tight">Nenhuma campanha criada ainda</h3>
+            <p className="text-muted-foreground text-center mb-8 max-w-md text-lg">
+              Comece criando sua primeira campanha de Meta Ads revolucionária com a estratégia da inteligência Andromeda.
             </p>
-            <Button onClick={() => setShowCreateForm(true)} data-testid="button-create-first-campaign">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button 
+              size="lg" 
+              className="gap-2 shadow-md hover:scale-105 transition-transform"
+              onClick={() => setShowCreateForm(true)} 
+              data-testid="button-create-first-campaign"
+            >
+              <Plus className="w-5 h-5 mr-1" />
               Criar Primeira Campanha
             </Button>
           </CardContent>
         </Card>
       ) : campaigns.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {campaigns.map((campaign) => (
-            <Card key={campaign.id} className="hover:shadow-lg transition-shadow" data-testid={`campaign-card-${campaign.id}`}>
-              <CardHeader>
+            <Card key={campaign.id} className="group flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-border/60 hover:border-primary/40 bg-gradient-to-b from-card to-background overflow-hidden relative" data-testid={`campaign-card-${campaign.id}`}>
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-green-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-out" />
+              <CardHeader className="pb-3 border-b border-border/20">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <CardTitle className="text-xl">{campaign.productName}</CardTitle>
-                      <Badge className={getStatusColor(campaign.status)}>
+                      <CardTitle className="text-xl font-bold line-clamp-1">{campaign.productName}</CardTitle>
+                      <Badge className={`${getStatusColor(campaign.status)} font-semibold shadow-sm ml-auto shrink-0 whitespace-nowrap`}>
                         {getStatusLabel(campaign.status)}
                       </Badge>
                     </div>
-                    <CardDescription>
-                      {formatCurrency(campaign.productPrice)} • {getObjectiveLabel(campaign.objective)}
+                    <CardDescription className="flex items-center gap-1.5 text-xs font-medium">
+                      <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{formatCurrency(campaign.productPrice)}</span> 
+                      <span className="text-muted-foreground/60">•</span>
+                      <span className="bg-muted px-2 py-0.5 rounded-full">{getObjectiveLabel(campaign.objective)}</span>
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-4 flex-1">
                 <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium mb-1">Dor que resolve:</p>
-                    <p className="text-sm text-muted-foreground">{campaign.painPoint}</p>
+                  <div className="bg-muted/30 p-3 rounded-lg border border-border/50">
+                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Dor que resolve</p>
+                    <p className="text-sm text-foreground/90 line-clamp-2 leading-relaxed">{campaign.painPoint}</p>
                   </div>
 
                   {Array.isArray(campaign.creatives) && campaign.creatives.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium mb-2">Criativos ({campaign.creatives.length}):</p>
+                      <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Criativos Gerados</p>
                       <div className="flex gap-2 flex-wrap">
-                        {campaign.creatives.map((creative: any, index: number) => (
-                          <Badge key={index} variant="outline" className="text-xs flex items-center gap-1">
-                            {getFormatIcon(creative.type || creative.format)}
-                            {getFormatLabel(creative.type || creative.format)} • {getEmotionLabel(creative.emotion)}
+                        {campaign.creatives.slice(0, 3).map((creative: any, index: number) => (
+                          <Badge key={index} variant="secondary" className="text-xs flex items-center gap-1.5 py-1 px-2.5 bg-background shadow-sm border border-border/60 hover:bg-muted transition-colors">
+                            <span className="text-primary">{getFormatIcon(creative.type || creative.format)}</span>
+                            {getFormatLabel(creative.type || creative.format)}
                           </Badge>
                         ))}
+                        {campaign.creatives.length > 3 && (
+                          <Badge variant="secondary" className="text-xs py-1 px-2.5 bg-muted/50">
+                            +{campaign.creatives.length - 3} mais
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   )}
-
-                  <div className="flex gap-2 pt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
+                </div>
+              </CardContent>
+              <div className="p-4 pt-0 mt-auto flex gap-2">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="flex-1 shadow-sm hover:shadow transition-shadow"
                       onClick={() => setSelectedCampaign(campaign)}
                       data-testid={`button-view-${campaign.id}`}
                     >
@@ -294,8 +317,6 @@ export default function MetaAdsAndromeda() {
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-                </div>
-              </CardContent>
             </Card>
           ))}
         </div>
@@ -599,76 +620,83 @@ function ImageVariationCard({ variation, index, productName }: { variation: any;
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition border border-gray-300 dark:border-gray-600 rounded-lg" data-testid={`image-variation-${index}`}>
-      <div className="px-3 pt-3 pb-2">
-        <p className="text-xs text-gray-500 font-bold uppercase mb-2">Texto Principal</p>
-        <div 
-          className="group bg-gray-50 dark:bg-gray-800 p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+    <Card className="overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-border/50 dark:border-gray-600 rounded-xl bg-card" data-testid={`image-variation-${index}`}>
+      <div className="px-4 pt-4 pb-3">
+        <p className="text-[11px] tracking-wider text-muted-foreground font-bold uppercase mb-2 flex items-center gap-1.5"><Sparkles className="w-3 h-3 text-primary"/> Texto Principal</p>
+        <div
+          className="group bg-muted/30 p-3.5 rounded-xl cursor-pointer hover:bg-muted/60 hover:shadow-inner border border-transparent hover:border-border/60 transition-all"
           onClick={copyPrimaryText}
         >
-          <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
-            {variation.primaryText}
+          <p className="text-sm text-foreground/90 leading-relaxed italic border-l-2 border-primary/40 pl-3">
+            "{variation.primaryText}"
           </p>
-          <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-            {copiedPrimaryText ? '✓ Copiado!' : '👆 Clique para copiar'}
+          <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1 font-medium">
+            {copiedPrimaryText ? <span className="text-green-500 flex items-center gap-1">✓ Copiado!</span> : '👆 Clique para copiar'}
           </p>
         </div>
       </div>
 
-      <div 
-        className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 min-h-[160px] flex flex-col items-center justify-center relative cursor-pointer hover:from-green-600 hover:to-emerald-700 transition-all mx-3 mb-3 rounded-lg overflow-hidden group"
+      <div
+        className="bg-gradient-to-br from-green-500/90 to-emerald-600/90 p-5 min-h-[160px] flex flex-col items-center justify-center relative cursor-pointer hover:from-green-600 hover:to-emerald-700 transition-all mx-4 mb-4 rounded-xl overflow-hidden group shadow-inner"
         onClick={copyPrompt}
       >
-        <Badge className="absolute top-3 left-3 bg-white/90 text-green-700 text-xs font-semibold">
-          Variacao {index + 1}
+        <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-300" />
+        
+        <Badge className="absolute top-3 left-3 bg-white/95 text-green-700 hover:bg-white text-xs font-bold shadow-sm z-10 border-0">
+          Variação {index + 1}
         </Badge>
         
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 text-white/40 text-2xl animate-pulse">›</div>
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 text-white/40 text-2xl animate-pulse">›</div>
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+          <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-white/50 text-2xl animate-pulse">‹</div>
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/50 text-2xl animate-pulse">›</div>
         </div>
         
-        <div className="text-center">
-          <p className="text-xs text-green-100 font-bold uppercase tracking-wider mb-3">
-            PROMPT PARA CRIAR IMAGEM
+        <div className="text-center z-10 w-full relative">
+          <p className="text-[10px] text-green-100 font-extrabold uppercase tracking-widest mb-3 flex items-center justify-center gap-1">
+             Prompt para a IA <Sparkles className="w-3 h-3" />
           </p>
-          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-3 mx-2">
-            <p className="text-sm text-white text-center leading-relaxed">
+          <div className="bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-md rounded-xl p-3 mx-2 border border-white/20 shadow-lg">
+            <p className="text-sm text-white text-center leading-relaxed line-clamp-4">
               {variation.prompt}
             </p>
-            <p className="text-xs text-green-100/80 mt-2 pt-2 border-t border-white/20">
-              Resolução: 1080x1080
-            </p>
+            <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/20">
+              <p className="text-[11px] text-green-100/90 font-medium">
+                Aspect <span className="text-white">1:1 (Feed)</span>
+              </p>
+              {copiedPrompt && <span className="text-[10px] font-bold text-white bg-green-500/50 px-2 py-0.5 rounded-full animate-in fade-in zoom-in">✓ Copiado</span>}
+            </div>
           </div>
-          <p className="text-xs text-green-100 mt-3 flex items-center justify-center gap-1">
-            {copiedPrompt ? '✓ Copiado!' : '👆 Clique para copiar o prompt'}
-          </p>
+          {!copiedPrompt && (
+            <p className="text-[11px] text-green-100/80 mt-3 font-medium group-hover:opacity-100 transition-opacity">
+              👆 Clique na caixa para copiar o prompt
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="px-3 pb-3 space-y-3">
+      <div className="px-4 pb-4 space-y-3">
         <div>
-          <p className="text-xs text-gray-500 font-bold uppercase mb-1.5">Titulo</p>
+          <p className="text-[11px] tracking-wider text-muted-foreground font-bold uppercase mb-1.5 flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-blue-500" /> Título (Headline)</p>
           <div 
-            className="flex items-start gap-2 group cursor-pointer bg-gray-50 dark:bg-gray-800 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-start gap-2 group cursor-pointer bg-muted/30 p-2.5 rounded-lg hover:bg-muted/60 transition-colors border border-transparent hover:border-border"
             onClick={copyTitle}
           >
-            <p className="text-sm font-semibold text-gray-900 dark:text-white flex-1">{variation.headline}</p>
-            <span className="text-xs text-gray-400">
-              {copiedTitle ? '✓' : '📋'}
+            <p className="text-sm font-semibold text-gray-900 flex-1">{variation.headline}</p>
+            <span className="text-xs text-muted-foreground transition-opacity opacity-0 group-hover:opacity-100">
+              {copiedTitle ? '✓ Copiado' : 'Copiar'}
             </span>
           </div>
         </div>
 
         <div>
-          <p className="text-xs text-gray-500 font-bold uppercase mb-1.5">Descricao</p>
+           <p className="text-[11px] tracking-wider text-muted-foreground font-bold uppercase mb-1.5 flex items-center gap-1.5"><Sparkles className="w-3 h-3 text-purple-500" /> Descrição</p>
           <div 
-            className="flex items-start gap-2 group cursor-pointer bg-gray-50 dark:bg-gray-800 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-start gap-2 group cursor-pointer bg-muted/30 p-2.5 rounded-lg hover:bg-muted/60 transition-colors border border-transparent hover:border-border"
             onClick={copyDescription}
           >
-            <p className="text-sm text-gray-800 dark:text-gray-200 flex-1">{variation.description}</p>
-            <span className="text-xs text-gray-400">
-              {copiedDesc ? '✓' : '📋'}
+            <p className="text-sm text-gray-800 flex-1">{variation.description}</p>
+            <span className="text-xs text-muted-foreground transition-opacity opacity-0 group-hover:opacity-100">
+              {copiedDesc ? '✓ Copiado' : 'Copiar'}
             </span>
           </div>
         </div>
@@ -705,57 +733,66 @@ function CarouselSlideCard({ slide, index, total }: { slide: any; index: number;
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition border border-gray-300 dark:border-gray-600 rounded-lg" data-testid={`carousel-slide-${index}`}>
-      <div className="bg-white dark:bg-gray-900 p-3">
-        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs">
+    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border-border/50 group bg-card" data-testid={`carousel-slide-${index}`}>
+      <div className="bg-muted/20 p-3 flex justify-between items-center border-b border-border/50">
+        <Badge variant="outline" className="bg-background text-foreground text-xs font-semibold shadow-sm">
           Slide {index + 1}/{total}
         </Badge>
+        <GalleryHorizontal className="w-4 h-4 text-muted-foreground mr-1 opacity-50" />
       </div>
 
-      <div className="p-3 space-y-3">
+      <div className="p-4 space-y-4">
         <div>
-          <p className="text-xs text-gray-500 font-bold uppercase mb-2">Prompt para IA de Imagem</p>
           <div 
-            className="cursor-pointer bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all"
+            className="cursor-pointer bg-gradient-to-br from-green-500/90 to-emerald-600/90 p-4 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all relative overflow-hidden group/prompt shadow-inner min-h-[140px] flex flex-col justify-center"
             onClick={copyPrompt}
           >
-            <p className="text-xs text-green-100 font-bold uppercase tracking-wider mb-2 text-center">
-              CLIQUE PARA COPIAR
+            <div className="absolute inset-0 bg-black/10 group-hover/prompt:bg-transparent transition-colors duration-300 pointer-events-none" />
+            
+            <p className="text-[10px] text-green-100 font-extrabold uppercase tracking-widest mb-3 flex items-center justify-center gap-1 relative z-10">
+              Prompt de Imagem <Sparkles className="w-3 h-3" />
             </p>
-            <div className="bg-white/15 backdrop-blur-sm rounded-lg p-3 max-h-48 overflow-y-auto">
-              <pre className="text-xs text-white leading-relaxed whitespace-pre-wrap font-mono">
+            <div className="bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-md rounded-xl p-3 max-h-48 overflow-y-auto border border-white/20 relative z-10 shadow-lg">
+              <pre className="text-sm text-white leading-relaxed whitespace-pre-wrap font-sans">
                 {slideImagePrompt}
               </pre>
             </div>
-            <p className="text-xs text-green-100/80 mt-2 text-center">
-              {copiedPrompt ? '✓ Copiado!' : '👆 Clique para copiar'}
-            </p>
+            
+            <div className="text-center mt-3 relative z-10">
+               {copiedPrompt ? (
+                  <span className="text-[10px] font-bold text-white bg-green-500/50 px-3 py-1 rounded-full animate-in fade-in zoom-in">✓ Copiado para área de transferência</span>
+               ) : (
+                 <p className="text-[11px] text-green-100/90 font-medium opacity-80 group-hover/prompt:opacity-100 transition-opacity">
+                    👆 Clique na caixa para copiar
+                 </p>
+               )}
+            </div>
           </div>
         </div>
 
-        <div>
-          <p className="text-xs text-gray-500 font-bold uppercase mb-2">Titulo</p>
+        <div className="pt-2 border-t border-border/30">
+          <p className="text-[11px] tracking-wider text-muted-foreground font-bold uppercase mb-1.5 flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-blue-500" /> Título do Slide</p>
           <div 
-            className="cursor-pointer bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-start gap-2 group/copy cursor-pointer bg-muted/30 p-2.5 rounded-lg hover:bg-muted/60 transition-colors border border-transparent hover:border-border"
             onClick={copyTitle}
           >
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">{slideTitle}</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {copiedTitle ? '✓ Copiado!' : '👆 Clique para copiar'}
-            </p>
+            <p className="text-sm font-semibold text-foreground flex-1">{slideTitle}</p>
+            <span className="text-xs text-muted-foreground transition-opacity opacity-0 group-hover/copy:opacity-100">
+              {copiedTitle ? '✓ Copiado' : 'Copiar'}
+            </span>
           </div>
         </div>
 
         <div>
-          <p className="text-xs text-gray-500 font-bold uppercase mb-2">Texto/Copy do Slide</p>
+          <p className="text-[11px] tracking-wider text-muted-foreground font-bold uppercase mb-1.5 flex items-center gap-1.5"><Sparkles className="w-3 h-3 text-purple-500" /> Texto Principal</p>
           <div 
-            className="cursor-pointer bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-start gap-2 group/copy cursor-pointer bg-muted/30 p-2.5 rounded-lg hover:bg-muted/60 transition-colors border border-transparent hover:border-border"
             onClick={copyDescription}
           >
-            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{slideDescription}</p>
-            <p className="text-xs text-gray-400 mt-2">
-              {copiedDesc ? '✓ Copiado!' : '👆 Clique para copiar'}
-            </p>
+            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed flex-1">{slideDescription}</p>
+            <span className="text-xs text-muted-foreground transition-opacity opacity-0 group-hover/copy:opacity-100 pt-1">
+              {copiedDesc ? '✓ Copiado' : 'Copiar'}
+            </span>
           </div>
         </div>
       </div>
@@ -825,20 +862,20 @@ function VideoScriptCard({ creative, productName }: { creative: any; productName
   };
 
   return (
-    <Card className="overflow-hidden border border-gray-300 dark:border-gray-600 rounded-lg" data-testid="video-script-card">
-      <div className="p-3 space-y-4">
+    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border-border/50 bg-card" data-testid="video-script-card">
+      <div className="p-4 space-y-5">
         <div>
-          <p className="text-xs text-gray-500 font-bold uppercase mb-2">Texto Principal (Copy do Anuncio)</p>
+          <p className="text-[11px] tracking-wider text-muted-foreground font-bold uppercase mb-1.5 flex items-center gap-1.5"><Sparkles className="w-3 h-3 text-purple-500" /> Texto Principal (Copy do Anúncio)</p>
           <div 
-            className="cursor-pointer bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-start gap-2 group/copy cursor-pointer bg-muted/30 p-3 rounded-lg hover:bg-muted/60 transition-colors border border-transparent hover:border-border"
             onClick={copyPrimaryText}
           >
-            <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap flex-1">
               {primaryText}
             </p>
-            <p className="text-xs text-gray-400 mt-2">
-              {copiedPrimaryText ? '✓ Copiado!' : '👆 Clique para copiar'}
-            </p>
+            <span className="text-xs text-muted-foreground transition-opacity opacity-0 group-hover/copy:opacity-100 mt-1">
+              {copiedPrimaryText ? '✓ Copiado' : 'Copiar'}
+            </span>
           </div>
         </div>
 
@@ -1129,19 +1166,26 @@ function CampaignDetailsModal({ campaign, onClose }: { campaign: MetaAdsCampaign
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-blue-600" />
-            {campaign.productName}
-          </DialogTitle>
-          <DialogDescription>
-            Criativos gerados com IA • Clique para copiar prompts
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0 border-border/50 gap-0">
+        <div className="relative overflow-hidden bg-gradient-to-r from-blue-900/90 via-indigo-900/90 to-purple-900/90 p-6">
+           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-blue-500/20 blur-3xl mix-blend-screen pointer-events-none" />
+           <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-32 h-32 rounded-full bg-purple-500/20 blur-3xl mix-blend-screen pointer-events-none" />
+           <DialogHeader className="relative z-10">
+             <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-white tracking-tight">
+               <div className="p-2 bg-white/10 rounded-lg backdrop-blur-md border border-white/10">
+                 <Sparkles className="w-6 h-6 text-blue-300" />
+               </div>
+               {campaign.productName}
+             </DialogTitle>
+             <DialogDescription className="text-blue-100/70 font-medium tracking-wide mt-1">
+               Criativos gerados com Inteligência Artificial • Clique nos prompts para copiar
+             </DialogDescription>
+           </DialogHeader>
+        </div>
 
-        <Tabs defaultValue="images" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+        <div className="overflow-y-auto p-6 flex-1 bg-background/50">
+          <Tabs defaultValue="images" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50 p-1 border border-border/50 rounded-xl">
             <TabsTrigger value="images" className="flex items-center gap-1.5">
               <Image className="w-4 h-4" />
               <span className="hidden sm:inline">Imagens</span>
@@ -1270,6 +1314,7 @@ function CampaignDetailsModal({ campaign, onClose }: { campaign: MetaAdsCampaign
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

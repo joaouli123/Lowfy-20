@@ -19001,6 +19001,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return '';
       } catch (e) {
         console.error('Error generating image with Google AI Studio (Nano Banana 2 / Gemini 3.1):', e);
+        return '';
+      }
+  }
 
 // Registrar o Job de Vídeo Real via Veo 3.1 (Google AI Studio)
     async function generateActualVideoWithVeo(prompt: string): Promise<string> {
