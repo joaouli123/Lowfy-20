@@ -18982,6 +18982,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== SISTEMA DE GERAÇÃO DE CRIATIVOS DE ALTA CONVERSÃO ====================
   
+  // Gerar Imagem Real via Imagen 3 (Google AI Studio)
+  async function generateActualImageWithGemini(prompt: string): Promise<string> {
+    try {
+      const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
+      const response = await ai.models.generateImages({
+        model: 'imagen-3.0-generate-002',
+        prompt: prompt,
+        config: {
+          numberOfImages: 1,
+          outputMimeType: 'image/jpeg',
+          aspectRatio: '1:1'
+        }
+      });
+      
+      if (response.generatedImages && response.generatedImages.length > 0) {
+        const imgBytes = response.generatedImages[0].image?.imageBytes || response.generatedImages[0].imageBytes;
+        if (imgBytes) {
+          return `data:image/jpeg;base64,${imgBytes}`;
+        }
+      }
+      return '';
+    } catch (e) {
+      console.error('Error generating image with Google AI Studio (Imagen 3):', e);
+      return '';
+    }
+  }
+
+  // Registrar o Job de Vídeo Real via Veo 2.0 (Google AI Studio)
+  async function generateActualVideoWithVeo(prompt: string): Promise<string> {
+    try {
+      const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
+      const response = (await ai.models.generateVideos({
+        model: 'veo-2.0-generate-001',
+        prompt: prompt
+      })) as any;
+      return `Vídeo enviado para renderização (Veo 2.0). ID da Operação: ${response.name || 'Em fila'}`;
+    } catch (e) {
+      console.error('Error generating video with Google AI Studio (Veo 2):', e);
+      return 'Falha ao conectar com motor Veo 2.0 (API experimental/não liberada ou limite atingido para sua key).';
+    }
+  }
+
   // Gerar Headlines com GPT-4o-mini
   async function generateHeadlineWithGPT(productName: string, emotion: string, painPoint: string, variation: number): Promise<string> {
     try {
@@ -19096,7 +19138,16 @@ Mantenha em 3 a 5 parágrafos curtos, linguagem brasileira autêntica, conversac
       );
       creative.aiPrompt = creative.aiImagePrompt;
       creative.prompt = creative.aiImagePrompt;
-      
+
+      // Gerar imagem real via Imagen 3 se o usuário pedir single_image, para usar a key
+      if (format === 'single_image') {
+        const simplifiedImagePrompt = `Professional marketing ad image for ${fullProductName}. ${visualContext.style}. Setting: ${visualContext.setting}. Lighting: ${visualContext.lighting}. Mood: ${emotion}. Colors: ${getCompleteVisualStyle(emotion, fullProductName).split('.')[0]}. High quality, 8k, photorealistic.`;
+        const base64Img = await generateActualImageWithGemini(simplifiedImagePrompt);
+        if (base64Img) {
+          creative.generatedImageBase64 = base64Img;
+        }
+      }
+
       // Adicionar variações de imagem para testes A/B
       creative.imageVariations = generateImageVariations(
         fullProductName,
@@ -19130,7 +19181,13 @@ Mantenha em 3 a 5 parágrafos curtos, linguagem brasileira autêntica, conversac
         visualContext,
         cta
       );
-      
+
+      // Registrar chamada para Veo 2.0 (Google AI Studio) nos scripts de vídeo
+      if (format === 'video_script') {
+        const simplifiedVideoPrompt = `Cinematic wide panning shot for ${fullProductName} ad. ${visualContext.style}. Setting: ${visualContext.setting}. Lighting: ${visualContext.lighting}. Mood: ${emotion}. High quality, 4k, photorealistic.`;
+        creative.video.veo2OperationStatus = await generateActualVideoWithVeo(simplifiedVideoPrompt);
+      }
+
       creatives.push(creative);
     }
     
