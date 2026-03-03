@@ -512,11 +512,12 @@ if (!isProduction) {
 (async () => {
   const server = await registerRoutes(app);
 
-  // Verificar SMTP no startup
-  const smtpOk = await verifySmtpConnection();
-  if (!smtpOk) {
-    logger.warn('⚠️ [STARTUP] SMTP não está funcionando - emails não serão enviados!');
-  }
+  // Verificar SMTP no startup (executado em background p/ não bloquear o boot)
+  verifySmtpConnection().then(smtpOk => {
+    if (!smtpOk) {
+      logger.warn('⚠️ [STARTUP] SMTP não está funcionando - emails não serão enviados!');
+    }
+  });
 
   async function migrateLegacyCPFs() {
     try {
