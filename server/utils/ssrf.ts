@@ -67,14 +67,26 @@ export function isPrivateIp(ip: string): boolean {
 const guardedLookup: typeof dns.lookup = ((hostname: string, options: any, callback: any) => {
   const cb = typeof options === 'function' ? options : callback;
   const opts = typeof options === 'function' ? {} : (options || {});
+  // IMPORTANTE: honrar a opção `all` que o agente HTTP do Node passa.
+  // O agente moderno chama o lookup com { all: true } (Happy Eyeballs) e espera
+  // um ARRAY de volta. Devolver um único endereço quebra com "Invalid IP address".
+  const wantsAll = opts.all === true;
 
   dns.lookup(hostname, { ...opts, all: true }, (err: any, addresses: any) => {
     if (err) return cb(err);
-    const list = Array.isArray(addresses) ? addresses : [addresses];
+    const list = Array.isArray(addresses)
+      ? addresses
+      : (addresses ? [{ address: addresses, family: opts.family || 0 }] : []);
+    if (list.length === 0) {
+      return cb(new Error(`Não foi possível resolver o host: ${hostname}`));
+    }
     for (const entry of list) {
       if (isPrivateIp(entry.address)) {
         return cb(new Error(`SSRF bloqueado: endereço interno não permitido (${entry.address})`));
       }
+    }
+    if (wantsAll) {
+      return cb(null, list);
     }
     const first = list[0];
     cb(null, first.address, first.family);
