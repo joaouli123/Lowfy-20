@@ -780,7 +780,8 @@ export const sellerTransactions = pgTable("seller_transactions", {
   withdrawalFeeCents: integer("withdrawal_fee_cents").default(0), // Withdrawal fee (R$ 2,49) for withdrawals
   netAmountCents: integer("net_amount_cents"), // Final amount after all fees
   orderId: varchar("order_id").references(() => marketplaceOrders.id),
-  status: varchar("status").default("pending"), // pending, completed, failed
+  relatedId: varchar("related_id"), // Ex.: id do saque (vincula a transação ao withdrawal). Coluna criada na migration 0011.
+  status: varchar("status").default("pending"), // pending, processing, completed, failed
   description: text("description"),
   releasedAt: timestamp("released_at"), // Quando o saldo foi liberado (8 dias após venda)
   completedAt: timestamp("completed_at"),

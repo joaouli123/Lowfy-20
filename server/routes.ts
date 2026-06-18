@@ -7,7 +7,7 @@ import { logger } from "./utils/logger";
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 
-import { setupAuth, authMiddleware, optionalAuthMiddleware, adminMiddleware, subscriptionMiddleware, isSubscriptionActive, getSubscriptionDaysExpired, hashPassword, verifyPassword, createSession, deleteSession, setAuthCookie, clearAuthCookie, generate2FACode, create2FAVerification, verify2FACode } from "./auth";
+import { setupAuth, authMiddleware, optionalAuthMiddleware, adminMiddleware, subscriptionMiddleware, fullAccessMiddleware, isSubscriptionActive, getSubscriptionDaysExpired, hashPassword, verifyPassword, createSession, deleteSession, setAuthCookie, clearAuthCookie, generate2FACode, create2FAVerification, verify2FACode } from "./auth";
 import { 
   sendEmail, 
   generateWelcomeEmailTemplate, 
@@ -60,7 +60,7 @@ import {
   lowfySubscriptions,
   referralCodes,
   referralCommissions,
-  referralWallet,
+  referralWallet, referralTransactions,
   checkoutRecoveryEmails,
   customDomainMappings,
   insertSupportTicketSchema
@@ -6202,7 +6202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== N8N AUTOMATION ROUTES ====================
 
-  app.get('/api/n8n-automations', authMiddleware, subscriptionMiddleware, async (req, res) => {
+  app.get('/api/n8n-automations', authMiddleware, fullAccessMiddleware, async (req, res) => {
     try {
       const {category, search, limit, offset } = req.query;
 
@@ -6220,7 +6220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/n8n-automations/categories', authMiddleware, subscriptionMiddleware, async (_req, res) => {
+  app.get('/api/n8n-automations/categories', authMiddleware, fullAccessMiddleware, async (_req, res) => {
     try {
       const categories = await storage.getN8nCategories();
       res.json(categories);
@@ -6230,7 +6230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/n8n-automations/:id', authMiddleware, subscriptionMiddleware, async (req, res) => {
+  app.get('/api/n8n-automations/:id', authMiddleware, fullAccessMiddleware, async (req, res) => {
     try {
       const automation = await storage.getN8nAutomationById(req.params.id);
 
@@ -6326,7 +6326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== QUIZ INTERATIVO ROUTES ====================
 
-  app.get('/api/quiz-interativo/settings', authMiddleware, subscriptionMiddleware, async (_req, res) => {
+  app.get('/api/quiz-interativo/settings', authMiddleware, fullAccessMiddleware, async (_req, res) => {
     try {
       const settings = await storage.getQuizInterativoSettings();
       if (!settings) {
@@ -9166,7 +9166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonador de Páginas - Clonar página
-  app.post("/api/clone-page", authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.post("/api/clone-page", authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const { url } = req.body;
 
@@ -9234,7 +9234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonador de Páginas - Listar páginas salvas
-  app.get("/api/list-cloned-pages", authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.get("/api/list-cloned-pages", authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       logger.debug("[DEBUG] Listando páginas clonadas para userId:", userId);
@@ -9348,7 +9348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonador de Páginas - Obter HTML de página salva
-  app.get("/api/get-cloned-page/:name", authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.get("/api/get-cloned-page/:name", authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       const { name } = req.params;
@@ -9384,7 +9384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonador de Páginas - Excluir página salva
-  app.delete("/api/delete-cloned-page/:name", authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.delete("/api/delete-cloned-page/:name", authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       const { name } = req.params;
@@ -9442,7 +9442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonador de Páginas - Salvar página clonada com slug único
-  app.post("/api/save-cloned-page", authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.post("/api/save-cloned-page", authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const { name, html, isCloned } = req.body;
 
@@ -9630,7 +9630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonador de Páginas - Atualizar página clonada existente
-  app.post("/api/update-cloned-page", authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.post("/api/update-cloned-page", authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       const { name, html } = req.body;
@@ -9707,7 +9707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Clonador de Páginas - Configurar domínio customizado
   // Sistema simplificado: salva no banco e metadata, SSL é automático via Cloudflare proxy do usuário
-  app.post("/api/cloned-page/set-domain", authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.post("/api/cloned-page/set-domain", authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       const { pageName, customDomain } = req.body;
@@ -10666,7 +10666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== PRE-SELL BUILDER ROUTES ====================
 
-  app.get('/api/presell/list', authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.get('/api/presell/list', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       const dir = path.join(process.cwd(), 'presell-pages');
@@ -10746,7 +10746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/presell/get/:name', authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.get('/api/presell/get/:name', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       const { name } = req.params;
@@ -10785,7 +10785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/presell/save', authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.post('/api/presell/save', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       const pageData = req.body;
@@ -10992,7 +10992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/presell/update', authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.post('/api/presell/update', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const userId = (req as any).user?.id;
       const pageData = req.body;
@@ -11174,7 +11174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/presell/delete/:name', authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.delete('/api/presell/delete/:name', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const { name } = req.params;
       const filePath = path.join(process.cwd(), 'presell-pages', `${sanitizePageName(name)}.json`);
@@ -11225,7 +11225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Pre-Sell - Configurar domínio customizado
   // Usa Cloudflare for SaaS API para SSL automático
-  app.post('/api/presell/configure-domain/:pageName', authMiddleware, subscriptionMiddleware, async (req: any, res) => {
+  app.post('/api/presell/configure-domain/:pageName', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const { pageName } = req.params;
       const { customDomain } = req.body;
@@ -15175,96 +15175,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const asaasPixKeyType = pixKeyTypeMap[wallet.pixKeyType] || 'EVP';
 
-      // 1. PRIMEIRO: Try Asaas transfer FORA de transação (sem debitar nada)
+      // 1. ATÔMICO: lock da carteira (mutex por vendedor) + recheck de saldo + DÉBITO +
+      //    registro do saque como 'processing' — tudo ANTES de qualquer transferência externa.
+      let withdrawal: typeof podpayWithdrawals.$inferSelect;
+      try {
+        withdrawal = await db.transaction(async (tx) => {
+          // Lock: serializa saques concorrentes do mesmo vendedor (evita corrida / saque N×)
+          await tx.select().from(sellerWallet).where(eq(sellerWallet.sellerId, req.user.id)).for('update');
+
+          // Recheca o saldo DENTRO do lock (calculateAvailableBalance já desconta pending/processing)
+          const lockedBalance = await storage.calculateAvailableBalance(req.user.id);
+          if (lockedBalance.balanceAvailable < amountCents) {
+            throw Object.assign(new Error('INSUFFICIENT_BALANCE'), {
+              code: 'INSUFFICIENT_BALANCE',
+              available: lockedBalance.balanceAvailable,
+            });
+          }
+
+          // Debita a carteira de marketplace
+          await tx.update(sellerWallet).set({
+            balanceAvailable: sql`GREATEST(0, ${sellerWallet.balanceAvailable} - ${marketplaceAmountWithdrawn})`,
+            totalWithdrawn: sql`${sellerWallet.totalWithdrawn} + ${marketplaceAmountWithdrawn}`,
+            updatedAt: new Date(),
+          }).where(eq(sellerWallet.sellerId, req.user.id));
+
+          // Debita a carteira de indicações, se aplicável
+          if (referralAmountWithdrawn > 0) {
+            await tx.update(referralWallet).set({
+              balanceAvailable: sql`GREATEST(0, ${referralWallet.balanceAvailable} - ${referralAmountWithdrawn})`,
+              totalWithdrawn: sql`${referralWallet.totalWithdrawn} + ${referralAmountWithdrawn}`,
+              updatedAt: new Date(),
+            }).where(eq(referralWallet.userId, req.user.id));
+          }
+
+          // Registra o saque como 'processing' (débito já feito; transferência ainda não)
+          const [newWithdrawal] = await tx.insert(podpayWithdrawals).values({
+            sellerId: req.user.id,
+            amountCents: amountCents, // valor bruto (inclui taxa)
+            status: 'processing',
+            pixKey: wallet.pixKey!,
+            pixKeyType: wallet.pixKeyType!,
+            provider: 'asaas',
+          }).returning();
+
+          await tx.insert(sellerTransactions).values({
+            sellerId: req.user.id,
+            type: 'withdrawal',
+            amount: -marketplaceAmountWithdrawn,
+            status: 'processing',
+            description: `Saque de vendas: R$ ${(marketplaceAmountWithdrawn / 100).toFixed(2)} (parte de R$ ${(amountCents / 100).toFixed(2)}) via PIX`,
+            relatedId: newWithdrawal.id,
+          });
+
+          if (referralAmountWithdrawn > 0) {
+            await tx.insert(referralTransactions).values({
+              userId: req.user.id,
+              type: 'withdrawal',
+              amount: -referralAmountWithdrawn,
+              status: 'processing',
+              description: `Saque de comissões: R$ ${(referralAmountWithdrawn / 100).toFixed(2)} (parte de R$ ${(amountCents / 100).toFixed(2)}) via PIX`,
+            });
+          }
+
+          return newWithdrawal;
+        });
+      } catch (txError: any) {
+        if (txError?.code === 'INSUFFICIENT_BALANCE') {
+          return res.status(400).json({
+            message: 'Saldo insuficiente para saque',
+            balanceAvailable: txError.available,
+            requested: amountCents,
+          });
+        }
+        logger.error('[Marketplace Withdrawal] Falha ao registrar saque (débito):', txError);
+        return res.status(500).json({ message: 'Erro ao processar saque' });
+      }
+
+      // 2. Transferência externa (idempotente via externalReference = id do saque).
       let asaasResult;
       try {
         asaasResult = await createPixTransfer({
           sellerId: req.user.id,
-          amountCents: netAmount, // Transfere apenas valor líquido (sem a taxa da plataforma)
+          amountCents: netAmount, // valor líquido (sem a taxa da plataforma)
           pixKey: wallet.pixKey,
           pixKeyType: asaasPixKeyType,
           description: `Saque Lowfy Marketplace - R$ ${(netAmount / 100).toFixed(2)}`,
+          externalReference: withdrawal.id,
         });
-        
         logger.debug('[Marketplace Withdrawal] Asaas transfer created:', {
-          transferId: asaasResult.id,
-          status: asaasResult.status,
-          value: asaasResult.value,
+          transferId: asaasResult.id, status: asaasResult.status, value: asaasResult.value,
         });
       } catch (asaasError: any) {
-        // Asaas failed ANTES de debitar nada - usuário perde NADA!
-        logger.error('[Marketplace Withdrawal] Asaas transfer failed (BEFORE debit):', asaasError);
-        
+        // FALHA na transferência: REVERTER o débito (compensação) e marcar 'failed'.
+        logger.error('[Marketplace Withdrawal] Asaas falhou — revertendo débito:', asaasError);
+        try {
+          await db.transaction(async (tx) => {
+            await tx.update(sellerWallet).set({
+              balanceAvailable: sql`${sellerWallet.balanceAvailable} + ${marketplaceAmountWithdrawn}`,
+              totalWithdrawn: sql`GREATEST(0, ${sellerWallet.totalWithdrawn} - ${marketplaceAmountWithdrawn})`,
+              updatedAt: new Date(),
+            }).where(eq(sellerWallet.sellerId, req.user.id));
+            if (referralAmountWithdrawn > 0) {
+              await tx.update(referralWallet).set({
+                balanceAvailable: sql`${referralWallet.balanceAvailable} + ${referralAmountWithdrawn}`,
+                totalWithdrawn: sql`GREATEST(0, ${referralWallet.totalWithdrawn} - ${referralAmountWithdrawn})`,
+                updatedAt: new Date(),
+              }).where(eq(referralWallet.userId, req.user.id));
+            }
+            await tx.update(podpayWithdrawals).set({ status: 'failed', processedAt: new Date() }).where(eq(podpayWithdrawals.id, withdrawal.id));
+            await tx.update(sellerTransactions).set({ status: 'failed' }).where(eq(sellerTransactions.relatedId, withdrawal.id));
+          });
+        } catch (refundError) {
+          logger.error('[Marketplace Withdrawal] ERRO ao reverter débito (reconciliar manualmente):', refundError);
+        }
+
         const errorMessage = asaasError.message || '';
         if (errorMessage.includes('Saldo insuficiente') || errorMessage.includes('insufficient')) {
           return res.status(503).json({
             message: 'Estamos com uma instabilidade temporária no processamento de saques. Por favor, tente novamente em alguns minutos.',
             code: 'SERVICE_TEMPORARILY_UNAVAILABLE',
-            retryAfter: 300
+            retryAfter: 300,
           });
         }
-        
         return res.status(500).json({ message: `Falha ao processar saque: ${asaasError.message}` });
       }
 
-      // 2. AGORA: Asaas sucesso - AGORA débitar ambas wallets DENTRO de transação
-      const withdrawal = await db.transaction(async (tx) => {
-        // Debit from marketplace wallet (with concurrency guard)
-        await tx
-          .update(sellerWallet)
-          .set({
-            balanceAvailable: sql`GREATEST(0, ${sellerWallet.balanceAvailable} - ${marketplaceAmountWithdrawn})`,
-            totalWithdrawn: sql`${sellerWallet.totalWithdrawn} + ${marketplaceAmountWithdrawn}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(sellerWallet.sellerId, req.user.id));
-
-        // Debit from referral wallet if applicable
-        if (referralAmountWithdrawn > 0) {
-          await tx
-            .update(referralWallet)
-            .set({
-              balanceAvailable: sql`GREATEST(0, ${referralWallet.balanceAvailable} - ${referralAmountWithdrawn})`,
-              totalWithdrawn: sql`${referralWallet.totalWithdrawn} + ${referralAmountWithdrawn}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(referralWallet.userId, req.user.id));
-        }
-
-        // Save withdrawal to database with GROSS amount (valor solicitado)
-        const [newWithdrawal] = await tx.insert(podpayWithdrawals).values({
-          sellerId: req.user.id,
-          amountCents: amountCents, // Valor bruto (inclui taxa)
-          status: 'pending',
-          pixKey: wallet.pixKey,
-          pixKeyType: wallet.pixKeyType,
-          provider: 'asaas',
-          asaasTransferId: asaasResult.id,
-        }).returning();
-
-        // Create marketplace transaction record
-        await tx.insert(sellerTransactions).values({
-          sellerId: req.user.id,
-          type: 'withdrawal',
-          amount: -marketplaceAmountWithdrawn,
-          status: 'pending',
-          description: `Saque de vendas: R$ ${(marketplaceAmountWithdrawn / 100).toFixed(2)} (parte de R$ ${(amountCents / 100).toFixed(2)}) via PIX`,
-          relatedId: newWithdrawal.id,
-        });
-
-        // Create referral transaction record if applicable
-        if (referralAmountWithdrawn > 0) {
-          await tx.insert(referralTransactions).values({
-            userId: req.user.id,
-            type: 'withdrawal',
-            amount: -referralAmountWithdrawn,
-            status: 'pending',
-            description: `Saque de comissões: R$ ${(referralAmountWithdrawn / 100).toFixed(2)} (parte de R$ ${(amountCents / 100).toFixed(2)}) via PIX`,
-          });
-        }
-
-        return newWithdrawal;
-      });
+      // 3. Sucesso: registrar o transferId e mover para 'pending' (aguardando webhook confirmar 'completed').
+      await db.update(podpayWithdrawals)
+        .set({ status: 'pending', asaasTransferId: asaasResult.id })
+        .where(eq(podpayWithdrawals.id, withdrawal.id));
 
       // Enviar email de confirmação de saque solicitado
       try {

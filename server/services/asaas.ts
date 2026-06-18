@@ -76,6 +76,7 @@ interface CreatePixTransferParams {
   pixKey: string;
   pixKeyType: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP';
   description?: string;
+  externalReference?: string; // ID do saque — correlação/idempotência no provedor
 }
 
 interface AsaasTransferResponse {
@@ -830,12 +831,15 @@ class AsaasService {
         pixKey: params.pixKey,
       });
 
-      const transferData = {
+      const transferData: Record<string, any> = {
         value: params.amountCents / 100, // Asaas usa valor em reais
         pixAddressKey: params.pixKey,
         pixAddressKeyType: params.pixKeyType,
         description: params.description || `Saque Marketplace - Vendedor ${params.sellerId}`,
       };
+      if (params.externalReference) {
+        transferData.externalReference = params.externalReference;
+      }
 
       logger.debug('[Asaas] 📤 Transfer data:', transferData);
 
