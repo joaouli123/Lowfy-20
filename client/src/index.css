@@ -348,7 +348,7 @@
   }
 
   .sidebar-link {
-    @apply transition-all duration-150 ease-out;
+    @apply transition-all duration-150 ease-out relative;
   }
 
   .sidebar-link:hover {
@@ -356,7 +356,9 @@
   }
 
   .sidebar-link.active {
-    @apply bg-sidebar-accent text-sidebar-accent-foreground;
+    @apply bg-sidebar-accent text-sidebar-accent-foreground font-semibold;
+    /* Barra de destaque à esquerda indicando a página atual */
+    box-shadow: inset 3px 0 0 0 var(--sidebar-primary);
   }
 
   /* Gradient Animations */
