@@ -235,9 +235,16 @@ export function hasFullAccess(user: any): boolean {
   if (!user) return false;
   if (user.isAdmin) return true;
   if (!isSubscriptionActive(user)) return false;
+
   const plan = user.accessPlan;
   const status = user.subscriptionStatus;
-  return plan === 'full' || status === 'active' || status === 'trial';
+
+  // Espelha exatamente o getUserPlan do front (client/src/hooks/useFeatureAccess.ts):
+  if (plan === 'full') return true;
+  // 'basic' NUNCA é elevado a full por subscriptionStatus (compra única de produto básico).
+  if (plan === 'basic') return false;
+  // Sem accessPlan definido: assinatura ativa/trial = full.
+  return status === 'active' || status === 'trial';
 }
 
 export function fullAccessMiddleware(req: Request & { user?: any }, res: Response, next: NextFunction) {
