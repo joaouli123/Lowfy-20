@@ -158,18 +158,20 @@ export function isSubscriptionActive(user: any): boolean {
   const accessPlan = user.accessPlan;
   const status = user.subscriptionStatus;
   const expiresAt = user.subscriptionExpiresAt;
-  
+
+  // REEMBOLSO: Perde acesso IMEDIATAMENTE — precede QUALQUER acesso por accessPlan.
+  // (Antes o atalho de accessPlan='full' vinha primeiro, então reembolsados mantinham
+  // acesso vitalício porque accessPlan nunca era resetado no refund.)
+  if (status === 'refunded') {
+    return false;
+  }
+
   // BASIC ou FULL access_plan: Acesso garantido (compradores de pagamento único ou assinantes)
   // Esses usuários têm acesso independente do subscriptionStatus
   if (accessPlan === 'basic' || accessPlan === 'full') {
     return true;
   }
-  
-  // REEMBOLSO: Perde acesso IMEDIATAMENTE - sem verificar data
-  if (status === 'refunded') {
-    return false;
-  }
-  
+
   // ATIVO ou TRIAL: Acesso normal (verifica expiração)
   if (status === 'active' || status === 'trial') {
     if (expiresAt && new Date(expiresAt) < new Date()) {

@@ -287,7 +287,13 @@ function UsersManagement() {
     mutationFn: async ({ file, fieldMapping }: { file: File; fieldMapping: CSVFieldMapping }) => {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("fieldMapping", JSON.stringify(fieldMapping));
+      // Normaliza o sentinela "__none__" (opção "Nenhum") de volta para "" antes de enviar.
+      const normalizedMapping = {
+        ...fieldMapping,
+        phone: fieldMapping.phone === "__none__" ? "" : fieldMapping.phone,
+        cpf: fieldMapping.cpf === "__none__" ? "" : fieldMapping.cpf,
+      };
+      formData.append("fieldMapping", JSON.stringify(normalizedMapping));
       
       const res = await fetch("/api/admin/users/import-csv", {
         method: "POST",
@@ -1168,14 +1174,14 @@ function UsersManagement() {
                     <SelectValue placeholder="Selecione coluna" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {csvHeaders.map(h => (
                       <SelectItem key={h} value={h}>{h}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Campo: CPF</Label>
                 <Select 
@@ -1186,7 +1192,7 @@ function UsersManagement() {
                     <SelectValue placeholder="Selecione coluna" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {csvHeaders.map(h => (
                       <SelectItem key={h} value={h}>{h}</SelectItem>
                     ))}
@@ -1195,7 +1201,7 @@ function UsersManagement() {
               </div>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => { setCsvModalOpen(false); setCsvFile(null); setCsvHeaders([]); }}>
               Cancelar

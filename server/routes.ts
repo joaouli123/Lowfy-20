@@ -50,6 +50,7 @@ import {
   aiTools, insertAIToolSchema,
   globalAIAccess, insertGlobalAIAccessSchema,
   insertCategorySchema, insertLanguageSchema, insertServiceSchema, insertN8nAutomationSchema,
+  insertCourseSchema, insertQuizInterativoSettingsSchema,
   marketplaceProducts, marketplaceOrders, sellerWallet, sellerTransactions, cartItems, productReviews,
   insertMarketplaceProductSchema, insertMarketplaceOrderSchema, insertCartItemSchema,
   podpayTransactions, podpayWithdrawals,
@@ -4881,7 +4882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               totalWithdrawn: sqlOp`${sellerWallet.totalWithdrawn} - ${withdrawal.amountCents}`,
               updatedAt: new Date()
             })
-            .where(eq(sellerWallet.userId, withdrawal.sellerId));
+            .where(eq(sellerWallet.sellerId, withdrawal.sellerId));
           
           logger.debug(`[Asaas Transfer Status] 💰 Funds rolled back to seller wallet for user ${withdrawal.sellerId}`);
         }
@@ -5856,6 +5857,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/categories/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const data = insertCategorySchema.partial().parse(req.body);
+      const category = await storage.updateCategory(req.params.id, data);
+      res.json(category);
+    } catch (error) {
+      console.error("Error updating category:", error);
+      res.status(500).json({ message: "Failed to update category" });
+    }
+  });
+
+  app.delete('/api/categories/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      await storage.deleteCategory(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      res.status(500).json({ message: "Failed to delete category" });
+    }
+  });
+
   // ==================== LANGUAGE ROUTES ====================
 
   app.get('/api/languages', async (_req, res) => {
@@ -5885,6 +5907,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating language:", error);
       res.status(500).json({ message: "Failed to create language" });
+    }
+  });
+
+  app.put('/api/languages/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const data = insertLanguageSchema.partial().parse(req.body);
+      const language = await storage.updateLanguage(req.params.id, data);
+      res.json(language);
+    } catch (error) {
+      console.error("Error updating language:", error);
+      res.status(500).json({ message: "Failed to update language" });
+    }
+  });
+
+  app.delete('/api/languages/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      await storage.deleteLanguage(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting language:", error);
+      res.status(500).json({ message: "Failed to delete language" });
     }
   });
 
@@ -6001,6 +6044,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.status(500).json({ message: "Failed to create PLR" });
+    }
+  });
+
+  app.put('/api/plrs/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const data = insertPLRSchema.partial().parse(req.body);
+      const plr = await storage.updatePLR(req.params.id, data);
+      res.json(plr);
+    } catch (error) {
+      console.error("Error updating PLR:", error);
+      if (error instanceof ZodError) {
+        const firstError = error.errors[0];
+        return res.status(400).json({ message: `Erro de validação: ${firstError.message}`, field: firstError.path.join('.') });
+      }
+      res.status(500).json({ message: "Failed to update PLR" });
+    }
+  });
+
+  app.delete('/api/plrs/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      await storage.deletePLR(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting PLR:", error);
+      res.status(500).json({ message: "Failed to delete PLR" });
     }
   });
 
@@ -6240,6 +6308,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/courses', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const data = insertCourseSchema.parse(req.body);
+      const course = await storage.createCourse(data);
+      res.status(201).json(course);
+    } catch (error) {
+      console.error("Error creating course:", error);
+      res.status(500).json({ message: "Failed to create course" });
+    }
+  });
+
+  app.put('/api/courses/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const data = insertCourseSchema.partial().parse(req.body);
+      const course = await storage.updateCourse(req.params.id, data);
+      res.json(course);
+    } catch (error) {
+      console.error("Error updating course:", error);
+      res.status(500).json({ message: "Failed to update course" });
+    }
+  });
+
+  app.delete('/api/courses/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      await storage.deleteCourse(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting course:", error);
+      res.status(500).json({ message: "Failed to delete course" });
+    }
+  });
+
   // ==================== QUIZ INTERATIVO ROUTES ====================
 
   app.get('/api/quiz-interativo/settings', authMiddleware, subscriptionMiddleware, async (_req, res) => {
@@ -6253,6 +6353,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching quiz settings:", error);
       res.status(500).json({ message: "Failed to fetch quiz settings" });
+    }
+  });
+
+  app.post('/api/quiz-interativo/settings', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const data = insertQuizInterativoSettingsSchema.parse(req.body);
+      const settings = await storage.createQuizInterativoSettings(data);
+      res.status(201).json(settings);
+    } catch (error) {
+      console.error("Error creating quiz settings:", error);
+      res.status(500).json({ message: "Failed to create quiz settings" });
+    }
+  });
+
+  app.put('/api/quiz-interativo/settings/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const data = insertQuizInterativoSettingsSchema.partial().parse(req.body);
+      const settings = await storage.updateQuizInterativoSettings(req.params.id, data);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating quiz settings:", error);
+      res.status(500).json({ message: "Failed to update quiz settings" });
     }
   });
 
@@ -8016,6 +8138,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error toggling sticky:", error);
       res.status(500).json({ message: "Failed to toggle sticky" });
+    }
+  });
+
+  // Moderação de tópico (admin): fixar/desafixar e fechar/reabrir
+  app.patch('/api/forum/topics/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const { isSticky, isClosed } = req.body || {};
+      const updates: any = { updatedAt: new Date() };
+      if (typeof isSticky === 'boolean') updates.isSticky = isSticky;
+      if (typeof isClosed === 'boolean') updates.isClosed = isClosed;
+      const [updated] = await db
+        .update(forumTopics)
+        .set(updates)
+        .where(eq(forumTopics.id, req.params.id))
+        .returning();
+      if (!updated) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      res.json({ isSticky: updated.isSticky, isClosed: updated.isClosed });
+    } catch (error) {
+      console.error("Error updating forum topic (moderation):", error);
+      res.status(500).json({ message: "Failed to update topic" });
     }
   });
 
@@ -10489,7 +10633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonador de Páginas - Upload de imagem (usando Object Storage para persistência)
-  app.post('/api/upload-image', upload.single('image'), async (req: any, res) => {
+  app.post('/api/upload-image', authMiddleware, upload.single('image'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: 'Nenhuma imagem fornecida' });
@@ -15089,7 +15233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalWithdrawn: sql`${sellerWallet.totalWithdrawn} + ${marketplaceAmountWithdrawn}`,
             updatedAt: new Date(),
           })
-          .where(eq(sellerWallet.userId, req.user.id));
+          .where(eq(sellerWallet.sellerId, req.user.id));
 
         // Debit from referral wallet if applicable
         if (referralAmountWithdrawn > 0) {

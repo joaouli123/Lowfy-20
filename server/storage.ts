@@ -2912,7 +2912,9 @@ export class DatabaseStorage {
       }
     }
 
-    // Subtract completed marketplace withdrawals only
+    // SECURITY/FINANCEIRO: subtrair saques pendentes/em processamento E concluídos.
+    // Antes só subtraía 'completed', permitindo solicitar vários saques do mesmo saldo
+    // antes do webhook confirmar (saque N×). 'failed'/'cancelled' não reduzem o saldo.
     const withdrawals = await db
       .select()
       .from(podpayWithdrawals)
@@ -2920,7 +2922,7 @@ export class DatabaseStorage {
         and(
           eq(podpayWithdrawals.sellerId, sellerId),
           eq(podpayWithdrawals.source, 'marketplace'),
-          eq(podpayWithdrawals.status, 'completed')
+          inArray(podpayWithdrawals.status, ['pending', 'processing', 'completed'])
         )
       );
 
