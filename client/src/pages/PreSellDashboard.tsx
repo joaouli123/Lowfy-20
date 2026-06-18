@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { FeatureLockedOverlay } from "@/components/FeatureLockedOverlay";
+import { DomainConnectWizard } from "@/components/DomainConnectWizard";
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('auth_token');
@@ -491,42 +492,20 @@ export default function PreSellDashboard() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="domain-input">Domínio Customizado</Label>
-              <Input
-                id="domain-input"
-                data-testid="input-custom-domain"
-                placeholder="exemplo: meusite.com ou subdominio.meusite.com"
-                value={domainInput}
-                onChange={(e) => setDomainInput(e.target.value)}
+          <div className="py-2">
+            {selectedPage && (
+              <DomainConnectWizard
+                pageName={selectedPage.name}
+                pageType="presell"
+                currentDomain={selectedPage.customDomain}
+                onDomainChange={() => loadPages()}
               />
-              <p className="text-xs text-muted-foreground">
-                Deixe em branco para usar a URL padrão do Replit
-              </p>
-            </div>
-
-            <div className="rounded-lg border p-4 bg-muted/50">
-              <div className="flex gap-2 items-start">
-                <Globe className="h-5 w-5 text-primary mt-0.5" />
-                <div className="space-y-1 text-sm">
-                  <p className="font-medium">Como funciona:</p>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                    <li>Em <strong>desenvolvimento</strong>: configuração é salva mas a página ainda usa URL local</li>
-                    <li>Em <strong>produção</strong>: após publicar seu app, o domínio configurado será usado automaticamente</li>
-                    <li>Você precisa configurar o DNS do domínio apontando para seu app publicado</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDomainDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={saveDomainConfig} data-testid="button-save-domain">
-              Salvar Configuração
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

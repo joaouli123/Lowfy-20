@@ -9878,14 +9878,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/custom-domain-status/:domain", async (req, res) => {
     try {
       const { domain } = req.params;
-      const { getCustomHostname, getStatusDescription } = await import('./utils/cloudflareForSaas');
-      
+      const { getCustomHostname, getStatusDescription, buildDnsInstructions } = await import('./utils/cloudflareForSaas');
+
       const hostname = await getCustomHostname(domain);
-      
+
       if (!hostname) {
         return res.json({
           found: false,
           domain,
+          // Mesmo sem hostname registrado, devolve as instruções de roteamento básicas
+          dns: buildDnsInstructions(domain, null),
           message: "Domínio não encontrado no Cloudflare"
         });
       }
@@ -9901,12 +9903,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         statusLabel: statusInfo.label,
         statusColor: statusInfo.color,
         statusDescription: statusInfo.description,
+        active: hostname.status === 'active',
         ssl: {
           status: hostname.ssl?.status,
           statusLabel: sslStatusInfo.label,
           statusColor: sslStatusInfo.color,
           method: hostname.ssl?.method
         },
+        // Registros DNS reais (CNAME de roteamento + TXT de validação SSL) para copy-paste
+        dns: buildDnsInstructions(hostname.hostname, hostname),
         createdAt: hostname.created_at,
         cnameTarget: 'proxy.lowfy.com.br'
       });

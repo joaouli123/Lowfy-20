@@ -453,6 +453,81 @@ export async function refreshCustomHostnameValidation(hostnameOrId: string): Pro
   }
 }
 
+export interface DnsRecord {
+  purpose: 'routing' | 'ssl_validation' | 'ownership';
+  type: 'CNAME' | 'TXT' | 'A';
+  name: string;       // o que o usuário digita no campo "name/host" do provedor
+  value: string;      // o valor/destino
+  note?: string;
+}
+
+export interface DnsInstructions {
+  domain: string;
+  isApex: boolean;
+  isWww: boolean;
+  routingTarget: string;
+  records: DnsRecord[];
+}
+
+/**
+ * Monta instruções de DNS claras (copy-paste) para o usuário conectar o domínio.
+ * Distingue apex (raiz) de subdomínio e inclui o registro TXT de validação SSL
+ * retornado pela Cloudflare (que hoje era descartado).
+ */
+export function buildDnsInstructions(domain: string, hostname?: CustomHostname | null): DnsInstructions {
+  const d = (domain || '').toLowerCase().replace(/^https?:\/\//, '').split('/')[0].trim();
+  const labels = d.split('.');
+  const isWww = d.startsWith('www.');
+
+  // Heurística de domínio registrável: 2 rótulos, ou 3 quando o penúltimo é um SLD
+  // comum (ex.: com.br, com.mx). Suficiente para a maioria dos casos brasileiros/intl.
+  const commonSld = ['com', 'net', 'org', 'gov', 'edu', 'co', 'adv', 'eng'];
+  const registrableLen = labels.length >= 3 && commonSld.includes(labels[labels.length - 2]) ? 3 : 2;
+  const isApex = labels.length <= registrableLen;
+  const hostLabel = isApex ? '@' : labels.slice(0, labels.length - registrableLen).join('.');
+
+  const routingTarget = 'proxy.lowfy.com.br';
+  const records: DnsRecord[] = [];
+
+  records.push({
+    purpose: 'routing',
+    type: 'CNAME',
+    name: hostLabel,
+    value: routingTarget,
+    note: isApex
+      ? 'Domínio raiz: se seu provedor não permitir CNAME na raiz, use "CNAME flattening"/ALIAS/ANAME, ou aponte um subdomínio (ex.: www) e redirecione a raiz.'
+      : undefined,
+  });
+
+  // Registro TXT de validação SSL (método txt) — antes era descartado
+  const validation = hostname?.ssl?.validation_records || [];
+  for (const vr of validation) {
+    if (vr.txt_name && vr.txt_value) {
+      records.push({
+        purpose: 'ssl_validation',
+        type: 'TXT',
+        name: vr.txt_name,
+        value: vr.txt_value,
+        note: 'Validação do certificado SSL. Pode ser removido após o domínio ficar ativo.',
+      });
+    }
+  }
+
+  // Comprovação de propriedade (quando a Cloudflare exige)
+  const ov = hostname?.ownership_verification;
+  if (ov?.type === 'txt' && ov.name && ov.value) {
+    records.push({
+      purpose: 'ownership',
+      type: 'TXT',
+      name: ov.name,
+      value: ov.value,
+      note: 'Comprovação de propriedade do domínio.',
+    });
+  }
+
+  return { domain: d, isApex, isWww, routingTarget, records };
+}
+
 export function getStatusDescription(status: string): {
   label: string;
   color: 'green' | 'yellow' | 'red' | 'blue';
