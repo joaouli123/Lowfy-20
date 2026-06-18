@@ -214,14 +214,51 @@ export function subscriptionMiddleware(req: Request & { user?: any }, res: Respo
   
   if (!isSubscriptionActive(req.user)) {
     const daysExpired = getSubscriptionDaysExpired(req.user);
-    return res.status(403).json({ 
+    return res.status(403).json({
       message: "Sua assinatura expirou. Renove para continuar acessando.",
       code: "SUBSCRIPTION_EXPIRED",
       subscriptionStatus: req.user.subscriptionStatus,
       daysExpired
     });
   }
-  
+
+  next();
+}
+
+/**
+ * Acesso de plano COMPLETO (premium). Recursos exclusivos do plano full —
+ * clonador de páginas, pre-sell builder, quiz interativo e automações n8n —
+ * que o frontend já bloqueia para 'basic'. Aqui o backend passa a impor a regra
+ * (antes era só visual e burlável via API).
+ */
+export function hasFullAccess(user: any): boolean {
+  if (!user) return false;
+  if (user.isAdmin) return true;
+  if (!isSubscriptionActive(user)) return false;
+  const plan = user.accessPlan;
+  const status = user.subscriptionStatus;
+  return plan === 'full' || status === 'active' || status === 'trial';
+}
+
+export function fullAccessMiddleware(req: Request & { user?: any }, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Não autenticado" });
+  }
+  if (!isSubscriptionActive(req.user)) {
+    const daysExpired = getSubscriptionDaysExpired(req.user);
+    return res.status(403).json({
+      message: "Sua assinatura expirou. Renove para continuar acessando.",
+      code: "SUBSCRIPTION_EXPIRED",
+      subscriptionStatus: req.user.subscriptionStatus,
+      daysExpired,
+    });
+  }
+  if (!hasFullAccess(req.user)) {
+    return res.status(403).json({
+      message: "Este recurso é exclusivo do plano completo. Faça upgrade para acessar.",
+      code: "PREMIUM_REQUIRED",
+    });
+  }
   next();
 }
 

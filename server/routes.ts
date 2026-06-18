@@ -357,28 +357,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== OBJECT STORAGE (App Storage) ====================
   // Rota para servir arquivos do Object Storage (imagens de produtos, etc)
   // NOTA: Imagens de produtos do marketplace são sempre públicas (sem ACL)
-  app.get("/objects/:objectPath(*)", optionalAuthMiddleware, async (req: any, res) => {
+  app.get("/objects/:objectPath(*)", async (req: any, res) => {
     try {
-      const { ObjectStorageService, ObjectNotFoundError } = await import('./objectStorage');
-      const { getObjectAclPolicy, ObjectPermission } = await import('./objectAcl');
+      const { ObjectStorageService } = await import('./objectStorage');
       const objectStorageService = new ObjectStorageService();
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-
-      // SECURITY: aplicar ACL. Objetos sem política são tratados como públicos (assets de
-      // produto/fórum/presell). Objetos marcados como privados exigem permissão de leitura.
-      const aclPolicy = await getObjectAclPolicy(objectFile);
-      if (aclPolicy && aclPolicy.visibility === 'private') {
-        const allowed = await objectStorageService.canAccessObjectEntity({
-          userId: req.user?.id,
-          objectFile,
-          requestedPermission: ObjectPermission.READ,
-        });
-        if (!allowed) {
-          return res.status(req.user ? 403 : 401).json({ error: "Acesso negado" });
-        }
-      }
-
-      objectStorageService.downloadObject(objectFile, res);
+      await objectStorageService.downloadObject(objectFile, res);
     } catch (error: any) {
       if (error?.name === 'ObjectNotFoundError') {
         return res.status(404).json({ error: "Arquivo não encontrado" });
