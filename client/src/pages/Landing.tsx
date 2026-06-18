@@ -304,7 +304,7 @@ export default function Landing() {
       if (data.success) {
         // Login bem-sucedido - sessionId é a auth_token
         if (data.sessionId) {
-          localStorage.setItem('auth_token', data.sessionId);
+          /* sessão mantida via cookie httpOnly (definido pelo servidor) */
         }
         queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         toast({
@@ -324,7 +324,7 @@ export default function Landing() {
         });
       } else if (data.token) {
         // Fallback para token antigo
-        localStorage.setItem('auth_token', data.token);
+        /* sessão mantida via cookie httpOnly (definido pelo servidor) */
         queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         toast({
           title: "Login realizado com sucesso!",
@@ -350,7 +350,7 @@ export default function Landing() {
     },
     onSuccess: (data) => {
       if (data.token) {
-        localStorage.setItem('auth_token', data.token);
+        /* sessão mantida via cookie httpOnly (definido pelo servidor) */
       }
       
       setShow2FAModal(false);
@@ -470,7 +470,7 @@ export default function Landing() {
     },
     onSuccess: (data) => {
       if (data.success && data.sessionId) {
-        localStorage.setItem('auth_token', data.sessionId);
+        /* sessão mantida via cookie httpOnly (definido pelo servidor) */
       }
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
@@ -553,7 +553,7 @@ export default function Landing() {
     onSuccess: (data) => {
       // Salvar token no localStorage
       if (data.token) {
-        localStorage.setItem('auth_token', data.token);
+        /* sessão mantida via cookie httpOnly (definido pelo servidor) */
       }
       
       // Marcar que é o primeiro acesso
@@ -669,21 +669,18 @@ export default function Landing() {
       return response.json();
     },
     onSuccess: (data) => {
-      if (data.success && data.sessionId) {
-        localStorage.setItem('auth_token', data.sessionId);
-      }
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      // Fluxo seguro: o servidor envia um link de redefinição por email (sem auto-login).
       toast({
-        title: "Senha redefinida!",
-        description: "Você foi automaticamente conectado.",
+        title: "Verifique seu email",
+        description: data?.message || "Enviamos um link de redefinição para o email cadastrado. Confira sua caixa de entrada e a pasta de spam.",
       });
       resetPasswordDirectForm.reset();
-      window.location.href = '/timeline';
+      setAuthView('login');
     },
     onError: (error: any) => {
       toast({
-        title: "Erro ao redefinir senha",
-        description: error.message || "Email ou CPF incorreto",
+        title: "Não foi possível processar",
+        description: error.message || "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
     },
@@ -1637,7 +1634,7 @@ export default function Landing() {
             <li><a href="/clonador" title="Clonador de Páginas - Copie qualquer página de vendas em segundos. Limpeza automática de pixel.">Clonador de Páginas</a></li>
             <li><a href="/assinatura/checkout" title="Planos e Preços - Economize mais de R$ 7.000/mês. Acesso imediato a partir de R$ 99.">Planos e Preços</a></li>
             <li><a href="/plrs" title="Biblioteca de PLR - Produtos prontos em 7 idiomas. Baixe, edite e venda em Dólar hoje mesmo.">Biblioteca de PLR</a></li>
-            <li><a href="/auth" title="Área de Membros - Já é assinante? Acesse seu painel e ferramentas aqui.">Área de Membros</a></li>
+            <li><a href="/login" title="Área de Membros - Já é assinante? Acesse seu painel e ferramentas aqui.">Área de Membros</a></li>
             <li><a href="/courses" title="Cursos Online - Mais de 380 cursos de marketing digital, afiliados, IA e muito mais.">Cursos Online</a></li>
           </ul>
         </nav>

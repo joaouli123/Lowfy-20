@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
+import { sanitizeUserHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -876,7 +877,7 @@ export default function Profile() {
                     {userPosts.slice((postsPage - 1) * 15, postsPage * 15).map((post) => (
                       <Card key={post.id} data-testid={`card-post-${post.id}`}>
                         <CardContent className="p-4">
-                          <p className="text-sm text-foreground/90 mb-3" dangerouslySetInnerHTML={{ __html: post.content || '' }} />
+                          <p className="text-sm text-foreground/90 mb-3" dangerouslySetInnerHTML={{ __html: sanitizeUserHtml(post.content) }} />
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <ThumbsUp className="w-4 h-4" />

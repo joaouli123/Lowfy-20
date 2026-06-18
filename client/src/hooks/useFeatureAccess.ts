@@ -1,10 +1,9 @@
 import { useAuth } from "./useAuth";
 
 export type FeatureType = 
-  | "clonador" 
-  | "presell-builder" 
-  | "andromeda" 
-  | "quiz" 
+  | "clonador"
+  | "presell-builder"
+  | "quiz"
   | "n8n"
   | "marketplace"
   | "plrs"
@@ -42,8 +41,7 @@ const BASIC_PLAN_ALLOWED_FEATURES: FeatureType[] = [
 
 const PREMIUM_ONLY_FEATURES: FeatureType[] = [
   "clonador",
-  "presell-builder", 
-  "andromeda",
+  "presell-builder",
   "quiz",
   "n8n"
 ];

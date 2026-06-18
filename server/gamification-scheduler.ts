@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { storage } from './storage';
 import { DAILY_ACTIVITIES, WEEKLY_CHALLENGES, getCurrentWeekBoundaries } from './gamification';
 import { logger } from './utils/logger';
+import { exclusive } from './utils/cron-lock';
 import { getNowSaoPaulo, startOfDaySaoPaulo, formatDateTimeBR } from '@shared/dateUtils';
 
 // Reset daily activities (runs at midnight)
@@ -132,12 +133,13 @@ export async function initializeDailyActivities() {
     
     const users = await storage.getAllUsers();
     const today = startOfDaySaoPaulo();
-    
-    for (const user of users) {
+
+    // PERFORMANCE: processa usuários em lotes concorrentes (limitado para não
+    // esgotar o pool de conexões) em vez de totalmente serial (N×M round-trips).
+    const BATCH = 10;
+    const processUser = async (user: { id: string }) => {
       for (const activity of DAILY_ACTIVITIES) {
-        // Check if activity already exists for today
-        const exists = await storage.getUserDailyProgress(user.id, activity.id, today);
-        
+        const exists = await storage.getUserDailyActivityProgress(user.id, activity.id, today);
         if (!exists) {
           await storage.createDailyActivityProgress({
             userId: user.id,
@@ -149,8 +151,13 @@ export async function initializeDailyActivities() {
           });
         }
       }
+    };
+
+    for (let i = 0; i < users.length; i += BATCH) {
+      const batch = users.slice(i, i + BATCH);
+      await Promise.all(batch.map(processUser));
     }
-    
+
     logger.debug(`✅ [GAMIFICATION] Atividades inicializadas para ${users.length} usuários!\n`);
   } catch (error) {
     logger.error('❌ [GAMIFICATION] Erro ao inicializar atividades:', error);
@@ -163,8 +170,8 @@ export async function initializeUserDailyActivities(userId: string) {
     const today = startOfDaySaoPaulo();
     
     for (const activity of DAILY_ACTIVITIES) {
-      const exists = await storage.getUserDailyProgress(userId, activity.id, today);
-      
+      const exists = await storage.getUserDailyActivityProgress(userId, activity.id, today);
+
       if (!exists) {
         await storage.createDailyActivityProgress({
           userId,
@@ -230,11 +237,11 @@ export async function startGamificationSchedulers() {
   await initializeDailyActivities(); // Then create user progress rows
   
   // Daily activities reset (every day at 00:00)
-  cron.schedule('0 0 * * *', async () => {
+  cron.schedule('0 0 * * *', exclusive('gamification-daily-reset', async () => {
     logger.debug('\n⏰ Executando reset diário de atividades...');
     await resetDailyActivities();
     await initializeDailyActivities(); // Create new activities for the day
-  }, {
+  }), {
     timezone: "America/Sao_Paulo"
   });
   logger.debug('✅ Reset diário: Todos os dias às 00:00');
@@ -259,9 +266,9 @@ export async function startGamificationSchedulers() {
   logger.debug('✅ Novos desafios: Segundas às 00:00');
   
   // Expire old rewards (every hour)
-  cron.schedule('0 * * * *', async () => {
+  cron.schedule('0 * * * *', exclusive('gamification-expire-rewards', async () => {
     await expireOldRewards();
-  }, {
+  }), {
     timezone: "America/Sao_Paulo"
   });
   logger.debug('✅ Expiração de recompensas: A cada hora');

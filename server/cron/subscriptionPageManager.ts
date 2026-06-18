@@ -5,6 +5,7 @@ import { db } from '../db';
 import { users, pageClones, lowfySubscriptions } from '@shared/schema';
 import { eq, and, lt, isNotNull, ne, isNull, or } from 'drizzle-orm';
 import { logger } from '../utils/logger';
+import { exclusive } from '../utils/cron-lock';
 
 interface PageMetadata {
   userId: string | null;
@@ -266,9 +267,9 @@ export function initSubscriptionPageManager(): void {
 
   // Job de sincronização de assinaturas - A CADA HORA
   // Verifica e corrige assinaturas com status inconsistente
-  cron.schedule('0 * * * *', async () => {
+  cron.schedule('0 * * * *', exclusive('subscription-sync', async () => {
     await syncInconsistentSubscriptions();
-  }, { timezone: "America/Sao_Paulo" });
+  }), { timezone: "America/Sao_Paulo" });
 
   logger.info('[SubscriptionPageManager] Job de limpeza de páginas agendado para 03:00 diariamente');
   logger.info('[SubscriptionSync] 🔄 Job de sincronização de assinaturas agendado para rodar A CADA HORA');

@@ -21,7 +21,6 @@ const Navbar: React.FC<NavbarProps> = ({ toggleTheme, isDark }) => {
         { label: 'Pack de Plugins', href: '#bonus', desc: 'Plugins WordPress inclusos' },
         { label: '+250 Landing Pages', href: '#bonus', desc: 'Modelos prontos' },
         { label: '+150 N8N Automações', href: '#bonus', desc: 'Automações inteligentes' },
-        { label: 'Criador de Anúncios Andromeda', href: '#bonus', desc: 'IA para campanhas' },
         { label: 'Criador de Site', href: '#cloner', desc: 'Crie sites profissionais' },
         { label: 'Clonador de Páginas', href: '#cloner', desc: 'Clone qualquer página' },
         { label: 'Quiz Interativo', href: '#quiz', desc: 'Engajamento viral' },

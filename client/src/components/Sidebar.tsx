@@ -35,7 +35,6 @@ import {
   X,
   Layout,
   Target,
-  Megaphone,
   Bug,
   Wallet,
   PanelLeftClose,
@@ -154,12 +153,6 @@ export default function Sidebar() {
   ];
 
   const utilitiesNav = [
-    {
-      name: "Meta Ads Andromeda",
-      href: "/meta-ads-andromeda",
-      icon: Megaphone,
-      testId: "nav-meta-ads-andromeda"
-    },
     {
       name: "Plugins",
       href: "/plugins",

@@ -111,9 +111,7 @@ export default function ActivateAccount() {
         description: "Bem-vindo à Lowfy! Redirecionando...",
       });
 
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-      }
+      // A sessão é mantida via cookie httpOnly definido pelo servidor.
 
       localStorage.setItem('show_welcome_confetti', 'true');
 

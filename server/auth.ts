@@ -59,8 +59,45 @@ export async function deleteSession(token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.token, token));
 }
 
+const AUTH_COOKIE_NAME = 'auth_token';
+
+/**
+ * Resolve o token da sessão preferindo o cookie httpOnly (não acessível a JS,
+ * imune a roubo via XSS). Faz fallback para o header Authorization apenas para
+ * compatibilidade com sessões antigas (token ainda em localStorage). Ignora
+ * valores inválidos como "null"/"undefined" que o client possa enviar.
+ */
+export function resolveSessionToken(req: Request & { cookies?: any; headers: any }): string | undefined {
+  const cookieToken = req.cookies?.[AUTH_COOKIE_NAME];
+  if (cookieToken) return cookieToken;
+
+  const headerRaw = req.headers.authorization?.replace('Bearer ', '').trim();
+  if (headerRaw && headerRaw !== 'null' && headerRaw !== 'undefined') {
+    return headerRaw;
+  }
+  return undefined;
+}
+
+/**
+ * Define o cookie de sessão httpOnly. Esta é a forma segura de manter a sessão
+ * no navegador — JavaScript não consegue ler o cookie, então um XSS não rouba o token.
+ */
+export function setAuthCookie(res: Response, token: string): void {
+  res.cookie(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+}
+
+export function clearAuthCookie(res: Response): void {
+  res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
+}
+
 export function authMiddleware(req: Request & { user?: any }, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.auth_token;
+  const token = resolveSessionToken(req);
 
   if (!token) {
     return res.status(401).json({ message: "Não autenticado" });
@@ -85,7 +122,7 @@ export function authMiddleware(req: Request & { user?: any }, res: Response, nex
 }
 
 export function optionalAuthMiddleware(req: Request & { user?: any }, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.auth_token;
+  const token = resolveSessionToken(req);
 
   if (!token) {
     req.user = undefined;

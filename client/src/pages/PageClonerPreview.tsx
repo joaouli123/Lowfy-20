@@ -13,10 +13,11 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
-import Editor, { loader } from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
+import Editor from '@monaco-editor/react';
 
-loader.config({ monaco });
+// PERFORMANCE: o Monaco é carregado sob demanda via CDN (jsDelivr) pelo
+// @monaco-editor/react em vez de empacotado estaticamente — isso removia ~3.5MB
+// do bundle desta rota. O CDN jsdelivr já está liberado no CSP do servidor.
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('auth_token');

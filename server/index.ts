@@ -537,10 +537,10 @@ if (!isProduction) {
     }
   }
   
-  // Executar migração de CPFs no startup
-  await migrateLegacyCPFs();
-  
-  // Inicializar sequence de order numbers
+  // Migração de CPFs roda em BACKGROUND para não bloquear o boot (UPDATE full-table idempotente)
+  void migrateLegacyCPFs();
+
+  // Inicializar sequence de order numbers (rápido e necessário antes de criar pedidos)
   const { initializeOrderNumberSequence } = await import('./utils/order-utils.js');
   await initializeOrderNumberSequence();
 
@@ -605,6 +605,7 @@ if (!isProduction) {
     }
 
     void (async () => {
+      try {
       const isLeader = await acquireSchedulerLeadership();
       if (!isLeader) {
         logger.info('[Schedulers] Outra instância já é líder. Schedulers não serão iniciados nesta instância.');
@@ -657,6 +658,15 @@ if (!isProduction) {
       }).catch(error => {
         logger.error('WhatsApp recovery scheduler error:', error);
       });
+
+      import('./session-cleanup-scheduler').then(({ startSessionCleanupScheduler }) => {
+        startSessionCleanupScheduler();
+      }).catch(error => {
+        logger.error('Session cleanup scheduler error:', error);
+      });
+      } catch (error) {
+        logger.error('[Schedulers] Falha inesperada ao inicializar schedulers:', error);
+      }
     })();
   });
 })();

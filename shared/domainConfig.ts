@@ -62,7 +62,7 @@ export function getClonedPageUrl(slug: string): string {
 }
 
 export function getLoginUrl(): string {
-  return getAppUrl('/auth');
+  return getAppUrl('/login');
 }
 
 export function getDashboardUrl(): string {

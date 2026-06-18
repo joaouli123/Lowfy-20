@@ -3,6 +3,7 @@ import { db } from './db';
 import { lowfySubscriptions, checkoutRecoveryWhatsapp } from '@shared/schema';
 import { eq, and, isNull, lt, gte, inArray, sql } from 'drizzle-orm';
 import { logger } from './utils/logger';
+import { exclusive } from './utils/cron-lock';
 import crypto from 'crypto';
 import { getNowSaoPaulo, minutesAgoSaoPaulo } from '@shared/dateUtils';
 import { getCheckoutUrl } from '@shared/domainConfig';
@@ -444,9 +445,9 @@ export function startWhatsAppRecoveryScheduler() {
   logger.debug('   • Mensagem 2 (24h): Todos os dias às 11:00 e 18:00');
   logger.debug('   • Mensagem 3 (48h + 50% OFF): Todos os dias às 10:00\n');
 
-  cron.schedule('*/10 * * * *', async () => {
+  cron.schedule('*/10 * * * *', exclusive('checkout-recovery-whatsapp1', async () => {
     await sendRecoveryWhatsApp1_30min();
-  }, {
+  }), {
     timezone: "America/Sao_Paulo"
   });
 

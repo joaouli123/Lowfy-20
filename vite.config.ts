@@ -39,6 +39,28 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // PERFORMANCE: sem sourcemaps em produção (não expõe código-fonte) e
+    // remove console/debugger do bundle final.
+    sourcemap: false,
+    minify: "esbuild",
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        // Separa bibliotecas pesadas/estáveis em chunks próprios para melhor cache
+        // e para evitar duplicação entre chunks de rota.
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "wouter"],
+          "query-vendor": ["@tanstack/react-query"],
+          "chart-vendor": ["recharts", "chart.js", "react-chartjs-2"],
+          "motion-vendor": ["framer-motion"],
+          "editor-vendor": ["quill"],
+        },
+      },
+    },
+  },
+  esbuild: {
+    // Remove console.* e debugger do build de produção
+    drop: process.env.NODE_ENV === "production" ? ["console", "debugger"] : [],
   },
   server: {
     fs: {

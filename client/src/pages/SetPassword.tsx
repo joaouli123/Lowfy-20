@@ -39,8 +39,11 @@ export default function SetPassword() {
         password: tempPassword,
       });
 
-      // Atualizar senha
+      // A sessão é mantida via cookie httpOnly definido pelo servidor no login.
+
+      // Atualizar senha (a senha atual é a temporária recebida por email)
       await apiRequest("PUT", "/api/auth/change-password", {
+        currentPassword: tempPassword,
         newPassword,
       });
 

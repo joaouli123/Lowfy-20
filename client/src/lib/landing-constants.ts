@@ -309,13 +309,6 @@ export const MARKETPLACE_CATEGORIES = [
   { title: 'Scripts', count: 'Automações', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400', icon: Database },
 ];
 
-export const ANDROMEDA_FEATURES = [
-  { title: 'Teste A/B Automático', desc: 'O sistema roda variações de criativos e escala o vencedor sozinho.' },
-  { title: 'Anti-Bloqueio', desc: 'Estrutura de contingência integrada para evitar bans do Meta.' },
-  { title: 'Copy Persuasiva IA', desc: 'Gera textos de anúncio que convertem cliques em vendas.' },
-  { title: 'Pixel Blindado', desc: 'Rastreamento server-side que não perde eventos (iOS 14+ ready).' }
-];
-
 export const STATS = [
   { label: 'Economia Mensal', value: 'R$ 7k+' },
   { label: 'Ferramentas', value: '39+' },

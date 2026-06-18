@@ -121,22 +121,18 @@ export function initSecurity() {
   if (!isProduction) {
     return;
   }
-  
+
+  // NOTA: técnicas de anti-debug/obfuscação client-side foram removidas por
+  // prejudicarem UX e performance (INP) sem oferecer segurança real — qualquer
+  // bundle client é inspecionável. A segurança real é aplicada no backend.
+  // Mantemos apenas a supressão de console em produção (complementa o drop no build).
   try {
     disableConsole();
-    preventDevTools();
-    protectGlobalObjects();
-    disableSourceMaps();
   } catch (e) {}
 }
 
 export function initAntiDebug() {
-  if (!isProduction) {
-    return;
-  }
-  
-  try {
-    antiDebug();
-    disableDevToolsDetection();
-  } catch (e) {}
+  // No-op intencional: o loop `debugger` e a detecção de devtools causavam
+  // travamentos/INP ruim e bloqueavam usuários legítimos, sem ganho de segurança.
+  return;
 }

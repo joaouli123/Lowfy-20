@@ -244,7 +244,18 @@ class WhatsAppQueueService {
     recipientState.lastSentAt = now;
     recipientState.messageCount++;
     this.recipientStates.set(job.phone, recipientState);
-    
+
+    // MEMORY: evitar crescimento ilimitado do Map. Quando passar de 5000 entradas,
+    // remove as cujo lastSentAt já está bem além do cooldown (10 min).
+    if (this.recipientStates.size > 5000) {
+      const staleThreshold = now.getTime() - 10 * 60 * 1000;
+      for (const [phone, state] of this.recipientStates) {
+        if (state.lastSentAt.getTime() < staleThreshold) {
+          this.recipientStates.delete(phone);
+        }
+      }
+    }
+
     this.recentSendTimestamps.push(now.getTime());
     this.updateMessagesPerMinute();
     

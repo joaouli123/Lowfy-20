@@ -4,3 +4,27 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Environment / secrets
+env
+.env
+.env.*
+!.env.production.example
+!.env.example
+
+# WhatsApp (Baileys) session credentials — NEVER commit
+.baileys_auth/
+*.session
+*.session.json
+
+# Generated / runtime page content
+cloned-pages/
+presell-pages/
+
+# Logs
+*.log
+logs/
+
+# DB backup/temp scripts (auditoria)
+_backup_*.json
+_db_*.cjs

@@ -3,12 +3,6 @@ import { Badge } from "@/components/ui/badge";
 export function BentoFeatures() {
   const features = [
     {
-      title: "Sua Campanha Pronta em Minutos Criada 100% por IA",
-      desc: "A ferramenta que cria toda a sua campanha no Meta Ads automaticamente: copys dos criativos, variações e estrutura completa tudo otimizado para a nova atualização Andromeda. É só clicar e gerar.",
-      image: "/meta-ads.webp",
-      span: "",
-    },
-    {
       title: "O Arsenal Premium Que Todo Site Profissional Precisa",
       desc: "Acesse mais de 17 plugins premium atualizados Elementor Pro, JetEngine, WP Rocket, Smush Pro e muito mais. Tudo o que seu WordPress precisa para ficar rápido, poderoso e ilimitado.",
       image: "/wordpress-arsenal.webp",

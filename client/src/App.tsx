@@ -57,7 +57,6 @@ const ForumTopic = lazy(() => import("@/pages/ForumTopic"));
 const SetPassword = lazy(() => import("@/pages/SetPassword"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const N8nAutomations = lazy(() => import("@/pages/N8nAutomations"));
-const MetaAdsAndromeda = lazy(() => import("@/pages/MetaAdsAndromeda"));
 const Referrals = lazy(() => import("@/pages/Referrals"));
 const Subscription = lazy(() => import("@/pages/Subscription"));
 
@@ -303,7 +302,6 @@ function Router() {
                 <Route path="/indicacoes" component={Referrals} />
                 <Route path="/assinatura" component={Subscription} />
                 <Route path="/modelos-n8n" component={N8nAutomations} />
-                <Route path="/meta-ads-andromeda" component={MetaAdsAndromeda} />
               </ProtectedContent>
             </Layout>
           </>

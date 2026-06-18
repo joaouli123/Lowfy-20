@@ -18,7 +18,6 @@ const ROUTE_TO_FEATURE_MAP: Record<string, FeatureType> = {
   "/ferramentas-ia": "ferramentas-ia",
   "/clonador": "clonador",
   "/presell-builder": "presell-builder",
-  "/andromeda": "andromeda",
   "/quiz": "quiz",
   "/n8n": "n8n",
   "/timeline": "timeline",
@@ -112,7 +111,7 @@ export function ProtectedRoute({ children, currentPath = "/" }: ProtectedRoutePr
   }
 
   if (feature && !canAccessFeature) {
-    const isPremiumFeature = ["clonador", "presell-builder", "andromeda", "quiz", "n8n"].includes(feature);
+    const isPremiumFeature = ["clonador", "presell-builder", "quiz", "n8n"].includes(feature);
     const isSubscriptionExpired = user?.subscriptionStatus === "canceled" || user?.subscriptionStatus === "expired";
     
     if (isSubscriptionExpired && userPlan === "free") {
@@ -135,7 +134,6 @@ export function ProtectedRoute({ children, currentPath = "/" }: ProtectedRoutePr
     const featureNames: Record<string, string> = {
       clonador: "Clonador de Páginas",
       "presell-builder": "Pre-Sell Builder",
-      andromeda: "Meta Ads Andromeda",
       quiz: "Quiz Interativo",
       n8n: "Automações N8N",
       plrs: "PLRs",

@@ -30,6 +30,18 @@ export function generateSlug(title: string): string {
 }
 
 /**
+ * SECURITY: sanitiza um nome de página/slug usado para construir caminhos de
+ * arquivo no filesystem. Remove qualquer caractere que possa causar path
+ * traversal (`/`, `\`, `..`, etc.), mantendo apenas [a-z0-9-_].
+ *
+ * É idempotente para nomes válidos (que já foram salvos com esse mesmo padrão),
+ * então pode ser aplicado com segurança nas rotas de leitura/escrita/exclusão.
+ */
+export function sanitizePageName(name: unknown): string {
+  return String(name ?? '').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+}
+
+/**
  * Generates a unique slug by checking for existing slugs and appending a number if needed
  */
 export async function generateUniqueSlug(

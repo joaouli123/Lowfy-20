@@ -1529,7 +1529,6 @@ export default function Subscription() {
                   <li>✗ Plugins</li>
                   <li>✗ Templates e Páginas</li>
                   <li>✗ Serviços</li>
-                  <li>✗ Meta Ads Andromeda</li>
                 </ul>
                 <p className="text-xs mt-2 font-medium">
                   Você manterá acesso apenas a: Timeline, Fórum, Marketplace e Sistema de Afiliados.

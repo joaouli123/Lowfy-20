@@ -49,7 +49,7 @@ export const seoConfig = {
   login: {
     title: 'Entrar na Plataforma | Lowfy',
     description: 'Já é assinante? Acesse seu painel e ferramentas aqui. Entre na sua conta Lowfy.',
-    canonical: 'https://lowfy.com.br/auth',
+    canonical: 'https://lowfy.com.br/login',
   },
   cursos: {
     title: 'Cursos Online de Marketing Digital | Lowfy',
@@ -90,11 +90,6 @@ export const seoConfig = {
     title: 'Automações N8N Prontas | Lowfy',
     description: 'Modelos de automação N8N prontos para usar. Integre ferramentas e automatize seu negócio.',
     canonical: 'https://lowfy.com.br/modelos-n8n',
-  },
-  andromeda: {
-    title: 'Andromeda - Gerador de Campanhas Meta Ads | Lowfy',
-    description: 'Gere criativos e campanhas para Meta Ads com IA. Carrosséis, imagens e textos otimizados.',
-    canonical: 'https://lowfy.com.br/andromeda',
   },
   suporte: {
     title: 'Suporte ao Cliente | Lowfy',

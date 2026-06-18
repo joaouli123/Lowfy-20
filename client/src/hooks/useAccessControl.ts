@@ -41,7 +41,6 @@ const PROTECTED_ROUTES = [
   '/plugins',
   '/templates',
   '/modelos-n8n',
-  '/meta-ads-andromeda',
   '/dashboard',
   '/notifications',
   '/users',

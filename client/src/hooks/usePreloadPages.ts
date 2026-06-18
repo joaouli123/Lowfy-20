@@ -27,18 +27,21 @@ export function usePreloadPages(isEnabled: boolean = true) {
 
   useEffect(() => {
     if (!isEnabled) return;
-    
+
+    // PERFORMANCE: pré-carregar apenas as rotas de altíssima probabilidade
+    // (prioridade 1). As demais usam preloadOnHover sob demanda — evita baixar
+    // chunks pesados (Quill, builders, etc.) em background sem necessidade,
+    // o que anulava o code-splitting (especialmente custoso no mobile).
     const preloadTimer = setTimeout(() => {
       const pagesToPreload = PRELOAD_PRIORITY
-        .filter(page => page.path !== location)
-        .sort((a, b) => a.priority - b.priority);
+        .filter(page => page.path !== location && page.priority === 1);
 
       pagesToPreload.forEach((page, index) => {
         setTimeout(() => {
           page.loader().catch(() => {});
         }, index * 500);
       });
-    }, 2000);
+    }, 2500);
 
     return () => clearTimeout(preloadTimer);
   }, [location]);

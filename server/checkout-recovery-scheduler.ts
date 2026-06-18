@@ -10,6 +10,7 @@ import {
   generateCheckoutRecoveryEmail4WithDiscount
 } from './email';
 import { logger } from './utils/logger';
+import { exclusive } from './utils/cron-lock';
 import crypto from 'crypto';
 import { getNowSaoPaulo, hoursAgoSaoPaulo, daysAgoSaoPaulo, minutesAgoSaoPaulo } from '@shared/dateUtils';
 import { getCheckoutUrl } from '@shared/domainConfig';
@@ -469,9 +470,9 @@ export function startCheckoutRecoveryScheduler() {
   logger.debug('   • Email 3 (noite): Todos os dias às 20:00');
   logger.debug('   • Email 4 (50% OFF): Todos os dias às 10:00\n');
 
-  cron.schedule('*/5 * * * *', async () => {
+  cron.schedule('*/5 * * * *', exclusive('checkout-recovery-email1', async () => {
     await sendRecoveryEmail1_15min();
-  }, {
+  }), {
     timezone: "America/Sao_Paulo"
   });
 

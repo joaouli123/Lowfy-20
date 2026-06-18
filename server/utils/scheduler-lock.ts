@@ -11,9 +11,11 @@ export async function acquireSchedulerLeadership(): Promise<boolean> {
     return true;
   }
 
-  const client = await pool.connect();
+  let client: Awaited<ReturnType<typeof pool.connect>> | null = null;
 
   try {
+    client = await pool.connect();
+
     const result = await client.query<{ locked: boolean }>(
       "SELECT pg_try_advisory_lock($1, $2) AS locked",
       [LOCK_KEY_1, LOCK_KEY_2],
@@ -51,7 +53,9 @@ export async function acquireSchedulerLeadership(): Promise<boolean> {
 
     return true;
   } catch (error) {
-    client.release();
+    if (client) {
+      client.release();
+    }
     logger.error("[Schedulers] Failed to acquire advisory lock:", error);
     return false;
   }

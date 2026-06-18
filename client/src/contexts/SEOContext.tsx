@@ -124,11 +124,6 @@ const seoConfigMap: Record<string, SEOConfig> = {
     description: 'Templates de automação N8N prontos para usar. Automatize seu marketing digital e aumente sua produtividade.',
     keywords: 'automações N8N, templates automação, workflow automation, marketing automation',
   },
-  '/meta-ads-andromeda': {
-    title: 'Meta Ads Andromeda - Gerador de Anúncios IA | Lowfy',
-    description: 'Gere anúncios otimizados para Meta Ads com inteligência artificial. Copies, headlines e criativos que convertem.',
-    keywords: 'Meta Ads, Facebook Ads, gerador de anúncios, IA para anúncios, copywriting',
-  },
   '/termos': {
     title: 'Termos de Uso | Lowfy',
     description: 'Termos e condições de uso da plataforma Lowfy. Leia atentamente antes de utilizar nossos serviços.',

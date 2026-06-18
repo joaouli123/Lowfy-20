@@ -7,7 +7,7 @@ import { logger } from "./utils/logger";
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 
-import { setupAuth, authMiddleware, optionalAuthMiddleware, adminMiddleware, subscriptionMiddleware, isSubscriptionActive, getSubscriptionDaysExpired, hashPassword, verifyPassword, createSession, deleteSession, generate2FACode, create2FAVerification, verify2FACode } from "./auth";
+import { setupAuth, authMiddleware, optionalAuthMiddleware, adminMiddleware, subscriptionMiddleware, isSubscriptionActive, getSubscriptionDaysExpired, hashPassword, verifyPassword, createSession, deleteSession, setAuthCookie, clearAuthCookie, generate2FACode, create2FAVerification, verify2FACode } from "./auth";
 import { 
   sendEmail, 
   generateWelcomeEmailTemplate, 
@@ -61,8 +61,6 @@ import {
   referralCommissions,
   referralWallet,
   checkoutRecoveryEmails,
-  metaAdsCampaigns,
-  insertMetaAdsCampaignSchema,
   customDomainMappings,
   insertSupportTicketSchema
 } from "@shared/schema";
@@ -71,6 +69,9 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import axios from "axios";
+import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
+import { sanitizePageName } from "./utils/slug-utils";
+import { writeJsonAtomic } from "./utils/safe-fs";
 import cookieParser from "cookie-parser";
 import { createDistributedRateLimiter } from "./middleware/distributedRateLimit";
 import { removeOldTrackingScripts, deactivateNonEssentialScripts, intelligentScriptInjection } from "./page-utils";
@@ -84,6 +85,10 @@ import { getReferralCodeFromCookie } from "./middleware/referral-tracking";
 import { getCheckoutUrl, getAppUrl, getLandingUrl } from "@shared/domainConfig";
 import { startOfDaySaoPaulo, endOfDaySaoPaulo, subtractDaysSaoPaulo, getNowSaoPaulo, parseDateStringToStartOfDaySaoPaulo, parseDateStringToEndOfDaySaoPaulo } from "@shared/dateUtils";
 import sharp from "sharp";
+// PERFORMANCE: limitar concorrência do libvips e desabilitar cache para evitar
+// picos de RSS quando múltiplos uploads grandes são processados simultaneamente.
+sharp.concurrency(2);
+sharp.cache(false);
 import { ObjectStorageService } from "./objectStorage";
 import { whatsappService } from "./whatsapp";
 import { campaignDispatcher } from "./whatsappCampaignDispatcher";
@@ -297,6 +302,51 @@ const subscriptionCheckoutLimiter = createDistributedRateLimiter({
   },
 });
 
+// SECURITY: Rate limiting para autenticação (anti brute-force / credential stuffing)
+const authLoginLimiter = createDistributedRateLimiter({
+  name: 'auth-login',
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 15, // 15 tentativas de login por 15 min por IP
+  message: 'Muitas tentativas de login. Tente novamente em alguns minutos.',
+  keyMode: 'ip',
+  onBlocked: (req) => {
+    logger.warn(`[Rate Limit] Login attempt blocked from IP: ${req.ip}`);
+  },
+});
+
+const authRegisterLimiter = createDistributedRateLimiter({
+  name: 'auth-register',
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 10, // 10 cadastros por hora por IP
+  message: 'Muitas tentativas de cadastro. Tente novamente mais tarde.',
+  keyMode: 'ip',
+  onBlocked: (req) => {
+    logger.warn(`[Rate Limit] Register attempt blocked from IP: ${req.ip}`);
+  },
+});
+
+const passwordResetLimiter = createDistributedRateLimiter({
+  name: 'password-reset',
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 5, // 5 solicitações de reset por hora por IP
+  message: 'Muitas solicitações de redefinição de senha. Tente novamente em 1 hora.',
+  keyMode: 'ip',
+  onBlocked: (req) => {
+    logger.warn(`[Rate Limit] Password reset attempt blocked from IP: ${req.ip}`);
+  },
+});
+
+const twoFactorLimiter = createDistributedRateLimiter({
+  name: 'two-factor',
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 10, // 10 verificações 2FA por 15 min por IP
+  message: 'Muitas tentativas de verificação. Tente novamente em alguns minutos.',
+  keyMode: 'ip',
+  onBlocked: (req) => {
+    logger.warn(`[Rate Limit] 2FA attempt blocked from IP: ${req.ip}`);
+  },
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Middleware para cookies (tracking de visualizações únicas)
   app.use(cookieParser());
@@ -306,11 +356,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== OBJECT STORAGE (App Storage) ====================
   // Rota para servir arquivos do Object Storage (imagens de produtos, etc)
   // NOTA: Imagens de produtos do marketplace são sempre públicas (sem ACL)
-  app.get("/objects/:objectPath(*)", async (req, res) => {
+  app.get("/objects/:objectPath(*)", optionalAuthMiddleware, async (req: any, res) => {
     try {
       const { ObjectStorageService, ObjectNotFoundError } = await import('./objectStorage');
+      const { getObjectAclPolicy, ObjectPermission } = await import('./objectAcl');
       const objectStorageService = new ObjectStorageService();
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+
+      // SECURITY: aplicar ACL. Objetos sem política são tratados como públicos (assets de
+      // produto/fórum/presell). Objetos marcados como privados exigem permissão de leitura.
+      const aclPolicy = await getObjectAclPolicy(objectFile);
+      if (aclPolicy && aclPolicy.visibility === 'private') {
+        const allowed = await objectStorageService.canAccessObjectEntity({
+          userId: req.user?.id,
+          objectFile,
+          requestedPermission: ObjectPermission.READ,
+        });
+        if (!allowed) {
+          return res.status(req.user ? 403 : 401).json({ error: "Acesso negado" });
+        }
+      }
+
       objectStorageService.downloadObject(objectFile, res);
     } catch (error: any) {
       if (error?.name === 'ObjectNotFoundError') {
@@ -766,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Register
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', authRegisterLimiter, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
       const passwordHash = await hashPassword(userData.password);
@@ -918,6 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Criar nova sessão para login automático
       const sessionId = await createSession(user.id);
+      setAuthCookie(res, sessionId);
 
       logger.info(`[ACTIVATE-ACCOUNT] ✅ Conta ativada e usuário logado: ${user.id}`);
 
@@ -935,76 +1002,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reset Password Direct - Without token (email + CPF validation)
-  app.post('/api/auth/reset-password-direct', async (req, res) => {
+  // SECURITY: O reset por email+CPF antigo permitia takeover de conta (CPF não é segredo no Brasil)
+  // e ainda fazia login automático. Agora ele apenas DISPARA o fluxo seguro por email (link com token),
+  // exigindo posse do email cadastrado para concluir a redefinição. Sem reset direto, sem auto-login.
+  app.post('/api/auth/reset-password-direct', passwordResetLimiter, async (req, res) => {
+    // Resposta genérica e constante para não vazar se a conta/CPF existe (anti-enumeração)
+    const genericResponse = {
+      success: true,
+      requiresEmail: true,
+      message: "Se os dados conferirem, enviamos um link de redefinição para o email cadastrado. Verifique sua caixa de entrada e a pasta de spam.",
+    };
+
     try {
-      const { email, cpf, newPassword, confirmPassword } = req.body;
+      const { email, cpf } = req.body;
 
-      if (!email || !cpf || !newPassword) {
-        return res.status(400).json({ message: "Email, CPF e nova senha são obrigatórios" });
+      if (!email || !cpf) {
+        return res.status(400).json({ message: "Email e CPF são obrigatórios" });
       }
 
-      if (newPassword !== confirmPassword) {
-        return res.status(400).json({ message: "As senhas não coincidem" });
-      }
-
-      if (newPassword.length < 6) {
-        return res.status(400).json({ message: "Senha deve ter no mínimo 6 caracteres" });
-      }
-
-      // Normalizar CPF (remover caracteres especiais)
-      const cpfNormalized = cpf.replace(/\D/g, '');
+      const cpfNormalized = String(cpf).replace(/\D/g, '');
       if (cpfNormalized.length !== 11) {
-        return res.status(400).json({ message: "CPF inválido" });
+        return res.json(genericResponse);
       }
 
-      // Buscar usuário por email
       const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      
       if (!user) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
+        return res.json(genericResponse);
       }
 
-      // Validar CPF do usuário
       const userCpfNormalized = user.cpf ? user.cpf.replace(/\D/g, '') : '';
       if (userCpfNormalized !== cpfNormalized) {
-        logger.warn(`[RESET-PASSWORD-DIRECT] CPF inválido para usuário: ${user.id}`);
-        return res.status(400).json({ message: "Email ou CPF incorreto" });
+        logger.warn(`[RESET-PASSWORD-DIRECT] Tentativa com CPF divergente para conta: ${user.id}`);
+        return res.json(genericResponse);
       }
 
-      logger.info(`[RESET-PASSWORD-DIRECT] Redefinindo senha para: ${user.email}`);
-
-      // Hash da nova senha
-      const newPasswordHash = await hashPassword(newPassword);
-
-      // Atualizar senha do usuário
+      // Identidade confere: emitir token de uso único e enviar email seguro
       await db
-        .update(users)
-        .set({ passwordHash: newPasswordHash, updatedAt: new Date() })
-        .where(eq(users.id, user.id));
+        .update(passwordResetTokens)
+        .set({ used: true, usedAt: new Date() })
+        .where(and(
+          eq(passwordResetTokens.userId, user.id),
+          eq(passwordResetTokens.used, false)
+        ));
 
-      // Invalidar todas as sessões anteriores por segurança
-      await db.delete(sessions).where(eq(sessions.userId, user.id));
+      const resetToken = randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
 
-      // Criar nova sessão para login automático
-      const sessionId = await createSession(user.id);
-
-      logger.info(`[RESET-PASSWORD-DIRECT] ✅ Senha redefinida e usuário logado: ${user.id}`);
-
-      const { passwordHash: _, ...userWithoutPassword } = user;
-      res.json({ 
-        success: true,
-        sessionId,
-        user: userWithoutPassword,
-        message: "Senha redefinida com sucesso! Você foi automaticamente conectado."
+      await db.insert(passwordResetTokens).values({
+        userId: user.id,
+        email: user.email,
+        token: resetToken,
+        expiresAt,
       });
+
+      try {
+        const resetEmailHtml = generatePasswordResetTemplate(user.name, resetToken);
+        await sendEmail({
+          to: user.email,
+          subject: '🔒 Redefinição de Senha - Lowfy',
+          html: resetEmailHtml,
+        });
+        logger.info(`[RESET-PASSWORD-DIRECT] Email de redefinição enviado para conta: ${user.id}`);
+      } catch (emailError: any) {
+        // Mantém resposta genérica mesmo em falha de envio para não vazar informação
+        logger.error('[RESET-PASSWORD-DIRECT] Erro ao enviar email:', { error: emailError?.message });
+      }
+
+      return res.json(genericResponse);
     } catch (error: any) {
       logger.error("[RESET-PASSWORD-DIRECT] ❌ Erro:", { error: error.message, stack: error.stack });
-      res.status(500).json({ message: "Erro ao redefinir senha" });
+      res.status(500).json({ message: "Erro ao processar solicitação" });
     }
   });
 
   // Forgot Password - Request reset
-  app.post('/api/auth/forgot-password', async (req, res) => {
+  app.post('/api/auth/forgot-password', passwordResetLimiter, async (req, res) => {
     try {
       const { email } = req.body;
 
@@ -1077,7 +1149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reset Password - Confirm new password with token
-  app.post('/api/auth/reset-password', async (req, res) => {
+  app.post('/api/auth/reset-password', passwordResetLimiter, async (req, res) => {
     try {
       const { token, newPassword } = req.body;
 
@@ -1323,6 +1395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Criar sessão automática após verificação bem-sucedida
       const token = await createSession(userId);
+      setAuthCookie(res, token);
 
       // Track daily login for gamification
       await storage.trackDailyLogin(userId);
@@ -1447,7 +1520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Login
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/login', authLoginLimiter, async (req, res) => {
     try {
       const { email, password } = loginSchema.parse(req.body);
 
@@ -1475,7 +1548,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // ✅ 2FA DESATIVADO - Login bem-sucedido para: ${user.email}
       const sessionId = await createSession(user.id);
-      
+      setAuthCookie(res, sessionId);
+
       logger.info(`✅ [LOGIN] Login bem-sucedido para: ${user.email}`);
       
       res.json({
@@ -1504,7 +1578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Verificar código 2FA (aceita código de email OU SMS)
-  app.post('/api/auth/verify-2fa', async (req, res) => {
+  app.post('/api/auth/verify-2fa', twoFactorLimiter, async (req, res) => {
     try {
       const { userId, code } = req.body;
 
@@ -1587,6 +1661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Criar sessão
       const token = await createSession(user.id);
+      setAuthCookie(res, token);
 
       // Track daily login for gamification
       await storage.trackDailyLogin(user.id);
@@ -1896,11 +1971,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Logout
   app.post('/api/auth/logout', authMiddleware, async (req: any, res) => {
     try {
-      const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.auth_token;
+      const token = req.cookies?.auth_token || req.headers.authorization?.replace('Bearer ', '');
       if (token) {
         await deleteSession(token);
       }
-      res.clearCookie('auth_token');
+      clearAuthCookie(res);
       res.json({ message: "Logout realizado com sucesso" });
     } catch (error) {
       console.error("Error logging out:", error);
@@ -2233,6 +2308,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current user
   app.get('/api/auth/user', authMiddleware, async (req: any, res) => {
     try {
+      // Auto-migração: se a sessão veio pelo header (localStorage legado) e ainda
+      // não há cookie, emite o cookie httpOnly para migrar a sessão sem re-login.
+      if (!req.cookies?.auth_token) {
+        const headerToken = req.headers.authorization?.replace('Bearer ', '').trim();
+        if (headerToken && headerToken !== 'null' && headerToken !== 'undefined') {
+          setAuthCookie(res, headerToken);
+        }
+      }
       const { passwordHash: _, ...userWithoutPassword } = req.user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -3293,7 +3376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mark notification as read
   app.post('/api/notifications/:id/read', authMiddleware, async (req: any, res) => {
     try {
-      await storage.markNotificationAsRead(req.params.id);
+      await storage.markNotificationAsRead(req.params.id, req.user.id);
       res.json({ success: true });
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -3319,14 +3402,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Change user password
   app.put('/api/auth/change-password', authMiddleware, async (req: any, res) => {
     try {
-      const { newPassword } = req.body;
+      const { currentPassword, newPassword } = req.body;
 
       if (!newPassword || newPassword.length < 6) {
         return res.status(400).json({ message: "Senha deve ter no mínimo 6 caracteres" });
       }
 
+      // SECURITY: exigir a senha atual para evitar takeover via sessão roubada (XSS/CSRF)
+      if (!currentPassword) {
+        return res.status(400).json({ message: "Senha atual é obrigatória" });
+      }
+      const currentValid = await verifyPassword(currentPassword, req.user.passwordHash);
+      if (!currentValid) {
+        return res.status(400).json({ message: "Senha atual incorreta" });
+      }
+
       const passwordHash = await hashPassword(newPassword);
       await storage.updateUser(req.user.id, { passwordHash });
+
+      // SECURITY: invalidar TODAS as outras sessões do usuário (mantém apenas a atual)
+      const currentToken = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.auth_token;
+      try {
+        if (currentToken) {
+          await db.delete(sessions).where(and(
+            eq(sessions.userId, req.user.id),
+            ne(sessions.token, currentToken)
+          ));
+        } else {
+          await db.delete(sessions).where(eq(sessions.userId, req.user.id));
+        }
+      } catch (sessErr) {
+        logger.warn('[ChangePassword] Falha ao invalidar sessões antigas:', sessErr);
+      }
 
       logger.debug('[ChangePassword] Senha alterada com sucesso para usuário:', req.user.id);
 
@@ -3340,18 +3447,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== SEED USERS (TEMPORARY) ====================
 
   app.post('/api/seed/users', async (req, res) => {
+    // SECURITY: rota de bootstrap NUNCA disponível em produção e protegida por segredo.
+    // Antes ela era pública, criava admin@admin.com com senha "admin" e retornava as credenciais.
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ message: "Not found" });
+    }
+    const seedSecret = process.env.SEED_SECRET;
+    const provided = req.headers['x-seed-secret'];
+    if (!seedSecret || provided !== seedSecret) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+
     try {
       logger.debug("🌱 Iniciando seed de usuários...");
 
-      // Verificar se já existem usuários
       const existingAdmin = await storage.getUserByEmail("admin@admin.com");
       const existingUser = await storage.getUserByEmail("user@user.com");
 
       const results = [];
 
-      // Criar usuário admin
+      // Senhas aleatórias fortes — exibidas UMA vez na resposta (apenas em dev autorizado)
+      const adminPassword = randomBytes(12).toString('base64url');
+      const userPassword = randomBytes(12).toString('base64url');
+
       if (!existingAdmin) {
-        const adminPasswordHash = await hashPassword("admin");
+        const adminPasswordHash = await hashPassword(adminPassword);
         await storage.createUser({
           email: "admin@admin.com",
           name: "admin",
@@ -3360,14 +3480,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accountStatus: "active",
           subscriptionStatus: "active",
         });
-        results.push("✅ Usuário admin criado");
+        results.push(`✅ Usuário admin criado — senha: ${adminPassword}`);
       } else {
-        results.push("ℹ️  Usuário admin já existe");
+        results.push("ℹ️  Usuário admin já existe (senha não alterada)");
       }
 
-      // Criar usuário comum
       if (!existingUser) {
-        const userPasswordHash = await hashPassword("user");
+        const userPasswordHash = await hashPassword(userPassword);
         await storage.createUser({
           email: "user@user.com",
           name: "user",
@@ -3376,19 +3495,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accountStatus: "active",
           subscriptionStatus: "active",
         });
-        results.push("✅ Usuário comum criado");
+        results.push(`✅ Usuário comum criado — senha: ${userPassword}`);
       } else {
-        results.push("ℹ️  Usuário comum já existe");
+        results.push("ℹ️  Usuário comum já existe (senha não alterada)");
       }
 
-      res.json({
-        success: true,
-        results,
-        credentials: {
-          admin: { login: "admin ou admin@admin.com", password: "admin" },
-          user: { login: "user ou user@user.com", password: "user" }
-        }
-      });
+      res.json({ success: true, results });
     } catch (error) {
       console.error("❌ Erro ao criar usuários:", error);
       res.status(500).json({ message: "Erro ao criar usuários" });
@@ -6432,22 +6544,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== IMAGE PROXY ROUTE ====================
   // Proxy para evitar erros de CORS em logos de ferramentas
-  app.get('/api/image-proxy', async (req, res) => {
+  app.get('/api/image-proxy', authMiddleware, async (req, res) => {
     try {
       const imageUrl = req.query.url as string;
-      
+
       if (!imageUrl) {
         return res.status(400).json({ message: "URL da imagem é obrigatória" });
       }
 
+      // SECURITY: bloquear SSRF para endereços internos
+      try {
+        assertSafePublicUrl(imageUrl);
+      } catch (e: any) {
+        return res.status(400).json({ message: e?.message || "URL não permitida" });
+      }
+
       // Buscar a imagem da URL original
-      const response = await axios.get(imageUrl, {
+      const response = await axios.get(imageUrl, ssrfSafeAxiosOptions({
         responseType: 'arraybuffer',
         timeout: 10000,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
-      });
+      }));
 
       // Definir os headers corretos com cache mais agressivo
       const contentType = response.headers['content-type'] || 'image/png';
@@ -6551,14 +6670,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/users/:id', authMiddleware, async (req, res) => {
+  app.get('/api/users/:id', authMiddleware, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.params.id);
       if (!user) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       const { passwordHash, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+
+      // SECURITY: não expor PII (cpf/telefone/email) de OUTROS usuários
+      const isSelfOrAdmin = req.user?.id === user.id || req.user?.isAdmin;
+      if (isSelfOrAdmin) {
+        return res.json(userWithoutPassword);
+      }
+      const { cpf, phone, email, ...publicUser } = userWithoutPassword as any;
+      res.json(publicUser);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -8485,6 +8611,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Endpoint de teste sem autenticação (APENAS PARA DESENVOLVIMENTO)
   app.post('/api/sync-drive-test', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ message: "Not found" });
+    }
     try {
       res.json({ message: "Sincronização de teste iniciada. Verifique os logs do servidor." });
 
@@ -8917,23 +9046,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "URL é obrigatória" });
       }
 
-      // Validar URL
+      // SECURITY: validar URL e bloquear SSRF para endereços internos
       try {
-        new URL(url);
-      } catch {
-        return res.status(400).json({ message: "URL inválida" });
+        assertSafePublicUrl(url);
+      } catch (e: any) {
+        return res.status(400).json({ message: e?.message || "URL inválida" });
       }
 
       logger.debug(`🌐 Clonando página: ${url}`);
 
       // Fazer requisição HTTP para obter o HTML
-      const response = await axios.get(url, {
+      const response = await axios.get(url, ssrfSafeAxiosOptions({
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
         timeout: 30000,
         maxRedirects: 5
-      });
+      }));
 
       let html = response.data;
 
@@ -8983,99 +9112,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.debug("[DEBUG] Listando páginas clonadas para userId:", userId);
       const pagesDir = path.join(process.cwd(), "cloned-pages");
 
+      // PERFORMANCE: I/O totalmente assíncrono (não bloqueia o event loop).
       // Criar diretório se não existir
-      if (!fs.existsSync(pagesDir)) {
-        logger.debug("[DEBUG] Diretório não existe, criando...");
-        fs.mkdirSync(pagesDir, { recursive: true });
+      let files: string[];
+      try {
+        files = await fs.promises.readdir(pagesDir);
+      } catch {
+        await fs.promises.mkdir(pagesDir, { recursive: true });
         return res.json({ pages: [] });
       }
 
-      const files = fs.readdirSync(pagesDir);
-      const pages = files
-        .filter(file => file.endsWith('.html'))
-        .map(file => {
-          const slug = file.replace('.html', '');
-          const htmlPath = path.join(pagesDir, file);
-          const metadataPath = path.join(pagesDir, `${slug}.metadata.json`);
+      const htmlFiles = files.filter(file => file.endsWith('.html'));
 
-          let createdAt: string;
-          let viewCount = 0;
-          let originalName: string | undefined;
-          let pageUserId: string | null = null;
+      const processFile = async (file: string) => {
+        const slug = file.replace('.html', '');
+        const htmlPath = path.join(pagesDir, file);
+        const metadataPath = path.join(pagesDir, `${slug}.metadata.json`);
 
-          let requiresDomain = false;
-          let customDomain = null;
-          let isActive = true;
-          let timeRemaining = null;
-          let hoursRemaining = null;
+        let createdAt: string;
+        let viewCount = 0;
+        let originalName: string | undefined;
+        let pageUserId: string | null = null;
+        let requiresDomain = false;
+        let customDomain: any = null;
+        let isActive = true;
+        let timeRemaining: string | null = null;
+        let hoursRemaining: number | null = null;
 
-          let stats = fs.statSync(htmlPath);
-          createdAt = stats.mtime.toISOString();
+        const statMtime = async () => (await fs.promises.stat(htmlPath)).mtime.toISOString();
+        createdAt = await statMtime();
 
-          // Tentar ler metadata.json
-          if (fs.existsSync(metadataPath)) {
-            try {
-              const metadataContent = fs.readFileSync(metadataPath, 'utf-8');
-              const metadata = JSON.parse(metadataContent);
-              pageUserId = metadata.userId || null;
-              createdAt = metadata.createdAt;
-              viewCount = metadata.viewCount || 0;
-              originalName = metadata.originalName;
-              requiresDomain = metadata.requiresDomain || false;
-              customDomain = metadata.customDomain || null;
-              isActive = metadata.isActive !== false;
+        let metadataContent: string | null = null;
+        try {
+          metadataContent = await fs.promises.readFile(metadataPath, 'utf-8');
+        } catch {
+          metadataContent = null;
+        }
 
-              // Calcular tempo restante se requer domínio e não tem
-              if (requiresDomain && !customDomain && createdAt) {
-                const createdAtDate = new Date(createdAt);
-                const now = new Date();
-                const elapsedMs = now.getTime() - createdAtDate.getTime();
-                const twentyFourHoursMs = 24 * 60 * 60 * 1000;
-                const remainingMs = twentyFourHoursMs - elapsedMs;
+        if (metadataContent) {
+          try {
+            const metadata = JSON.parse(metadataContent);
+            pageUserId = metadata.userId || null;
+            createdAt = metadata.createdAt;
+            viewCount = metadata.viewCount || 0;
+            originalName = metadata.originalName;
+            requiresDomain = metadata.requiresDomain || false;
+            customDomain = metadata.customDomain || null;
+            isActive = metadata.isActive !== false;
 
-                if (remainingMs > 0) {
-                  hoursRemaining = Math.floor(remainingMs / (1000 * 60 * 60));
-                  const minutesRemaining = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-                  timeRemaining = `${hoursRemaining}h ${minutesRemaining}m`;
-                }
+            if (requiresDomain && !customDomain && createdAt) {
+              const createdAtDate = new Date(createdAt);
+              const now = new Date();
+              const elapsedMs = now.getTime() - createdAtDate.getTime();
+              const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+              const remainingMs = twentyFourHoursMs - elapsedMs;
+              if (remainingMs > 0) {
+                hoursRemaining = Math.floor(remainingMs / (1000 * 60 * 60));
+                const minutesRemaining = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+                timeRemaining = `${hoursRemaining}h ${minutesRemaining}m`;
               }
-            } catch (err) {
-              console.error(`[DEBUG] Erro ao ler metadata de ${slug}:`, err);
-              stats = fs.statSync(htmlPath);
-              createdAt = stats.mtime.toISOString();
             }
-          } else {
-            stats = fs.statSync(htmlPath);
-            createdAt = stats.mtime.toISOString();
+          } catch (err) {
+            console.error(`[DEBUG] Erro ao ler metadata de ${slug}:`, err);
+            createdAt = await statMtime();
           }
+        }
 
-          // Se originalName não existir, extrair do slug (remover userCode e uniqueId)
-          if (!originalName) {
-            const parts = slug.split('-');
-            if (parts.length > 2) {
-              // Remove primeira parte (userCode) e última (uniqueId)
-              originalName = parts.slice(1, -1).join('-');
-            } else {
-              originalName = slug;
-            }
-          }
+        if (!originalName) {
+          const parts = slug.split('-');
+          originalName = parts.length > 2 ? parts.slice(1, -1).join('-') : slug;
+        }
 
-          return {
-            name: slug,
-            originalName,
-            createdAt,
-            viewCount,
-            requiresDomain,
-            customDomain,
-            isActive,
-            timeRemaining,
-            hoursRemaining,
-            userId: pageUserId
-          };
-        })
-        .filter(page => page.userId === userId); // CRÍTICO: Filtrar por userId
+        return {
+          name: slug,
+          originalName,
+          createdAt,
+          viewCount,
+          requiresDomain,
+          customDomain,
+          isActive,
+          timeRemaining,
+          hoursRemaining,
+          userId: pageUserId,
+        };
+      };
 
-      logger.debug(`📄 Páginas clonadas encontradas: ${pages.length}`, pages);
+      // Processa em lotes de 25 para limitar file descriptors abertos simultaneamente
+      const allPages: Array<Awaited<ReturnType<typeof processFile>>> = [];
+      const BATCH = 25;
+      for (let i = 0; i < htmlFiles.length; i += BATCH) {
+        const batch = htmlFiles.slice(i, i + BATCH);
+        const results = await Promise.all(batch.map(processFile));
+        allPages.push(...results);
+      }
+
+      const pages = allPages.filter(page => page.userId === userId); // CRÍTICO: Filtrar por userId
+
+      logger.debug(`📄 Páginas clonadas encontradas: ${pages.length}`);
       res.json({ pages });
     } catch (error: any) {
       console.error("Erro ao listar páginas:", error);
@@ -9091,8 +9224,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user?.id;
       const { name } = req.params;
-      const filePath = path.join(process.cwd(), "cloned-pages", `${name}.html`);
-      const metadataPath = path.join(process.cwd(), "cloned-pages", `${name}.metadata.json`);
+      const filePath = path.join(process.cwd(), "cloned-pages", `${sanitizePageName(name)}.html`);
+      const metadataPath = path.join(process.cwd(), "cloned-pages", `${sanitizePageName(name)}.metadata.json`);
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: "Página não encontrada" });
@@ -9127,8 +9260,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user?.id;
       const { name } = req.params;
-      const filePath = path.join(process.cwd(), "cloned-pages", `${name}.html`);
-      const metadataPath = path.join(process.cwd(), "cloned-pages", `${name}.metadata.json`);
+      const filePath = path.join(process.cwd(), "cloned-pages", `${sanitizePageName(name)}.html`);
+      const metadataPath = path.join(process.cwd(), "cloned-pages", `${sanitizePageName(name)}.metadata.json`);
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: "Página não encontrada" });
@@ -9455,7 +9588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nome da página é obrigatório" });
       }
 
-      const metadataPath = path.join(process.cwd(), "cloned-pages", `${pageName}.metadata.json`);
+      const metadataPath = path.join(process.cwd(), "cloned-pages", `${sanitizePageName(pageName)}.metadata.json`);
 
       if (!fs.existsSync(metadataPath)) {
         return res.status(404).json({ message: "Página não encontrada" });
@@ -10242,7 +10375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cloned-page/status/:pageName", async (req, res) => {
     try {
       const { pageName } = req.params;
-      const metadataPath = path.join(process.cwd(), "cloned-pages", `${pageName}.metadata.json`);
+      const metadataPath = path.join(process.cwd(), "cloned-pages", `${sanitizePageName(pageName)}.metadata.json`);
 
       if (!fs.existsSync(metadataPath)) {
         return res.status(404).json({ message: "Página não encontrada" });
@@ -10484,8 +10617,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user?.id;
       const { name } = req.params;
-      const filePath = path.join(process.cwd(), 'presell-pages', `${name}.json`);
-      const metadataPath = path.join(process.cwd(), 'presell-pages', `${name}.metadata.json`);
+      const filePath = path.join(process.cwd(), 'presell-pages', `${sanitizePageName(name)}.json`);
+      const metadataPath = path.join(process.cwd(), 'presell-pages', `${sanitizePageName(name)}.metadata.json`);
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: 'Página não encontrada' });
@@ -10528,24 +10661,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Nome da página é obrigatório' });
       }
 
-      // Use slug if available, otherwise generate from name
-      const slug = pageData.slug || pageData.name.toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w-]+/g, '')
-        .replace(/^-+|-+$/g, '');
+      // SECURITY: sanitizar o slug SEMPRE (mesmo quando vem do client) — impede
+      // path traversal na escrita (ex.: slug "../../etc/x").
+      const rawSlug = pageData.slug || pageData.name;
+      const slug = sanitizePageName(rawSlug);
+
+      if (!slug) {
+        return res.status(400).json({ message: 'Nome/slug inválido' });
+      }
 
       logger.debug(`[PRESELL-SAVE] Salvando página: ${pageData.name} -> slug: ${slug}`);
 
       const dir = path.join(process.cwd(), 'presell-pages');
 
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      // Save with slug as filename
+      // Save with slug as filename (escrita ATÔMICA p/ evitar corrupção)
       const filePath = path.join(dir, `${slug}.json`);
       const dataToSave = { ...pageData, name: slug, slug: slug };
-      fs.writeFileSync(filePath, JSON.stringify(dataToSave, null, 2), 'utf-8');
+      await writeJsonAtomic(filePath, dataToSave);
       logger.debug(`[PRESELL-SAVE] Arquivo criado: ${filePath}`);
 
       // Criar ou atualizar metadata.json - PRESERVAR dados existentes
@@ -10710,7 +10842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+      await writeJsonAtomic(metadataPath, metadata);
       logger.debug(`[PRESELL-SAVE] Metadata salvo: ${metadataPath}`);
 
       logger.debug(`✅ Pre-Sell salva: ${slug}.json (requer domínio em 24h)`);
@@ -10912,8 +11044,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/presell/delete/:name', authMiddleware, subscriptionMiddleware, async (req: any, res) => {
     try {
       const { name } = req.params;
-      const filePath = path.join(process.cwd(), 'presell-pages', `${name}.json`);
-      const metadataPath = path.join(process.cwd(), 'presell-pages', `${name}.metadata.json`);
+      const filePath = path.join(process.cwd(), 'presell-pages', `${sanitizePageName(name)}.json`);
+      const metadataPath = path.join(process.cwd(), 'presell-pages', `${sanitizePageName(name)}.metadata.json`);
 
 
       if (!fs.existsSync(filePath)) {
@@ -10969,7 +11101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nome da página é obrigatório" });
       }
 
-      const metadataPath = path.join(process.cwd(), "presell-pages", `${pageName}.metadata.json`);
+      const metadataPath = path.join(process.cwd(), "presell-pages", `${sanitizePageName(pageName)}.metadata.json`);
 
       if (!fs.existsSync(metadataPath)) {
         return res.status(404).json({ message: "Página não encontrada" });
@@ -11294,7 +11426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/presell/status/:pageName", async (req, res) => {
     try {
       const { pageName } = req.params;
-      const metadataPath = path.join(process.cwd(), "presell-pages", `${pageName}.metadata.json`);
+      const metadataPath = path.join(process.cwd(), "presell-pages", `${sanitizePageName(pageName)}.metadata.json`);
 
       if (!fs.existsSync(metadataPath)) {
         return res.status(404).json({ message: "Página não encontrada" });
@@ -11400,7 +11532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/presell/:slug/track-click', async (req, res) => {
     try {
       const { slug } = req.params;
-      const metadataPath = path.join(process.cwd(), 'presell-pages', `${slug}.metadata.json`);
+      const metadataPath = path.join(process.cwd(), 'presell-pages', `${sanitizePageName(slug)}.metadata.json`);
 
       // Sistema de rastreamento único de cliques usando cookies
       const clickCookieName = `presell_clicked_${slug}`;
@@ -11456,14 +11588,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Normalizar slug para lowercase para evitar problemas
       slug = slug.toLowerCase();
 
-      const filePath = path.join(process.cwd(), 'presell-pages', `${slug}.json`);
+      const filePath = path.join(process.cwd(), 'presell-pages', `${sanitizePageName(slug)}.json`);
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).send('Pre-Sell não encontrada');
       }
 
       // Sistema de contagem de visualizações únicas
-      const metadataPath = path.join(process.cwd(), 'presell-pages', `${slug}.metadata.json`);
+      const metadataPath = path.join(process.cwd(), 'presell-pages', `${sanitizePageName(slug)}.metadata.json`);
       const viewCookieName = `presell_viewed_${slug}`;
 
       // Verificar se já visualizou (cookie)
@@ -12050,14 +12182,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/pages/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
-      const filePath = path.join(process.cwd(), "cloned-pages", `${slug}.html`);
+      const filePath = path.join(process.cwd(), "cloned-pages", `${sanitizePageName(slug)}.html`);
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).send("Página não encontrada");
       }
 
       // Sistema de contagem de visualizações únicas
-      const metadataPath = path.join(process.cwd(), "cloned-pages", `${slug}.metadata.json`);
+      const metadataPath = path.join(process.cwd(), "cloned-pages", `${sanitizePageName(slug)}.metadata.json`);
       const viewCookieName = `viewed_${slug}`;
 
       // Verificar se já visualizou (cookie)
@@ -13369,7 +13501,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const updates = req.body;
+
+      // SECURITY: bloquear campos sensíveis de serem sobrescritos diretamente via body.
+      // passwordHash nunca deve ser setado cru (bypassa o hashing); id/createdAt são imutáveis.
+      const PROTECTED_FIELDS = new Set(['id', 'passwordHash', 'createdAt', 'updatedAt']);
+      const updates: Record<string, any> = {};
+      for (const [key, value] of Object.entries(req.body || {})) {
+        if (!PROTECTED_FIELDS.has(key)) {
+          updates[key] = value;
+        }
+      }
 
       await storage.updateUser(id, updates);
       const updatedUser = await storage.getUser(id);
@@ -13969,7 +14110,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Você não tem permissão para editar este produto' });
       }
 
-      const updates = req.body;
+      // SECURITY: allowlist explícita — impede mass assignment de sellerId, isBlocked,
+      // salesCount, status, etc. via req.body.
+      const SELLER_EDITABLE_FIELDS = [
+        'title', 'description', 'price', 'category',
+        'images', 'productUrl', 'isDigital', 'isActive',
+      ] as const;
+      const updates: Record<string, any> = {};
+      for (const field of SELLER_EDITABLE_FIELDS) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
 
       if (updates.title && updates.title !== product.title) {
         const { generateUniqueSlug } = await import('./utils/slug-utils.js');
@@ -18813,2036 +18965,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ==================== META ADS ANDROMEDA CAMPAIGNS ====================
-  
-  // Get all campaigns for user
-  app.get('/api/meta-ads/campaigns', authMiddleware, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const campaigns = await storage.getMetaAdsCampaigns(user.id);
-      res.json(campaigns);
-    } catch (error) {
-      console.error('Error fetching meta ads campaigns:', error);
-      res.status(500).json({ message: 'Erro ao buscar campanhas' });
-    }
-  });
-
-  // Get single campaign by ID
-  app.get('/api/meta-ads/campaigns/:id', authMiddleware, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const campaign = await storage.getMetaAdsCampaignById(req.params.id, user.id);
-      
-      if (!campaign) {
-        return res.status(404).json({ message: 'Campanha não encontrada' });
-      }
-      
-      res.json(campaign);
-    } catch (error) {
-      console.error('Error fetching meta ads campaign:', error);
-      res.status(500).json({ message: 'Erro ao buscar campanha' });
-    }
-  });
-
-  // Create new campaign with AI-generated creatives
-  app.post('/api/meta-ads/campaigns', authMiddleware, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const data = req.body;
-
-      // Generate AI creatives based on product info (IMPORTANTE: await para função async!)
-      const creatives = await generateAICreatives(data);
-      
-      // Generate strategy notes
-      const strategyNotes = generateStrategyNotes(data);
-
-      const campaignData = {
-        userId: user.id,
-        productName: data.productName,
-        productPrice: data.productPrice,
-        productDescription: data.productDescription,
-        painPoint: data.painPoint,
-        objective: data.objective,
-        destinationUrl: data.destinationUrl || '',
-        hasPixelConfigured: data.hasPixelConfigured || false,
-        targetAgeRange: data.targetAgeRange || null,
-        targetGender: data.targetGender || null,
-        targetLocation: data.targetLocation || null,
-        creatives: creatives,
-        strategyNotes: strategyNotes,
-        status: 'draft'
-      };
-
-      const campaign = await storage.createMetaAdsCampaign(campaignData);
-      res.json(campaign);
-    } catch (error) {
-      console.error('Error creating meta ads campaign:', error);
-      res.status(500).json({ message: 'Erro ao criar campanha' });
-    }
-  });
-
-  // Update campaign
-  app.patch('/api/meta-ads/campaigns/:id', authMiddleware, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const updated = await storage.updateMetaAdsCampaign(req.params.id, user.id, req.body);
-      
-      if (!updated) {
-        return res.status(404).json({ message: 'Campanha não encontrada' });
-      }
-      
-      res.json(updated);
-    } catch (error) {
-      console.error('Error updating meta ads campaign:', error);
-      res.status(500).json({ message: 'Erro ao atualizar campanha' });
-    }
-  });
-
-  // Delete campaign
-  app.delete('/api/meta-ads/campaigns/:id', authMiddleware, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const deleted = await storage.deleteMetaAdsCampaign(req.params.id, user.id);
-      
-      if (!deleted) {
-        return res.status(404).json({ message: 'Campanha não encontrada' });
-      }
-      
-      res.json({ success: true, message: 'Campanha excluída com sucesso' });
-    } catch (error) {
-      console.error('Error deleting meta ads campaign:', error);
-      res.status(500).json({ message: 'Erro ao excluir campanha' });
-    }
-  });
-
-  // Token counters for tracking OpenAI usage during creative generation
-  let totalRegeneratePromptTokens = 0;
-  let totalRegenerateCompletionTokens = 0;
-
-  // Regenerate creatives for a campaign
-  app.post('/api/meta-ads/campaigns/:id/regenerate-creatives', authMiddleware, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const campaign = await storage.getMetaAdsCampaignById(req.params.id, user.id);
-      
-      if (!campaign) {
-        return res.status(404).json({ message: 'Campanha não encontrada' });
-      }
-      
-      // Reset token counters before generation
-      totalRegeneratePromptTokens = 0;
-      totalRegenerateCompletionTokens = 0;
-      
-      // Generate new AI creatives based on existing campaign data
-      const newCreatives = await generateAICreatives({
-        productName: campaign.productName,
-        productDescription: campaign.productDescription,
-        painPoint: campaign.painPoint,
-        objective: campaign.objective,
-        targetAgeRange: campaign.targetAgeRange,
-        targetGender: campaign.targetGender,
-        targetLocation: campaign.targetLocation
-      });
-      
-      // Update campaign with new creatives
-      const updatedCampaign = await storage.updateMetaAdsCampaign(req.params.id, user.id, {
-        creatives: newCreatives
-      });
-      
-      // Log token usage for regenerated creatives
-      try {
-        const { calculateTokenCost, convertUsdToBrl, getDefaultExchangeRate } = await import('./utils/openaiPricing');
-        const totalTokens = totalRegeneratePromptTokens + totalRegenerateCompletionTokens;
-        const costUsd = calculateTokenCost('gpt-4o-mini', totalRegeneratePromptTokens, totalRegenerateCompletionTokens);
-        const exchangeRate = getDefaultExchangeRate();
-        const costBrl = convertUsdToBrl(costUsd, exchangeRate);
-        
-        await storage.logTokenUsage({
-          userId: user.id,
-          model: 'gpt-4o-mini',
-          operation: 'andromeda_campaign',
-          promptTokens: totalRegeneratePromptTokens,
-          completionTokens: totalRegenerateCompletionTokens,
-          totalTokens: totalTokens,
-          costUsd: costUsd,
-          costBrl: costBrl,
-          exchangeRate: exchangeRate
-        });
-        logger.debug(`[Andromeda Campaign] Tokens registrados: ${totalTokens} (Prompt: ${totalRegeneratePromptTokens}, Completion: ${totalRegenerateCompletionTokens})`);
-      } catch (tokenError) {
-        logger.error(`[Andromeda Campaign] Erro ao registrar tokens: ${tokenError}`);
-      }
-      
-      res.json(updatedCampaign);
-    } catch (error) {
-      console.error('Error regenerating creatives:', error);
-      res.status(500).json({ message: 'Erro ao regenerar criativos' });
-    }
-  });
-
-  // ==================== SISTEMA DE GERAÇÃO DE CRIATIVOS DE ALTA CONVERSÃO ====================
-  
-  // Gerar Imagem Real via Imagen 3 (Google AI Studio)
-  async function generateActualImageWithGemini(prompt: string): Promise<string> {
-    try {
-      const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-image-preview',
-          contents: prompt,
-          config: {
-            responseModalities: ["IMAGE"]
-          }
-        });
-
-        const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-        if (inlineData?.data) {
-          return `data:${inlineData.mimeType || 'image/png'};base64,${inlineData.data}`;
-        }
-        return '';
-      } catch (e) {
-        console.error('Error generating image with Google AI Studio (Nano Banana 2 / Gemini 3.1):', e);
-        return '';
-      }
-  }
-
-// Registrar o Job de Vídeo Real via Veo 3.1 (Google AI Studio)
-    async function generateActualVideoWithVeo(prompt: string): Promise<string> {
-      try {
-        const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
-        const response = (await ai.models.generateVideos({
-          model: 'veo-3.1-generate-preview',
-          prompt: prompt
-        })) as any;
-        return `Vídeo enviado para renderização (Veo 3.1). ID da Operação: ${response.name || 'Em fila'}`;
-      } catch (e) {
-        console.error('Error generating video with Google AI Studio (Veo 3.1):', e);
-        return 'Falha ao conectar com motor Veo 3.1 (API experimental/não liberada ou limite atingido para sua key).';
-    }
-  }
-
-  // Gerar Headlines com GPT-4o-mini
-  async function generateHeadlineWithGPT(productName: string, emotion: string, painPoint: string, variation: number): Promise<string> {
-    try {
-      const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
-      const prompt = `Crie um headline IRRESISTÍVEL e ESPECÍFICO para ${productName} que resolve a dor "${painPoint}". Emoção: ${emotion}. Máximo 15 palavras. Copie o tom do melhor marketing em português. Responda APENAS com o headline, sem explicações.`;
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
-        contents: prompt,
-        config: {
-          temperature: 0.8,
-          maxOutputTokens: 100,
-        }
-      });
-      return response.text?.trim() || generateCompleteHeadline(productName, emotion, painPoint, variation);
-    } catch (e) {
-      console.error('Error generating headline with Gemini:', e);
-      return generateCompleteHeadline(productName, emotion, painPoint, variation);
-    }
-  }
-
-  // Gerar Primary Text com copywritter focado em Gemini 3.1
-  async function generatePrimaryTextWithGPT(productName: string, description: string, painPoint: string, emotion: string, objective: string): Promise<string> {
-    try {
-      const ai = new GoogleGenAI({ apiKey: 'AIzaSyBkGlH49cNy5BLQa10OfdTZptOHGhpRivM' });
-      const prompt = `Aja como o Gemini 3.1 (Modelo Super Copywriter de Alta Conversão).
-Crie um COPY IRRESISTÍVEL para anúncio de ${productName}.
-Descrição: ${description}
-Dor resolvida: ${painPoint}
-Emoção: ${emotion}
-Objetivo: ${objective}
-
-O copy DEVE seguir a estrutura Nanbana 2 de Copywriting:
-1. STOP THE SCROLL (Gancho agressivo focado na dor "${painPoint}")
-2. IDENTIFICAÇÃO (Você não está sozinho)
-3. A REVELAÇÃO (Introduzindo ${productName} como a única ponte segura)
-4. PROVA SOCIAL INDIRETA / AUTORIDADE
-5. CALL TO ACTION CLARO (Direcionando para o objetivo: ${objective})
-
-Mantenha em 3 a 5 parágrafos curtos, linguagem brasileira autêntica, conversacional e hipnótica.`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
-        contents: prompt,
-        config: {
-          temperature: 0.9,
-          maxOutputTokens: 600,
-        }
-      });
-      return response.text?.trim() || generateCompletePrimaryText(productName, description, painPoint, emotion, objective);
-    } catch (e) {
-      console.error('Error generating primary text with Gemini:', e);
-      return generateCompletePrimaryText(productName, description, painPoint, emotion, objective);
-    }
-  }
-
-  // Helper function to generate AI creatives - Sistema completo com GPT-4o-mini
-  async function generateAICreatives(data: any) {
-    const { productName, productDescription, painPoint, objective, targetAgeRange, targetGender, targetLocation } = data;
-    
-    // Configurações completas sem truncamento
-    const fullProductName = productName || 'Produto Digital Premium';
-    const fullDescription = productDescription || 'Solução completa para transformar sua vida';
-    const fullPainPoint = painPoint || 'desafios do dia a dia';
-    
-    // Gerar contexto visual base para consistência entre todos os criativos
-    const visualContext = generateVisualContext(fullProductName, fullDescription, targetGender, targetAgeRange);
-    
-    // Emoções e formatos para variações
-    const emotions = ['urgency', 'curiosity', 'fear_of_missing_out', 'trust', 'excitement'];
-    const formats = ['single_image', 'carousel', 'video_script'];
-    
-    const creatives = [];
-    
-    // Gerar 5 variações de criativos de alta qualidade com GPT-4o-mini
-    for (let i = 0; i < 5; i++) {
-      const emotion = emotions[i % emotions.length];
-      const format = formats[i % formats.length];
-      const variationNumber = i + 1;
-      
-      // Gerar headlines e textos com GPT-4o-mini (em paralelo)
-      const [headline, primaryText] = await Promise.all([
-        generateHeadlineWithGPT(fullProductName, emotion, fullPainPoint, variationNumber),
-        generatePrimaryTextWithGPT(fullProductName, fullDescription, fullPainPoint, emotion, objective)
-      ]);
-      const cta = getCallToActionForObjective(objective);
-      
-      const creative: any = {
-        id: `creative_${variationNumber}`,
-        type: format,
-        emotion: emotion,
-        format: format,
-        variationNumber: variationNumber,
-        visualStyle: getCompleteVisualStyle(emotion, fullProductName),
-        headline: headline,
-        primaryText: primaryText,
-        description: generateMetaDescription(fullProductName, fullDescription, emotion),
-        cta: cta,
-        callToAction: cta,
-        copy: primaryText,
-      };
-      
-      // Gerar prompt de imagem ultra-detalhado com fallback (sem GPT async aqui)
-      creative.aiImagePrompt = generateUltraDetailedImagePromptFallback(
-        fullProductName, 
-        fullDescription, 
-        fullPainPoint, 
-        emotion, 
-        targetGender, 
-        targetAgeRange,
-        variationNumber
-      );
-      creative.aiPrompt = creative.aiImagePrompt;
-      creative.prompt = creative.aiImagePrompt;
-
-      // Gerar imagem real via Imagen 3 se o usuário pedir single_image, para usar a key
-      if (format === 'single_image') {
-        const simplifiedImagePrompt = `Professional marketing ad image for ${fullProductName}. ${visualContext.style}. Setting: ${visualContext.setting}. Lighting: ${visualContext.lighting}. Mood: ${emotion}. Colors: ${getCompleteVisualStyle(emotion, fullProductName).split('.')[0]}. High quality, 8k, photorealistic.`;
-        const base64Img = await generateActualImageWithGemini(simplifiedImagePrompt);
-        if (base64Img) {
-          creative.generatedImageBase64 = base64Img;
-        }
-      }
-
-      // Adicionar variações de imagem para testes A/B
-      creative.imageVariations = generateImageVariations(
-        fullProductName,
-        fullDescription,
-        fullPainPoint,
-        emotion,
-        targetGender,
-        visualContext,
-        variationNumber
-      );
-      
-      // GERAR CAROUSEL E VIDEO EM CADA CRIATIVO
-      const carouselData = generateHarmoniousCarouselSlides(
-        fullProductName, 
-        fullDescription, 
-        fullPainPoint, 
-        emotion, 
-        targetGender,
-        visualContext,
-        cta
-      );
-      creative.carouselSlides = carouselData;
-      creative.slides = carouselData;
-      
-      creative.video = generateUnifiedVideoContent(
-        fullProductName, 
-        fullDescription, 
-        fullPainPoint, 
-        emotion, 
-        targetGender,
-        visualContext,
-        cta
-      );
-
-      // Registrar chamada para Veo 2.0 (Google AI Studio) nos scripts de vídeo
-      if (format === 'video_script') {
-        const simplifiedVideoPrompt = `Cinematic wide panning shot for ${fullProductName} ad. ${visualContext.style}. Setting: ${visualContext.setting}. Lighting: ${visualContext.lighting}. Mood: ${emotion}. High quality, 4k, photorealistic.`;
-        creative.video.veo2OperationStatus = await generateActualVideoWithVeo(simplifiedVideoPrompt);
-      }
-
-      creatives.push(creative);
-    }
-    
-    return creatives;
-  }
-  
-  // Gerar contexto visual base para manter consistência
-  function generateVisualContext(productName: string, description: string, targetGender?: string, targetAge?: string) {
-    const genderContext = targetGender === 'male' ? 'masculino brasileiro' : targetGender === 'female' ? 'feminina brasileira' : 'pessoa brasileira';
-    const ageContext = targetAge || '25-45 anos';
-    
-    return {
-      protagonist: genderContext,
-      ageRange: ageContext,
-      productName: productName,
-      setting: 'ambiente moderno, clean e acolhedor com iluminação natural suave',
-      colorPalette: 'tons quentes e acolhedores com acentos em verde esperança e azul confiança',
-      mood: 'otimista, acolhedor e profissional',
-      style: 'fotografia comercial premium, estilo lifestyle brasileiro, autêntico e aspiracional',
-      lighting: 'iluminação natural suave com golden hour feel, shadows suaves',
-      camera: 'câmera profissional DSLR, lente 85mm f/1.4, profundidade de campo suave',
-      resolution: '8K ultra-realista, texturas detalhadas, cores vibrantes mas naturais'
-    };
-  }
-  
-  // Estilo visual completo por emoção
-  function getCompleteVisualStyle(emotion: string, productName: string): string {
-    const styles: Record<string, string> = {
-      'urgency': `ESTILO URGÊNCIA: Cores vibrantes com predominância de vermelho coral (#FF6B6B) e laranja energético (#FF9F43). Elementos de countdown visual, relógios estilizados, calendários marcados. Tipografia bold e impactante. Setas direcionais, linhas de movimento. Fundo com gradiente dinâmico. Bordas com glow sutil. Expressão facial determinada e focada. Pose de ação, movimento para frente. Iluminação dramática com contraste alto. Elementos de "limited time" e "últimas unidades". Badge de oferta especial no canto. Composição assimétrica criando tensão visual.`,
-      
-      'curiosity': `ESTILO CURIOSIDADE: Cores misteriosas com roxo profundo (#8B5CF6) e azul índigo (#6366F1). Elementos parcialmente revelados, silhuetas, sombras intrigantes. Pontos de interrogação estilizados e elegantes. Olhar direcionado para fora do frame. Expressão de descoberta e interesse. Iluminação tipo Rembrandt com shadows misteriosos. Elementos de "segredo revelado" e "descubra". Composição com espaço negativo intencional. Blur seletivo criando foco. Partículas de luz floating. Porta entreaberta ou cortina semi-aberta como metáfora.`,
-      
-      'fear_of_missing_out': `ESTILO FOMO: Cores sociais vibrantes com verde sucesso (#10B981) e dourado conquista (#F59E0B). Grupo diverso de pessoas felizes celebrando juntas. Elementos de comunidade e pertencimento. Expressões de alegria genuína e conexão. Badges de "milhares já garantiram" e contadores. Depoimentos visuais com fotos de clientes satisfeitos. Composição com várias pessoas, foco no protagonista. Iluminação festiva e acolhedora. Elementos de exclusividade e clube VIP. Confetes sutis e celebração. Smartphones mostrando notificações de compra.`,
-      
-      'trust': `ESTILO CONFIANÇA: Cores corporativas com azul safira (#3B82F6) e verde esmeralda (#059669). Selos de garantia, certificados, escudos de proteção. Expressão serena, confiante e profissional. Ambiente clean, organizado, premium. Ícones de segurança, cadeados, checkmarks. Depoimentos com fotos reais e nomes. Números e estatísticas de sucesso. Composição simétrica transmitindo estabilidade. Iluminação suave e profissional tipo estúdio. Elementos de "garantia de satisfação" e "aprovado". Fundo neutro destacando o protagonista. Pose confiante com braços abertos ou cruzados.`,
-      
-      'excitement': `ESTILO EMPOLGAÇÃO: Cores vibrantes com rosa pink (#EC4899) e amarelo solar (#FBBF24). Explosão de cores e energia. Elementos de celebração: confetes, estrelas, fogos. Expressão de alegria radiante e entusiasmo. Pose dinâmica com movimento e energia. Iluminação brilhante e festiva. Gradientes coloridos e overlays vibrantes. Emojis estilizados e elementos pop. Tipografia divertida e energética. Composição diagonal criando dinamismo. Elementos de "novo", "lançamento", "chegou". Sparkles e brilhos. Background com pattern geométrico colorido.`
-    };
-    
-    return styles[emotion] || styles['trust'];
-  }
-  
-  // Headline completo sem truncamento
-  function generateCompleteHeadline(productName: string, emotion: string, painPoint: string, variation: number): string {
-    const painKeyword = extractKeyPain(painPoint);
-    
-    const templates: Record<string, string[]> = {
-      'urgency': [
-        `🔥 ÚLTIMAS ${Math.floor(Math.random() * 12) + 3} HORAS: ${productName} com 70% OFF - Oferta Irresistível Acaba Hoje!`,
-        `⚡ ALERTA: ${productName} - Condição Especial Para os Primeiros 100 Compradores de Hoje!`,
-        `🚨 ATENÇÃO: Restam Apenas ${Math.floor(Math.random() * 20) + 5} Vagas Para ${productName} - Garanta Agora!`,
-        `⏰ CONTAGEM REGRESSIVA: ${productName} - Preço de Lançamento Por Apenas Mais ${Math.floor(Math.random() * 6) + 2} Horas!`,
-        `💥 OPORTUNIDADE ÚNICA: ${productName} Nunca Mais Por Este Preço - Última Chance!`
-      ],
-      'curiosity': [
-        `🤔 O Segredo Que Ninguém Te Contou Sobre ${painKeyword} - Até Agora...`,
-        `🔍 Descubra Como ${productName} Está Revolucionando a Vida de Milhares de Brasileiros`,
-        `❓ Você Comete Estes 5 Erros Comuns Com ${painKeyword}? A Resposta Vai Te Surpreender!`,
-        `🧠 A Ciência Por Trás de ${productName}: O Que Especialistas Não Querem Que Você Saiba`,
-        `💡 Por Que 97% Das Pessoas Falham Com ${painKeyword} - E Como Você Pode Ser Diferente`
-      ],
-      'fear_of_missing_out': [
-        `🚀 +${Math.floor(Math.random() * 5000) + 10000} Pessoas Já Transformaram Suas Vidas Com ${productName} - E Você?`,
-        `📈 Enquanto Você Lê Isso, Mais ${Math.floor(Math.random() * 50) + 20} Pessoas Estão Garantindo ${productName}`,
-        `⭐ Junte-se aos Milhares Que Já Disseram "SIM" Para ${productName} - Não Fique de Fora!`,
-        `🏆 A Comunidade Exclusiva de ${productName} Está Crescendo - Sua Vaga Está Esperando!`,
-        `💪 Todo Mundo Está Falando de ${productName} - Descubra o Motivo do Sucesso!`
-      ],
-      'trust': [
-        `✅ ${productName}: +${Math.floor(Math.random() * 5000) + 15000} Clientes Satisfeitos e Garantia de 7 Dias`,
-        `🛡️ Resultado Garantido: ${productName} Aprovado Por Especialistas e Milhares de Brasileiros`,
-        `🏅 ${productName} - O Método Mais Completo e Seguro Para Resolver ${painKeyword}`,
-        `💯 Confiança Total: ${productName} Com Selo de Qualidade e Satisfação Garantida`,
-        `🎯 ${productName}: Metodologia Comprovada Por ${Math.floor(Math.random() * 8) + 5} Anos de Sucesso`
-      ],
-      'excitement': [
-        `🎉 FINALMENTE! ${productName} Chegou Para Revolucionar Sua Vida - Prepare-se!`,
-        `🌟 NOVIDADE INCRÍVEL: Conheça ${productName} - A Solução Que Você Sempre Sonhou!`,
-        `🎊 É OFICIAL: ${productName} Está Disponível - Sua Transformação Começa Agora!`,
-        `✨ LANÇAMENTO: ${productName} - A Revolução Que Vai Mudar Tudo Para Você!`,
-        `🎁 SURPRESA: ${productName} Com Bônus Exclusivos Só Para Quem Agir Agora!`
-      ]
-    };
-    
-    const options = templates[emotion] || templates['trust'];
-    return options[(variation - 1) % options.length];
-  }
-  
-  // Extrair palavra-chave da dor
-  function extractKeyPain(painPoint: string): string {
-    if (!painPoint || painPoint.length < 3) return 'seus desafios';
-    const words = painPoint.split(' ');
-    if (words.length <= 3) return painPoint;
-    return words.slice(0, 4).join(' ');
-  }
-  
-  // Texto principal completo e rico
-  function generateCompletePrimaryText(productName: string, description: string, painPoint: string, emotion: string, objective: string): string {
-    const ctaText = objective === 'sales' ? 'GARANTIR MINHA VAGA' : objective === 'leads' ? 'QUERO SABER MAIS' : 'VER DETALHES';
-    
-    const templates: Record<string, string> = {
-      'urgency': `⏰ OFERTA POR TEMPO LIMITADO - NÃO PERCA!
-
-Você sabe qual é o maior erro de quem sofre com ${painPoint}?
-
-É esperar o "momento certo" que nunca chega...
-
-Enquanto você lê isso, centenas de pessoas estão transformando suas vidas com ${productName}.
-
-📌 O QUE VOCÊ VAI DESCOBRIR:
-${description}
-
-✅ Método passo a passo simples e direto
-✅ Resultados visíveis desde a primeira aplicação
-✅ Suporte completo da nossa equipe
-✅ Garantia incondicional de 7 dias
-
-🔥 MAS ATENÇÃO: Esta condição especial está disponível apenas por tempo limitado!
-
-👆 Clique no botão "${ctaText}" agora mesmo e comece sua transformação hoje!
-
-⚡ Não deixe para depois o que pode mudar sua vida agora.`,
-
-      'curiosity': `🤔 Você já se perguntou por que algumas pessoas conseguem superar ${painPoint} tão facilmente...
-
-...enquanto outras lutam por anos sem resultados?
-
-A resposta pode te surpreender.
-
-Depois de anos de pesquisa e milhares de casos de sucesso, descobrimos um padrão que muda tudo.
-
-📚 APRESENTAMOS ${productName}:
-${description}
-
-💡 O QUE TORNA ISSO DIFERENTE:
-• Abordagem única baseada em ciência e prática real
-• Sem teoria complicada - apenas o que funciona
-• Aplicação imediata no seu dia a dia
-• Resultados que você pode medir e sentir
-
-🔍 Milhares de pessoas já descobriram este segredo.
-
-A pergunta é: você vai continuar do lado de fora ou vai descobrir por si mesmo?
-
-👉 Clique e descubra o que está transformando milhares de vidas!`,
-
-      'fear_of_missing_out': `🚀 ENQUANTO VOCÊ LÊ ISSO...
-
-...mais pessoas estão garantindo acesso a ${productName} e transformando suas vidas.
-
-Sabe aquela sensação de chegar tarde demais? De ver todo mundo evoluindo menos você?
-
-Não precisa ser assim.
-
-📈 VEJA O QUE ESTÁ ACONTECENDO:
-• +15.000 pessoas já transformaram suas vidas
-• 97% de satisfação comprovada
-• Comunidade ativa e engajada
-• Resultados reais compartilhados diariamente
-
-💬 "${productName} mudou minha perspectiva completamente. Queria ter descoberto antes!" - Cliente verificado
-
-🎯 O QUE VOCÊ RECEBE:
-${description}
-
-✅ Acesso imediato ao conteúdo completo
-✅ Comunidade exclusiva de membros
-✅ Suporte prioritário da equipe
-✅ Atualizações gratuitas para sempre
-
-❌ Não fique de fora desta transformação.
-
-👆 Junte-se a milhares de pessoas e comece agora!`,
-
-      'trust': `✅ RESULTADO COMPROVADO POR MILHARES DE BRASILEIROS
-
-Se você está cansado de ${painPoint}, você não está sozinho.
-
-E mais importante: existe uma solução real, testada e aprovada.
-
-🛡️ APRESENTAMOS ${productName}:
-${description}
-
-📊 NOSSOS NÚMEROS FALAM POR SI:
-• +15.000 clientes satisfeitos
-• 97% de taxa de satisfação
-• 4.9 estrelas de avaliação média
-• 7 anos de mercado e experiência
-
-💯 GARANTIA TOTAL DE SATISFAÇÃO:
-Se em 7 dias você não estiver 100% satisfeito, devolvemos cada centavo. Sem perguntas, sem burocracia.
-
-✅ Método aprovado por especialistas
-✅ Suporte humanizado e dedicado
-✅ Comunidade com milhares de membros
-✅ Atualizações constantes inclusas
-
-🏅 Sua confiança é nossa prioridade.
-
-👆 Clique agora e faça parte desta transformação com total segurança!`,
-
-      'excitement': `🎉 FINALMENTE CHEGOU O QUE VOCÊ ESTAVA ESPERANDO!
-
-Prepare-se para conhecer ${productName} - a solução que vai revolucionar sua forma de lidar com ${painPoint}!
-
-✨ ISSO É DIFERENTE DE TUDO QUE VOCÊ JÁ VIU:
-${description}
-
-🎁 BÔNUS EXCLUSIVOS PARA VOCÊ:
-• Acesso vitalício ao conteúdo completo
-• Comunidade VIP com suporte prioritário
-• Atualizações gratuitas por tempo ilimitado
-• Material extra exclusivo para quem agir agora
-
-🌟 O QUE NOSSOS CLIENTES DIZEM:
-"Incrível! Nunca imaginei que seria tão transformador!" ⭐⭐⭐⭐⭐
-"Melhor investimento que já fiz em mim!" ⭐⭐⭐⭐⭐
-"Simples, direto e funciona de verdade!" ⭐⭐⭐⭐⭐
-
-🚀 Sua jornada de transformação começa com um clique!
-
-👆 Não espere mais - sua nova vida está a um passo de distância!
-
-🎊 Vamos juntos nessa?`
-    };
-    
-    return templates[emotion] || templates['trust'];
-  }
-  
-  // Meta description para anúncios
-  function generateMetaDescription(productName: string, description: string, emotion: string): string {
-    const descriptions: Record<string, string> = {
-      'urgency': `⏰ Últimas horas! ${productName} com condição especial. ${description} Garanta agora antes que acabe!`,
-      'curiosity': `🔍 Descubra o segredo por trás de ${productName}. ${description} Clique e surpreenda-se!`,
-      'fear_of_missing_out': `🚀 +15.000 pessoas já transformaram suas vidas. ${productName}: ${description} Não fique de fora!`,
-      'trust': `✅ ${productName} - Aprovado por milhares. ${description} Garantia de 7 dias. Confie em quem entende!`,
-      'excitement': `🎉 Novidade! ${productName} chegou! ${description} Bônus exclusivos para quem agir agora!`
-    };
-    
-    return descriptions[emotion] || descriptions['trust'];
-  }
-  
-  function getCallToActionForObjective(objective: string): string {
-    const ctas: Record<string, string> = {
-      'sales': 'GARANTIR MINHA VAGA AGORA',
-      'leads': 'QUERO SABER MAIS',
-      'traffic': 'VER DETALHES COMPLETOS',
-      'engagement': 'CURTIR E SEGUIR',
-      'awareness': 'CONHECER AGORA',
-      'messages': 'FALAR COM ESPECIALISTA',
-      'app_promotion': 'BAIXAR GRÁTIS'
-    };
-    return ctas[objective] || 'SAIBA MAIS';
-  }
-  
-  // ==================== GERAÇÃO COM GPT-4o-MINI ====================
-  
-  async function generatePromptUsingGPT4oMini(
-    productName: string,
-    description: string,
-    painPoint: string,
-    emotion: string,
-    targetGender?: string,
-    targetAge?: string,
-    variation?: number
-  ): Promise<string> {
-    try {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      
-      const emotionDescriptions: Record<string, string> = {
-        'urgency': 'urgência - criando senso de escassez e necessidade de ação imediata',
-        'curiosity': 'curiosidade - despertando interesse e provocando desejo de descobrir',
-        'fear_of_missing_out': 'FOMO - mostrando comunidade e exclusividade',
-        'trust': 'confiança - transmitindo profissionalismo e segurança',
-        'excitement': 'empolgação - explosão de energia e celebração'
-      };
-
-      const prompt = `Você é um especialista em marketing digital e geração de prompts para IA de imagens.
-
-PRODUTO: ${productName}
-DESCRIÇÃO: ${description}
-DOR RESOLVIDA: ${painPoint}
-EMOÇÃO: ${emotionDescriptions[emotion] || 'conversão'}
-PÚBLICO: ${targetGender ? `${targetGender === 'male' ? 'Masculino' : 'Feminino'} brasileiro` : 'Persona brasileira'}
-IDADE: ${targetAge || '25-45 anos'}
-VARIAÇÃO: ${variation || 1}/5
-
-Crie um prompt ULTRA-COMPLETO e PROFISSIONAL para geração de imagem que:
-1. Seja específico para "${productName}" (NÃO genérico)
-2. Resolva a dor "${painPoint}"
-3. Evoque a emoção de ${emotionDescriptions[emotion]}
-4. Seja pronto para copiar/colar no ChatGPT, Midjourney, DALL-E ou Nano Banana
-5. Inclua detalhes técnicos: resolução, estilo, iluminação, composição, cores
-6. Seja longo e completo (mínimo 500 caracteres)
-
-Formato de resposta EXATO:
-PROMPT PARA ${emotion.toUpperCase()}:
-[seu prompt ultra-detalhado aqui]`;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Você gera prompts profissionais e ultra-completos para IA de imagens. Sempre inclui todos os detalhes técnicos necessários."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        max_tokens: 2048,
-        temperature: 0.7
-      });
-
-      // Registrar uso de tokens para esta operação
-      totalRegeneratePromptTokens += response.usage?.prompt_tokens || 0;
-      totalRegenerateCompletionTokens += response.usage?.completion_tokens || 0;
-
-      return response.choices[0].message.content || '';
-    } catch (error) {
-      logger.error('Erro ao gerar prompt com GPT-4o-mini:', error);
-      return generateUltraDetailedImagePromptFallback(productName, description, painPoint, emotion, targetGender, targetAge, variation);
-    }
-  }
-
-  function generateUltraDetailedImagePromptFallback(
-    productName: string, 
-    description: string, 
-    painPoint: string, 
-    emotion: string, 
-    targetGender?: string, 
-    targetAge?: string,
-    variation?: number
-  ): string {
-    const context = generateVisualContext(productName, description, targetGender, targetAge);
-    const varNum = variation || 1;
-    
-    // Paletas de cores profissionais por emoção (estilo Canva Pro)
-    const emotionStyles: Record<string, { gradient: string, accent: string, overlay: string, icons: string[], shapes: string }> = {
-      'urgency': {
-        gradient: 'gradiente diagonal de vermelho coral (#FF6B6B) para laranja vibrante (#FF9F43) com overlay de amarelo dourado (#FBBF24)',
-        accent: 'amarelo neon, branco puro',
-        overlay: 'textura de raios de luz, partículas de fogo',
-        icons: ['relógio digital estilizado', 'seta countdown', 'badge "ÚLTIMAS HORAS"', 'timer circular', 'foguete acelerando'],
-        shapes: 'formas geométricas angulares, linhas de velocidade, zigzags dinâmicos'
-      },
-      'curiosity': {
-        gradient: 'gradiente de roxo profundo (#8B5CF6) para azul meia-noite (#4338CA) com toques de dourado místico (#D4AF37)',
-        accent: 'prata brilhante, luz de néon roxa',
-        overlay: 'nebulosa sutil, partículas flutuantes luminosas',
-        icons: ['lupa estilizada com brilho', 'olho com reflexo de luz', 'porta entreaberta com luz', 'ponto de interrogação 3D', 'chave ornamentada'],
-        shapes: 'círculos concêntricos, ondas suaves, espirais elegantes'
-      },
-      'fear_of_missing_out': {
-        gradient: 'gradiente festivo de verde esmeralda (#10B981) para dourado champagne (#F59E0B) com overlay de rosa pink (#EC4899)',
-        accent: 'branco brilhante, confetes coloridos',
-        overlay: 'confetes caindo, balões estilizados, luzes de festa',
-        icons: ['grupo de pessoas celebrando', 'medalha de ouro', 'troféu estilizado', 'estrelas 5 pontas', 'badge VIP exclusivo'],
-        shapes: 'círculos sobrepostos, ondas de energia, explosão de partículas'
-      },
-      'trust': {
-        gradient: 'gradiente corporativo de azul safira (#3B82F6) para verde confiança (#059669) com toques de prata (#94A3B8)',
-        accent: 'branco puro, dourado sutil',
-        overlay: 'textura de vidro fosco, linhas de credibilidade',
-        icons: ['escudo com checkmark', 'selo de garantia 3D', 'certificado com fita', 'cadeado dourado', 'estrelas de avaliação 5/5'],
-        shapes: 'retângulos arredondados, linhas retas elegantes, hexágonos'
-      },
-      'excitement': {
-        gradient: 'gradiente explosivo de rosa pink (#EC4899) para amarelo solar (#FBBF24) com toques de laranja vibrante (#F97316)',
-        accent: 'branco radiante, destaques ciano',
-        overlay: 'explosão de cores, sparkles brilhantes, fogos de artifício',
-        icons: ['estrela com explosão', 'presente com laço', 'foguete colorido', 'megafone festivo', 'emoji de festa 3D'],
-        shapes: 'starburst, explosões, ondas de energia, formas orgânicas dinâmicas'
-      }
-    };
-    
-    const style = emotionStyles[emotion] || emotionStyles['trust'];
-    
-    // Layouts diferentes para cada variação
-    const layouts = [
-      'pessoa à esquerda (40%), elementos gráficos e texto à direita (60%)',
-      'pessoa centralizada com elementos flutuando ao redor em círculo',
-      'split diagonal: pessoa no canto inferior, texto e gráficos no topo',
-      'pessoa à direita (35%), grande headline e elementos à esquerda (65%)',
-      'composição em Z: headline topo, pessoa centro, CTA e badges embaixo'
-    ];
-    
-    return `═══════════════════════════════════════════════════════════════
-🎨 PROMPT REVOLUCIONÁRIO PARA NANBANA 2 (NOVO MOTOR DE IMAGEM)
-═══════════════════════════════════════════════════════════════
-
-📋 DADOS DO PRODUTO:
-• Nome: ${productName}
-• Descrição: ${description}
-• Dor resolvida: ${painPoint}
-• Emoção: ${emotion.toUpperCase()}
-• Variação: ${varNum}/5
-
-═══════════════════════════════════════════════════════════════
-📐 ESPECIFICAÇÕES TÉCNICAS OBRIGATÓRIAS (NANBANA 2 OPTIMIZED)
-═══════════════════════════════════════════════════════════════
-
-FORMATO: 1080 x 1080 pixels (Alta fidelidade 4k Upscale via Nanbana 2)
-TIPO: Design gráfico comercial nível "Creative Agency"
-ESTILO: Hyper-converter advert style com iluminação volumétrica
-
-═══════════════════════════════════════════════════════════════
-🖼️ LAYOUT E COMPOSIÇÃO NANBANA 2.0 (Variação ${varNum})
-═══════════════════════════════════════════════════════════════
-
-COMPOSIÇÃO: ${layouts[(varNum - 1) % layouts.length]}
-
-GRID: 
-- Respeitar regra dos terços
-- Margem segura de 50px em todas as bordas
-- Hierarquia visual clara: Headline > Produto > Pessoa > CTA
-
-═══════════════════════════════════════════════════════════════
-🎨 PALETA DE CORES E FUNDO
-═══════════════════════════════════════════════════════════════
-
-FUNDO PRINCIPAL:
-${style.gradient}
-
-CORES DE DESTAQUE:
-${style.accent}
-
-OVERLAY/TEXTURA:
-${style.overlay}
-
-TRATAMENTO:
-- Gradiente suave e profissional (não chapado)
-- Profundidade com sombras suaves
-- Brilho sutil nos cantos para foco central
-
-═══════════════════════════════════════════════════════════════
-👤 ELEMENTO HUMANO (PROTAGONISTA)
-═══════════════════════════════════════════════════════════════
-
-PESSOA: ${context.protagonist}
-IDADE APARENTE: ${targetAge || '25-45 anos'}
-EXPRESSÃO: Autêntica, relacionada à emoção "${emotion}" - ${
-      emotion === 'urgency' ? 'determinação e foco, olhar decidido' :
-      emotion === 'curiosity' ? 'interesse genuíno, sobrancelhas levantadas' :
-      emotion === 'fear_of_missing_out' ? 'alegria contagiante, sorriso radiante' :
-      emotion === 'trust' ? 'confiança serena, expressão profissional' :
-      'empolgação genuína, energia positiva'
-    }
-
-TRATAMENTO DA FOTO:
-- Recorte profissional (cutout) com borda suave
-- Sombra drop-shadow realista
-- Pode ter moldura decorativa ou frame estilizado
-- Integrada harmoniosamente com elementos gráficos
-
-═══════════════════════════════════════════════════════════════
-📝 TIPOGRAFIA E TEXTOS NA ARTE
-═══════════════════════════════════════════════════════════════
-
-HEADLINE PRINCIPAL (destaque máximo):
-"${painPoint.toUpperCase()}"
-- Fonte: Extra Bold, sans-serif moderna (estilo Montserrat, Poppins)
-- Tamanho: Grande, impactante (ocupa pelo menos 25% da largura)
-- Cor: Contrastante com o fundo
-- Efeitos: Sombra profunda ou glow para destaque
-
-NOME DO PRODUTO (segundo nível):
-"${productName}"
-- Fonte: Bold, elegante
-- Pode estar em badge/selo decorativo
-- Cor de destaque que contraste
-
-CALL-TO-ACTION (botão visual):
-"SAIBA MAIS" ou "GARANTA AGORA"
-- Formato: Botão retangular arredondado
-- Cor: Contrastante e vibrante
-- Efeito: Sombra e leve brilho/glow
-- Posição: Parte inferior, centralizado ou à direita
-
-ELEMENTOS DE TEXTO SECUNDÁRIO:
-- Checkmarks (✓) com benefícios curtos
-- Números de impacto ("+15.000 pessoas")
-- Emojis estilizados se apropriado
-
-═══════════════════════════════════════════════════════════════
-✨ ELEMENTOS GRÁFICOS E DECORATIVOS (ESTILO CANVA)
-═══════════════════════════════════════════════════════════════
-
-ÍCONES TEMÁTICOS (escolher 2-3):
-${style.icons.map(icon => `• ${icon}`).join('\n')}
-
-SHAPES E FORMAS:
-${style.shapes}
-
-ELEMENTOS DECORATIVOS:
-• Linhas decorativas (retas, onduladas, pontilhadas)
-• Círculos e bolhas com gradiente
-• Setas direcionais apontando para CTA
-• Molduras ou frames parciais
-• Fitas e banners estilizados
-• Sparkles e brilhos (2-4 por arte)
-• Partículas flutuantes sutis
-
-BADGES E SELOS:
-• Badge de oferta ou desconto (se urgency)
-• Selo de garantia (se trust)
-• Contador de pessoas (se FOMO)
-• Etiqueta "NOVO" ou "EXCLUSIVO"
-
-═══════════════════════════════════════════════════════════════
-🔧 EFEITOS VISUAIS PROFISSIONAIS
-═══════════════════════════════════════════════════════════════
-
-EFEITOS OBRIGATÓRIOS:
-• Drop-shadow em textos principais (suave, profissional)
-• Glow sutil em elementos de destaque
-• Gradiente overlay para profundidade
-• Desfoque gaussiano leve no fundo (se necessário)
-
-EFEITOS ADICIONAIS:
-• Glass morphism em cards ou badges
-• Neon glow em contornos (se excitement/urgency)
-• Reflexos sutis em elementos 3D
-• Vinheta sutil nos cantos
-
-═══════════════════════════════════════════════════════════════
-❌ O QUE EVITAR
-═══════════════════════════════════════════════════════════════
-
-• Design flat demais sem profundidade
-• Cores muito saturadas ou neon excessivo
-• Textos pequenos ou ilegíveis
-• Muitos elementos competindo por atenção
-• Fotos sem tratamento (cruas)
-• Fundo branco ou sem interesse visual
-• Tipografia genérica ou básica
-
-═══════════════════════════════════════════════════════════════
-✅ RESULTADO FINAL ESPERADO
-═══════════════════════════════════════════════════════════════
-
-Arte profissional de alta conversão para Meta Ads, com aparência de 
-design premium do Canva Pro ou Adobe Express. Deve parecer que foi 
-feita por um designer profissional, com:
-- Harmonia visual perfeita
-- Hierarquia clara de informações
-- Alto impacto visual que para o scroll
-- Textos legíveis e impactantes
-- Elementos gráficos que complementam sem competir
-- Pronta para publicação, sem necessidade de edição
-
-IDEAL PARA: Feed Instagram, Facebook, Stories, Anúncios Meta Ads
-RESOLUÇÃO: 1080x1080 pixels, alta qualidade, sem pixelização`;
-  }
-  
-  // ==================== GERAÇÃO DE PROMPTS DE IMAGEM ULTRA-DETALHADOS ====================
-  
-  function generateUltraDetailedImagePrompt(
-    productName: string, 
-    description: string, 
-    painPoint: string, 
-    emotion: string, 
-    targetGender?: string, 
-    targetAge?: string,
-    variation?: number,
-    visualContext?: any
-  ): string {
-    return generateUltraDetailedImagePromptFallback(productName, description, painPoint, emotion, targetGender, targetAge, variation);
-  }
-
-  async function generateUltraDetailedImagePromptAsync(
-    productName: string, 
-    description: string, 
-    painPoint: string, 
-    emotion: string, 
-    targetGender?: string, 
-    targetAge?: string,
-    variation?: number,
-    visualContext?: any
-  ): Promise<string> {
-    // Usar GPT-4o-mini para geração inteligente
-    if (process.env.OPENAI_API_KEY) {
-      const gptPrompt = await generatePromptUsingGPT4oMini(productName, description, painPoint, emotion, targetGender, targetAge, variation);
-      if (gptPrompt) return gptPrompt;
-    }
-
-    return generateUltraDetailedImagePromptFallback(productName, description, painPoint, emotion, targetGender, targetAge, variation);
-  }
-
-  function generateUltraDetailedImagePromptSync(
-    productName: string, 
-    description: string, 
-    painPoint: string, 
-    emotion: string, 
-    targetGender?: string, 
-    targetAge?: string,
-    variation?: number,
-    visualContext?: any
-  ): string {
-    const context = visualContext || generateVisualContext(productName, description, targetGender, targetAge);
-    
-    // Incorporar painPoint e description nos prompts para personalização
-    const productContext = `PRODUTO: ${productName}\nDESCRIÇÃO: ${description}\nDOR RESOLVIDA: ${painPoint}`;
-    
-    const emotionPrompts: Record<string, string> = {
-      'urgency': `PROMPT PARA IA DE GERAÇÃO DE IMAGEM - ALTA CONVERSÃO (URGÊNCIA):
-
-${productContext}
-
-📸 TIPO: Fotografia comercial premium para anúncio Meta Ads
-📐 RESOLUÇÃO: 1080x1080 pixels (formato quadrado para feed)
-🎨 ESTILO: Lifestyle marketing brasileiro, autêntico e aspiracional
-
-👤 PROTAGONISTA:
-- ${context.protagonist}, idade aparente ${context.ageRange}
-- Expressão facial: ${painPoint.includes('pais') || painPoint.includes('pai') ? 'determinação de pai/mãe resolvendo um problema importante, olhar focado e protetor' : 'determinação misturada com senso de urgência, olhar focado e decidido'}
-- Linguagem corporal: inclinado levemente para frente, como se estivesse prestes a agir
-- Vestimenta: ${painPoint.includes('pais') ? 'roupas casuais confortáveis de pais modernos' : 'casual elegante, cores neutras'}
-- Posição: 2/3 do frame, regra dos terços aplicada
-
-🎬 CENA E AMBIENTE:
-- ${painPoint.includes('pais') ? 'ambiente acolhedor e familiar (sala de estar aconchegante, espaço de aprendizado)' : context.setting}
-- Elementos contextualizados em ${description.toLowerCase().substring(0, 50)}: ${painPoint.includes('guia') ? 'livro, material educativo, notas' : 'elementos relevantes ao produto'}
-- Profundidade de campo: foco nítido no rosto, background com blur cinematográfico (f/2.8)
-- Espaço para texto: área limpa no topo e/ou lateral para overlay de copy
-
-🎨 PALETA DE CORES E ILUMINAÇÃO:
-- Cores dominantes: tons quentes - coral (#FF6B6B), laranja energético (#FF9F43)
-- Acentos: amarelo dourado (#FBBF24) para highlights
-- Iluminação: luz natural lateral (golden hour), sombras suaves mas presentes
-- Contraste: médio-alto para criar impacto visual
-- Temperatura: levemente quente (5500K-6000K)
-
-📱 ELEMENTOS DE COMPOSIÇÃO PARA CONVERSÃO:
-- Contexto visual conectado a: ${description}
-- Solução visual para a dor: ${painPoint}
-- Linhas de direção guiando o olhar para ponto focal
-- Elementos de movimento sutil (cabelo ao vento, tecido em movimento)
-- Gradiente sutil de fundo que não distrai
-
-✅ RESULTADO ESPERADO:
-Imagem que resolve ${painPoint} visualmente. Premium que transmite que ${productName} é a solução. Alta taxa de clique.`,
-
-      'curiosity': `PROMPT PARA IA DE GERAÇÃO DE IMAGEM - ALTA CONVERSÃO (CURIOSIDADE):
-
-${productContext}
-
-📸 TIPO: Fotografia artística comercial para anúncio Meta Ads
-📐 RESOLUÇÃO: 1080x1080 pixels (formato quadrado para feed)
-🎨 ESTILO: Mistério elegante, cinematográfico, intrigante
-
-👤 PROTAGONISTA:
-- ${context.protagonist}, idade aparente ${context.ageRange}
-- Expressão facial: ${painPoint.includes('pais') || painPoint.includes('pai') ? 'olhar intrigado de quem acabou de descobrir a solução, sobrancelhas levemente levantadas em revelação' : 'olhar intrigado e interessado, sobrancelhas levemente levantadas'}
-- Direção do olhar: olhando para algo fora do frame (provocando curiosidade do viewer sobre ${description.toLowerCase().substring(0, 40)})
-- Linguagem corporal: leve inclinação da cabeça, postura de descoberta
-- Vestimenta: ${painPoint.includes('pais') ? 'roupas casualmente sofisticadas de pais modernos' : 'tons escuros sofisticados, clean e elegante'}
-
-🎬 CENA E AMBIENTE:
-- ${painPoint.includes('pais') ? 'Ambiente sofisticado mas acolhedor (escritório, sala de estar moderna) revelando ${description}' : 'Ambiente sofisticado com elementos parcialmente revelados'}
-- Luz entrando por uma janela ou porta entreaberta (metáfora de descoberta de ${productName})
-- Sombras dramáticas criando mistério e profundidade
-- Elementos contextualizados em ${description}: ${painPoint.includes('guia') ? 'materiais educativos, notas revelando conhecimento' : 'elementos relevantes ao produto'}
-- Atmosfera de "algo revolucionário está prestes a ser revelado"
-
-🎨 PALETA DE CORES E ILUMINAÇÃO:
-- Cores dominantes: roxo profundo (#8B5CF6), azul índigo (#6366F1)
-- Acentos: prata (#94A3B8) e dourado suave (#D4AF37)
-- Iluminação: estilo Rembrandt - luz lateral com triângulo de luz no rosto
-- Sombras: profundas mas com detalhes visíveis
-- Atmosfera: levemente moody, como cena de filme noir moderno
-
-📱 ELEMENTOS DE COMPOSIÇÃO PARA CONVERSÃO:
-- Espaço negativo intencional (2/3 do frame pode ser área para texto)
-- Partículas de luz ou poeira flutuando (atmosfera mágica)
-- Linhas guia que levam o olhar do viewer para o protagonista
-- Blur seletivo em primeiro plano criando profundidade
-
-🎯 MOOD BOARD REFERENCE:
-- Campanhas Apple para privacidade - mistério e sofisticação
-- Trailers da Netflix - cinematográfico e intrigante
-- Perfumes de luxo - elegância misteriosa
-
-⚙️ ESPECIFICAÇÕES TÉCNICAS:
-- Camera: Cinema camera look (RED, ARRI style)
-- Lens: 35mm anamórfico ou 50mm com flares sutis
-- Depth of field: muito raso, f/1.4 equivalente
-- Color grading: teal and orange cinematográfico
-- Grain: sutil, estilo filme 35mm
-
-❌ EVITAR:
-- Iluminação flat ou muito uniforme
-- Cores muito saturadas ou neon
-- Expressões muito óbvias ou forçadas
-- Ambiente comum sem elementos de interesse
-
-✅ RESULTADO ESPERADO:
-Imagem que captura atenção pela curiosidade, faz o viewer querer saber mais. Qualidade cinematográfica premium que se destaca no feed.`,
-
-      'fear_of_missing_out': `PROMPT PARA IA DE GERAÇÃO DE IMAGEM - ALTA CONVERSÃO (FOMO):
-
-${productContext}
-
-📸 TIPO: Fotografia social lifestyle para anúncio Meta Ads
-📐 RESOLUÇÃO: 1080x1080 pixels (formato quadrado para feed)
-🎨 ESTILO: Comunidade vibrante, celebração autêntica, pertencimento
-
-👤 PROTAGONISTAS:
-- FOCO PRINCIPAL: ${context.protagonist}, idade aparente ${context.ageRange}
-- Expressão: ${painPoint.includes('pais') ? 'alegria de pais que encontraram a solução, confiança transmitida em rosto' : 'alegria genuína, sorriso autêntico com dentes, olhos brilhando'}
-- GRUPO: 3-5 pessoas diversas ao redor (diferentes etnias, idades) - TODOS CONECTADOS POR ${productName}
-- Todas demonstrando felicidade autêntica ao descobrir/usar ${description}
-- Linguagem corporal: proximidade física natural, gestos de celebração da comunidade
-
-🎬 CENA E AMBIENTE:
-- ${painPoint.includes('pais') ? 'Encontro de pais/educadores celebrando transformação por ${productName}' : 'Evento, celebração ou encontro de comunidade'} 
-- ${context.setting} com elementos de celebração conectados a ${description}
-- Sensação de "comunidade exclusiva" que descobriu ${productName}
-- Smartphones visíveis mostrando ${productName} ou comunidade relacionada
-- Elementos que sugerem ser parte da solução (badges, identidade visual de ${productName})
-
-🎨 PALETA DE CORES E ILUMINAÇÃO:
-- Cores dominantes: verde sucesso (#10B981), dourado conquista (#F59E0B)
-- Acentos: rosa pink (#EC4899) para energia, azul (#3B82F6) para confiança
-- Iluminação: festiva, brilhante, acolhedora
-- Luz de string lights ou fairy lights em segundo plano
-- Warm temperature: 4000K-4500K para sensação acolhedora
-
-📱 ELEMENTOS DE COMPOSIÇÃO PARA CONVERSÃO:
-- Confetes sutis ou partículas douradas floating
-- Balões ou elementos de celebração no background
-- Copos ou taças em brinde (opcional, non-alcoholic)
-- Telas de smartphone mostrando notificações ou comunidade
-- Badges ou elementos visuais de "membro VIP"
-
-🎯 MOOD BOARD REFERENCE:
-- Eventos TEDx - comunidade intelectual celebrando
-- Lançamentos Apple - filas de fãs empolgados
-- Comunidades Nubank Ultravioleta - exclusividade e pertencimento
-- Eventos Spotify Wrapped - compartilhamento social
-
-⚙️ ESPECIFICAÇÕES TÉCNICAS:
-- Camera: Canon 5D Mark IV ou Sony A7III
-- Lens: 24-70mm f/2.8 para capturar grupo
-- ISO: 800-1600 (ambiente interno com luz festiva)
-- Motion: leve motion blur em mãos/gestos para dinamismo
-- Post: cores vibrantes, skin tones preservados
-
-❌ EVITAR:
-- Grupos que parecem stock photo genérico
-- Diversidade forçada ou não natural
-- Ambiente muito formal ou corporativo
-- Expressões falsas ou poses rígidas
-
-✅ RESULTADO ESPERADO:
-Imagem que desperta o desejo de pertencimento, mostra uma comunidade vibrante e feliz da qual o viewer quer fazer parte. FOMO autêntico e aspiracional.`,
-
-      'trust': `PROMPT PARA IA DE GERAÇÃO DE IMAGEM - ALTA CONVERSÃO (CONFIANÇA):
-
-${productContext}
-
-📸 TIPO: Fotografia corporativa lifestyle para anúncio Meta Ads
-📐 RESOLUÇÃO: 1080x1080 pixels (formato quadrado para feed)
-🎨 ESTILO: Profissional acessível, confiável, premium mas humano
-
-👤 PROTAGONISTA:
-- ${context.protagonist}, idade aparente ${context.ageRange}
-- Expressão: ${painPoint.includes('pais') ? 'sorriso de especialista acolhedor, contato visual que transmite expertise em ${description}' : 'sorriso confiante e acolhedor, contato visual direto com camera'}
-- Postura: ereta mas relaxada, ${painPoint.includes('pais') ? 'braços abertos com gesto acolhedor para pais' : 'braços abertos ou mãos visíveis (transparência)'}
-- Vestimenta: ${painPoint.includes('pais') ? 'smart casual moderno brasileiro que conecta com público parental' : 'smart casual ou business casual brasileiro, bem cuidado'}
-- Acessórios: ${painPoint.includes('pais') ? 'elementos que denotam expertise e dedicação familiar (anéis familiares, insígnia de especialista)' : 'relógio clássico, óculos modernos, elementos que denotam sucesso sutil'}
-
-🎬 CENA E AMBIENTE:
-- ${painPoint.includes('pais') ? 'Consultório, escritório consultivo ou espaço dedicado a ${description}' : 'Escritório moderno ou home office bem decorado'}
-- ${context.setting}
-- ${painPoint.includes('pais') ? 'Certificados/prêmios relacionados a ${description}, fotos de sucesso de clientes/pais' : 'Plantas verdes (life, growth, natureza), livros ou elementos que denotam conhecimento'}
-- Organização impecável transmitindo profissionalismo em ${description}
-
-🎨 PALETA DE CORES E ILUMINAÇÃO:
-- Cores dominantes: azul safira (#3B82F6), verde esmeralda (#059669)
-- Acentos: branco (#FFFFFF) e cinza claro (#F3F4F6)
-- Iluminação: suave, uniforme, estilo estúdio mas natural
-- Sem sombras duras, luz wrap-around
-- Temperatura: neutra tendendo a fria (5600K-6500K)
-
-📱 ELEMENTOS DE COMPOSIÇÃO PARA CONVERSÃO:
-- Selo de garantia ou certificado visível no ambiente (sutil)
-- Troféus ou certificações no background (desfocados)
-- Laptop ou dispositivo moderno mostrando gráficos positivos
-- Elementos que denotam "years of experience"
-- Quadros com diplomas ou reconhecimentos (blur background)
-
-🎯 MOOD BOARD REFERENCE:
-- Campanhas de bancos digitais (Nubank, Inter, C6)
-- Profissionais LinkedIn Premium
-- Consultorias como McKinsey lifestyle
-- Healthcare premium ads
-
-⚙️ ESPECIFICAÇÕES TÉCNICAS:
-- Camera: Medium format look (Hasselblad, Phase One style)
-- Lens: 70-200mm f/2.8 para compression flattering
-- Light: Softbox grande, fill light, rim light sutil
-- Background: blur suave mas elementos reconhecíveis
-- Skin: retoque natural, texturas preservadas
-
-❌ EVITAR:
-- Ambiente muito corporativo ou frio
-- Pose muito formal ou rígida
-- Iluminação de foto 3x4
-- Sorriso falso ou forçado
-- Background totalmente branco (institucional demais)
-
-✅ RESULTADO ESPERADO:
-Imagem que transmite autoridade com acessibilidade, profissionalismo com humanidade. Pessoa em quem você confiaria seu dinheiro ou seu problema.`,
-
-      'excitement': `PROMPT PARA IA DE GERAÇÃO DE IMAGEM - ALTA CONVERSÃO (EMPOLGAÇÃO):
-
-${productContext}
-
-📸 TIPO: Fotografia lifestyle energética para anúncio Meta Ads
-📐 RESOLUÇÃO: 1080x1080 pixels (formato quadrado para feed)
-🎨 ESTILO: Vibrante, dinâmico, celebratório, pop brasileiro
-
-👤 PROTAGONISTA:
-- ${context.protagonist}, idade aparente ${context.ageRange}
-- Expressão: ${painPoint.includes('pais') ? 'alegria radiante de pais que encontraram a solução, expressão de "eureka!" ou alívio e felicidade' : 'alegria radiante, boca aberta em riso ou expressão de "wow!"'}
-- Linguagem corporal: ${painPoint.includes('pais') ? 'braços levantados em celebração de vitória parental, abraço ou gesto de triunfo' : 'braços levantados em celebração ou punho fechado de vitória'}
-- Movimento: capturado em ação, pulo de alegria ou gesto expansivo ao descobrir ${productName}
-- Vestimenta: cores vibrantes brasileiras que conectam com energia positiva de ${description}
-
-🎬 CENA E AMBIENTE:
-- ${painPoint.includes('pais') ? 'Ambiente festivo da família celebrando transformação por ${productName}' : 'Outdoor em dia ensolarado OU ambiente festivo colorido'}
-- ${context.setting} explodindo de energia e celebração
-- Céu azul radiante (outdoor) ou luzes coloridas vibrantes (indoor)
-- Elementos em movimento: confetes, fitas, partículas douradas celebrando ${productName}
-- Sensação de "momento de vitória transformacional" ou "grande revelação de ${description}"
-
-🎨 PALETA DE CORES E ILUMINAÇÃO:
-- Cores dominantes: rosa pink (#EC4899), amarelo solar (#FBBF24)
-- Acentos: laranja vibrante (#F97316), verde limão (#84CC16)
-- Iluminação: brilhante, high-key, sem sombras pesadas
-- Sunlight direto ou flash ring para catchlight nos olhos
-- Saturação: alta mas natural, estilo Instagram filtrado profissionalmente
-
-📱 ELEMENTOS DE COMPOSIÇÃO PARA CONVERSÃO:
-- Confetes coloridos em freeze frame (congelados no ar)
-- Estrelas, sparkles ou lens flares criativos
-- Pattern geométrico colorido em elementos do ambiente
-- Elementos que "explodem" do frame (energia)
-- Gradiente vibrante em overlay sutil se necessário
-
-🎯 MOOD BOARD REFERENCE:
-- Campanhas Coca-Cola felicidade
-- Spotify Wrapped celebrations
-- Nike "Just Do It" victory moments
-- Nubank rewards celebrations
-
-⚙️ ESPECIFICAÇÕES TÉCNICAS:
-- Camera: High speed capture (1/1000s minimum)
-- Lens: 35mm f/1.4 para distorção dinâmica
-- Flash: High speed sync com sunlight
-- Colors: Vibrant processing, lifted shadows
-- Motion: freeze frame perfeito com sensação de dinamismo
-
-❌ EVITAR:
-- Cores apagadas ou paleta morna
-- Expressões contidas ou sutis
-- Fundo estático ou boring
-- Iluminação flat ou cinza
-- Movimento blur não intencional
-
-✅ RESULTADO ESPERADO:
-Imagem que explode de energia, impossível de ignorar no feed. Transmite a sensação de que algo incrível está acontecendo e o viewer quer fazer parte.`
-    };
-    
-    return emotionPrompts[emotion] || emotionPrompts['trust'];
-  }
-  
-  // Gerar variações de imagem para testes A/B
-  function generateImageVariations(
-    productName: string,
-    description: string,
-    painPoint: string,
-    emotion: string,
-    targetGender?: string,
-    visualContext?: any,
-    variationNumber?: number
-  ): any[] {
-    const context = visualContext || generateVisualContext(productName, description, targetGender);
-    
-    const variations = [
-      {
-        id: 1,
-        name: 'Variação Close-Up',
-        prompt: `PROMPT VARIAÇÃO ${variationNumber}-1 (CLOSE-UP EMOCIONAL):
-
-📸 FORMATO: 1080x1080px (Feed Instagram/Facebook)
-🎯 FOCO: Rosto em close-up, expressão emocional intensa
-
-${context.protagonist} em close-up extremo (do peito para cima), expressão de ${getEmotionExpression(emotion)}, olhos expressivos com catchlight perfeito, skin texture natural preservada, profundidade de campo ultra rasa (f/1.2), background completamente blur mas com cores relacionadas a ${productName}.
-
-ILUMINAÇÃO: Rembrandt light com fill suave, ratio 3:1, temperatura ${emotion === 'urgency' || emotion === 'excitement' ? 'quente' : 'neutra'}.
-
-COMPOSIÇÃO: Regra dos terços com olhos no terço superior, espaço no lado oposto ao olhar para texto overlay.
-
-ESTILO: ${context.style}, qualidade ${context.resolution}.
-
-HEADLINE SUGERIDO PARA OVERLAY: "${generateHeadlineForVariation(productName, emotion, 1)}"
-
-PRIMARY TEXT PARA COPIAR:
-"${generatePrimaryTextShort(description, painPoint, emotion)}"`,
-        headline: generateHeadlineForVariation(productName, emotion, 1),
-        primaryText: generatePrimaryTextShort(description, painPoint, emotion)
-      },
-      {
-        id: 2,
-        name: 'Variação Lifestyle',
-        prompt: `PROMPT VARIAÇÃO ${variationNumber}-2 (LIFESTYLE CONTEXTUAL):
-
-📸 FORMATO: 1080x1080px (Feed Instagram/Facebook)
-🎯 FOCO: Pessoa em contexto de uso/benefício do produto
-
-${context.protagonist} em ambiente real de uso, interagindo naturalmente com elementos que representam ${productName}. Expressão de ${getEmotionExpression(emotion)}. Shot de corpo inteiro ou 3/4.
-
-AMBIENTE: ${context.setting}, elementos contextuais que representam a transformação prometida por ${productName}.
-
-ILUMINAÇÃO: ${context.lighting}, sombras naturais, sensação de momento autêntico capturado.
-
-COMPOSIÇÃO: Protagonista em 1/3 lateral do frame, espaço restante mostra ambiente aspiracional.
-
-ESTILO: ${context.style}, ${context.resolution}.
-
-ELEMENTOS OBRIGATÓRIOS:
-- Espaço para texto no topo
-- Cores harmônicas com ${context.colorPalette}
-- Sensação de "antes e depois" sutil
-
-HEADLINE SUGERIDO: "${generateHeadlineForVariation(productName, emotion, 2)}"
-
-PRIMARY TEXT:
-"${generatePrimaryTextShort(description, painPoint, emotion)}"`,
-        headline: generateHeadlineForVariation(productName, emotion, 2),
-        primaryText: generatePrimaryTextShort(description, painPoint, emotion)
-      },
-      {
-        id: 3,
-        name: 'Variação Produto em Destaque',
-        prompt: `PROMPT VARIAÇÃO ${variationNumber}-3 (PRODUTO + PESSOA):
-
-📸 FORMATO: 1080x1080px (Feed Instagram/Facebook)
-🎯 FOCO: Representação visual do produto/serviço com pessoa
-
-${context.protagonist} segurando ou interagindo com representação visual de ${productName} (pode ser dispositivo mostrando conteúdo, livro, tela, ou elemento simbólico).
-
-Expressão de ${getEmotionExpression(emotion)}, olhar direcionado para o "produto" ou para câmera com confiança.
-
-PRODUTO/REPRESENTAÇÃO: Se digital, mostrar tela de celular ou laptop com interface clean. Se físico, mostrar embalagem premium. Usar mockup de alta qualidade.
-
-AMBIENTE: ${context.setting}, fundo clean com elementos mínimos para não competir com o produto.
-
-ILUMINAÇÃO: Product photography lighting - key light forte no produto, fill suave na pessoa.
-
-COMPOSIÇÃO: Pessoa e produto em equilíbrio visual, ambos em foco se possível.
-
-ESTILO: Híbrido entre product photography e lifestyle, ${context.resolution}.
-
-HEADLINE: "${generateHeadlineForVariation(productName, emotion, 3)}"
-
-PRIMARY TEXT:
-"${generatePrimaryTextShort(description, painPoint, emotion)}"`,
-        headline: generateHeadlineForVariation(productName, emotion, 3),
-        primaryText: generatePrimaryTextShort(description, painPoint, emotion)
-      }
-    ];
-    
-    return variations;
-  }
-  
-  function getEmotionExpression(emotion: string): string {
-    const expressions: Record<string, string> = {
-      'urgency': 'determinação intensa, olhar focado, leve tensão positiva nos lábios',
-      'curiosity': 'interesse genuíno, sobrancelhas levemente arqueadas, leve sorriso intrigado',
-      'fear_of_missing_out': 'alegria contagiante, sorriso amplo e genuíno, olhos brilhantes',
-      'trust': 'serenidade confiante, sorriso acolhedor, expressão aberta e receptiva',
-      'excitement': 'euforia radiante, boca aberta de alegria, energia visível no rosto'
-    };
-    return expressions[emotion] || expressions['trust'];
-  }
-  
-  function generateHeadlineForVariation(productName: string, emotion: string, variation: number): string {
-    const headlines: Record<string, string[]> = {
-      'urgency': [
-        `🔥 ${productName} - Últimas Horas Com Este Preço!`,
-        `⏰ Só Hoje: ${productName} Com Desconto Exclusivo`,
-        `⚡ Aja Agora: ${productName} Por Tempo Limitado`
-      ],
-      'curiosity': [
-        `🤔 O Segredo de ${productName} Revelado`,
-        `🔍 Você Não Vai Acreditar: ${productName}`,
-        `💡 Descubra ${productName} - A Verdade`
-      ],
-      'fear_of_missing_out': [
-        `🚀 Milhares Já Têm ${productName}. E Você?`,
-        `📈 Todo Mundo Está Falando de ${productName}`,
-        `⭐ Junte-se a ${Math.floor(Math.random() * 5000) + 10000}+ Com ${productName}`
-      ],
-      'trust': [
-        `✅ ${productName} - Aprovado Por Milhares`,
-        `🛡️ Garantia Total: ${productName}`,
-        `🏅 ${productName} - Resultados Comprovados`
-      ],
-      'excitement': [
-        `🎉 Chegou: ${productName}!`,
-        `✨ Novidade Incrível: ${productName}`,
-        `🌟 Prepare-se Para ${productName}!`
-      ]
-    };
-    
-    const options = headlines[emotion] || headlines['trust'];
-    return options[(variation - 1) % options.length];
-  }
-  
-  function generatePrimaryTextShort(description: string, painPoint: string, emotion: string): string {
-    const templates: Record<string, string> = {
-      'urgency': `⏰ ATENÇÃO: Esta oferta expira em breve!\n\n${painPoint}\n\n${description}\n\n🔥 Não perca - garanta agora!`,
-      'curiosity': `🤔 Você já descobriu?\n\n${painPoint}\n\n${description}\n\n👉 Clique e saiba mais!`,
-      'fear_of_missing_out': `🚀 Milhares já transformaram suas vidas!\n\n${painPoint}\n\n${description}\n\n💡 Você vai ficar de fora?`,
-      'trust': `✅ Comprovado por milhares!\n\n${painPoint}\n\n${description}\n\n🛡️ Satisfação garantida!`,
-      'excitement': `🎉 A espera acabou!\n\n${painPoint}\n\n${description}\n\n⭐ Sua transformação começa agora!`
-    };
-    
-    return templates[emotion] || templates['trust'];
-  }
-  
-  // ==================== CARROSSEL EM HARMONIA - 5 SLIDES ESTILO CANVA ====================
-  
-  function generateHarmoniousCarouselSlides(
-    productName: string, 
-    description: string, 
-    painPoint: string, 
-    emotion: string, 
-    targetGender?: string,
-    visualContext?: any,
-    cta?: string
-  ): any[] {
-    const context = visualContext || generateVisualContext(productName, description, targetGender);
-    const ctaText = cta || 'SAIBA MAIS';
-    
-    // ==================== PADRÃO VISUAL FIXO OBRIGATÓRIO ====================
-    // Este padrão DEVE ser mantido em TODOS os 5 slides para consistência visual
-    const padraoVisualFixo = `
-═══════════════════════════════════════════════════════════════
-⚠️ PADRÃO VISUAL OBRIGATÓRIO - MANTER EM TODOS OS 5 SLIDES
-═══════════════════════════════════════════════════════════════
-
-📐 FORMATO: 1080 x 1080 pixels (quadrado para feed)
-🎨 TIPO: Design gráfico profissional estilo Canva Pro (NÃO fotografia pura)
-
-👤 PROTAGONISTA (MESMA PESSOA EM TODOS OS SLIDES):
-- ${context.protagonist}
-- Idade aparente: ${context.ageRange}
-- Vestimenta: Roupa casual elegante em tons neutros (MESMA roupa em todos)
-- Recorte: Cutout profissional com sombra drop-shadow
-
-🏠 AMBIENTE (MESMO EM TODOS OS SLIDES):
-- ${context.setting}
-- Consistência: Mesmo cenário/elementos de fundo em todos
-
-🎨 PALETA DE CORES FIXA (USAR EM TODOS OS SLIDES):
-- Principal: ${context.colorPalette}
-- Fundo: Gradiente suave nos mesmos tons base
-- Textos: Branco com sombra OU cor escura contrastante
-- Destaques: Verde (#10B981) e Azul (#3B82F6) para CTAs e badges
-
-✏️ TIPOGRAFIA FIXA:
-- Headlines: Montserrat ou Poppins Extra Bold
-- Subtítulos: Poppins Medium
-- Corpo: Poppins Regular
-- Tamanhos proporcionais e consistentes
-
-🔲 ELEMENTOS GRÁFICOS CONSISTENTES:
-- Molduras/frames: Mesmo estilo em todos os slides
-- Ícones: Mesma família de ícones (linha ou preenchido, não misturar)
-- Shapes: Mesmas formas decorativas (círculos, retângulos arredondados)
-- Indicador de navegação: "X/5" no mesmo canto em todos
-
-⚡ EFEITOS VISUAIS PADRONIZADOS:
-- Drop-shadow: Mesma intensidade em elementos
-- Glow: Mesmo estilo de brilho
-- Gradientes: Mesma direção e suavidade
-
-❌ PROIBIDO:
-- Mudar pessoa entre slides
-- Mudar roupa da pessoa
-- Mudar paleta de cores drasticamente
-- Mudar estilo de tipografia
-- Usar fundos completamente diferentes
-
-═══════════════════════════════════════════════════════════════`;
-
-    const slides = [
-      {
-        slideNumber: 1,
-        title: `😰 ${painPoint}`,
-        description: `Cansado de ${painPoint}? Voce nao esta sozinho. Milhares de pessoas enfrentam o mesmo desafio todos os dias. A frustracao, a incerteza, a sensacao de nao saber por onde comecar... Tudo isso tem solucao!`,
-        text: `Cansado de ${painPoint}? Voce nao esta sozinho. Milhares de pessoas enfrentam o mesmo desafio todos os dias. A frustracao, a incerteza, a sensacao de nao saber por onde comecar... Tudo isso tem solucao!`,
-        imagePrompt: `🎨 SLIDE 1/5 - CARROSSEL HARMONIOSO - O PROBLEMA
-${padraoVisualFixo}
-
-==================== DESIGN ESPECÍFICO DESTE SLIDE ====================
-
-🎯 OBJETIVO: Criar conexão emocional mostrando a DOR do público
-
-📝 TEXTOS NA ARTE (sobre o PRODUTO, não sobre método):
-HEADLINE: "😰 ${painPoint}"
-- Fonte: Extra Bold, grande, cor clara com sombra
-- Posição: Terço superior
-
-SUBTÍTULO: "Você não está sozinho..."
-- Fonte: Medium, menor
-- Abaixo do headline
-
-👤 PESSOA:
-- Expressão: Pensativa/reflexiva (não triste demais)
-- Gesto: Mão no queixo ou olhar para cima pensando
-- Posição: Centro-direita do frame
-
-✨ ELEMENTOS GRÁFICOS DESTE SLIDE:
-- Ícones de interrogação sutis
-- Linhas onduladas representando dúvida
-- Bolhas de pensamento estilizadas
-- Fundo com leve textura ou pattern sutil
-
-📍 INDICADOR: "1/5" + seta "Deslize →" no rodapé`,
-        textOverlay: {
-          headline: `😰 ${painPoint}`,
-          body: 'Você não está sozinho...',
-          position: 'top-left'
-        },
-        transition: 'Deslize para ver a solução →'
-      },
-      {
-        slideNumber: 2,
-        title: `💡 Conheça ${productName}`,
-        description: `E se eu te dissesse que existe um caminho comprovado? ${productName} foi desenvolvido exatamente para pessoas como voce. Baseado em anos de experiencia e milhares de casos de sucesso, este metodo vai transformar completamente sua abordagem.`,
-        text: `E se eu te dissesse que existe um caminho comprovado? ${productName} foi desenvolvido exatamente para pessoas como voce. Baseado em anos de experiencia e milhares de casos de sucesso, este metodo vai transformar completamente sua abordagem.`,
-        imagePrompt: `🎨 SLIDE 2/5 - CARROSSEL HARMONIOSO - A SOLUÇÃO
-${padraoVisualFixo}
-
-==================== DESIGN ESPECÍFICO DESTE SLIDE ====================
-
-🎯 OBJETIVO: Apresentar o PRODUTO como a solução
-
-📝 TEXTOS NA ARTE:
-HEADLINE: "💡 Conheça ${productName}"
-- Fonte: Extra Bold, grande
-- Efeito: Leve glow dourado
-
-SUBTÍTULO: "A solução que você procurava"
-- Fonte: Medium
-- Abaixo do headline
-
-BADGE/SELO: Nome do produto em destaque especial
-- Pode ser em caixa colorida ou moldura
-
-👤 PESSOA (MESMA do slide 1):
-- Expressão: Sorriso de descoberta/esperança
-- Gesto: Apontando ou apresentando algo
-- Posição: Mantendo proporção similar ao slide 1
-
-✨ ELEMENTOS GRÁFICOS DESTE SLIDE:
-- Lâmpada estilizada ou ícone de ideia
-- Raios de luz sutis saindo do centro
-- Sparkles dourados
-- Badge com nome do produto
-
-📍 INDICADOR: "2/5" + seta "Como funciona? →" no rodapé`,
-        textOverlay: {
-          headline: `💡 Conheça ${productName}`,
-          body: 'A solução que você procurava',
-          position: 'center'
-        },
-        transition: 'Deslize para ver como funciona →'
-      },
-      {
-        slideNumber: 3,
-        title: `🎯 ${productName} - Como Funciona`,
-        description: `${description} Com ${productName}, voce tera acesso a um metodo passo a passo, desenvolvido para ser simples, direto e eficaz. Sem complicacao, sem termos tecnicos, apenas resultados praticos que voce pode aplicar imediatamente.`,
-        text: `${description} Com ${productName}, voce tera acesso a um metodo passo a passo, desenvolvido para ser simples, direto e eficaz. Sem complicacao, sem termos tecnicos, apenas resultados praticos que voce pode aplicar imediatamente.`,
-        imagePrompt: `🎨 SLIDE 3/5 - CARROSSEL HARMONIOSO - COMO FUNCIONA
-${padraoVisualFixo}
-
-==================== DESIGN DESTE SLIDE ====================
-
-🎯 OBJETIVO: Explicar o metodo de forma visual e clara
-
-📐 LAYOUT:
-- Fundo: Gradiente verde para azul (cores de progresso)
-- Layout em 3 colunas ou steps visuais
-- Icones grandes representando etapas
-- Numeros destacados (1, 2, 3)
-- Setas conectando as etapas
-
-📝 TEXTOS NA ARTE:
-HEADLINE: "🎯 ${productName} - Como Funciona"
-- Fonte: Extra Bold
-- Posicao: Topo central
-- Cor: Branco ou escuro contrastante
-
-STEPS VISUAIS:
-"1️⃣ Acesse o conteudo"
-"2️⃣ Aplique o metodo"  
-"3️⃣ Veja os resultados"
-- Cada step em caixa/card estilizado
-- Icones representativos ao lado
-
-LISTA DE BENEFICIOS:
-"✓ Metodo passo a passo"
-"✓ Simples e direto"
-"✓ Resultados imediatos"
-- Checkmarks estilizados em verde
-
-✨ ELEMENTOS GRAFICOS:
-- Icones de processo (engrenagens, setas, fluxo)
-- Numeros grandes e estilizados
-- Cards ou caixas para cada etapa
-- Linha de conexao entre etapas
-- Checkmarks animados/estilizados
-- Shapes geometricos de fundo
-
-🎨 CORES DESTE SLIDE:
-- Fundo: Verde (#10B981), Azul (#3B82F6)
-- Acentos: Branco, amarelo destaque
-- Mood: Clareza, organizacao, confianca
-
-⚡ EFEITOS:
-- Sombras nos cards
-- Gradiente nos icones
-- Glow nos numeros
-- Linhas de conexao animadas
-
-📍 INDICADOR DE NAVEGACAO:
-- "3/5" no canto inferior
-- Seta apontando para direita
-- Texto "Veja os resultados →"`,
-        textOverlay: {
-          headline: `🎯 ${productName} - Como Funciona`,
-          body: description,
-          position: 'bottom'
-        },
-        transition: 'Deslize para ver os resultados →'
-      },
-      {
-        slideNumber: 4,
-        title: `⭐ ${productName} - Resultados Reais`,
-        description: `Milhares de pessoas ja transformaram suas vidas com ${productName}. Sao historias reais de superacao, crescimento e conquistas. 97% dos nossos clientes relatam resultados positivos nos primeiros 30 dias. Voce pode ser o proximo caso de sucesso!`,
-        text: `Milhares de pessoas ja transformaram suas vidas com ${productName}. Sao historias reais de superacao, crescimento e conquistas. 97% dos nossos clientes relatam resultados positivos nos primeiros 30 dias. Voce pode ser o proximo caso de sucesso!`,
-        imagePrompt: `🎨 SLIDE 4/5 - CARROSSEL HARMONIOSO - PROVA SOCIAL
-${padraoVisualFixo}
-
-==================== DESIGN DESTE SLIDE ====================
-
-🎯 OBJETIVO: Mostrar prova social e resultados
-
-📐 LAYOUT:
-- Fundo: Gradiente dourado/amarelo (celebracao)
-- Numeros grandes em destaque
-- Mini avatares de clientes satisfeitos
-- Estrelas de avaliacao estilizadas
-- Confetes e elementos de celebracao
-
-📝 TEXTOS NA ARTE:
-HEADLINE: "⭐ ${productName} - Resultados Reais"
-- Fonte: Extra Bold
-- Posicao: Topo central
-- Efeito: Glow dourado
-
-NUMEROS DE IMPACTO:
-"+15.000" - em fonte gigante dourada
-"pessoas transformadas" - subtitulo
-
-"97%" - numero grande em destaque
-"de satisfacao" - subtitulo
-
-ESTRELAS: "⭐⭐⭐⭐⭐"
-- Estrelas estilizadas e brilhantes
-- Pode ter "4.9/5" ao lado
-
-DEPOIMENTO VISUAL:
-- Mini cards com foto + aspas
-- "Mudou minha vida!" com avatar
-
-✨ ELEMENTOS GRAFICOS:
-- Confetes coloridos caindo
-- Estrelas e sparkles dourados
-- Trofeu ou medalha estilizada
-- Grafico de barras crescendo
-- Avatares circulares de clientes
-- Badges de certificacao/qualidade
-- Icones de coracao/like
-
-🎨 CORES DESTE SLIDE:
-- Fundo: Amarelo dourado (#FBBF24), Laranja
-- Acentos: Branco, dourado metalico
-- Mood: Celebracao, conquista, confianca
-
-⚡ EFEITOS:
-- Confetes animados
-- Brilhos e sparkles
-- Glow nos numeros
-- Sombras nos cards de depoimento
-
-📍 INDICADOR DE NAVEGACAO:
-- "4/5" no canto inferior
-- Seta apontando para direita
-- Texto "Garanta o seu →"`,
-        textOverlay: {
-          headline: `⭐ ${productName} - Resultados Reais`,
-          body: '+15.000 pessoas transformadas | 97% satisfacao',
-          position: 'center'
-        },
-        transition: 'Deslize para garantir o seu →'
-      },
-      {
-        slideNumber: 5,
-        title: `🚀 ${productName} - ${ctaText}`,
-        description: `Chegou a sua vez! Com ${productName}, voce tera acesso completo ao metodo que ja transformou milhares de vidas. Garantia de 7 dias - se nao funcionar para voce, devolvemos 100% do seu investimento. Sem perguntas, sem burocracia. Clique agora e comece sua transformacao hoje mesmo!`,
-        text: `Chegou a sua vez! Com ${productName}, voce tera acesso completo ao metodo que ja transformou milhares de vidas. Garantia de 7 dias - se nao funcionar para voce, devolvemos 100% do seu investimento. Sem perguntas, sem burocracia. Clique agora e comece sua transformacao hoje mesmo!`,
-        imagePrompt: `🎨 SLIDE 5/5 - CARROSSEL HARMONIOSO - CALL TO ACTION
-${padraoVisualFixo}
-
-==================== DESIGN DESTE SLIDE ====================
-
-🎯 OBJETIVO: Converter - criar acao imediata
-
-📐 LAYOUT:
-- Fundo: Gradiente vibrante (rosa/vermelho para laranja)
-- Botao de CTA GIGANTE no centro
-- Selo de garantia em destaque
-- Setas apontando para o botao
-- Elementos de urgencia
-
-📝 TEXTOS NA ARTE:
-HEADLINE: "🚀 ${productName} - ${ctaText}"
-- Fonte: Extra Bold, branco
-- Posicao: Topo central
-- Efeito: Glow energetico
-
-BOTAO CTA PRINCIPAL:
-"${ctaText}"
-- Botao grande, arredondado
-- Cor: Verde vibrante ou contraste
-- Sombra forte para destaque
-- Seta dentro do botao
-
-GARANTIA:
-"🛡️ Garantia de 7 dias"
-- Em badge/selo estilizado
-- Icone de escudo com check
-
-URGENCIA:
-"👇 CLIQUE AGORA"
-- Setas pulsantes apontando para baixo
-- Pode ter "Vagas limitadas"
-
-✨ ELEMENTOS GRAFICOS:
-- Botao 3D com sombra
-- Selo de garantia (escudo dourado)
-- Setas direcionais multiplas
-- Badge de "OFERTA ESPECIAL"
-- Icone de relogio (urgencia)
-- Sparkles ao redor do CTA
-- Linhas de energia/movimento
-
-🎨 CORES DESTE SLIDE:
-- Fundo: Rosa (#EC4899), Vermelho, Laranja
-- CTA: Verde (#10B981) ou Azul vibrante
-- Acentos: Branco, dourado
-- Mood: Energia, urgencia, acao
-
-⚡ EFEITOS:
-- Pulsacao visual no botao
-- Raios de luz do botao
-- Glow intenso
-- Setas animadas
-
-📍 INDICADOR DE NAVEGACAO:
-- "5/5" - SLIDE FINAL
-- "CLIQUE NO LINK" em destaque
-- Seta grande apontando para acao`,
-        textOverlay: {
-          headline: `🚀 ${productName} - ${ctaText}`,
-          body: 'Garantia de 7 dias | Clique agora!',
-          position: 'center'
-        },
-        transition: null
-      }
-    ];
-    
-    return slides;
-  }
-  
-  // ==================== VÍDEO UNIFICADO - ESTRUTURA SIMPLES E CLARA ====================
-  
-  function generateUnifiedVideoContent(
-    productName: string, 
-    description: string, 
-    painPoint: string, 
-    emotion: string,
-    targetGender?: string,
-    visualContext?: any,
-    cta?: string
-  ): any {
-    const context = visualContext || generateVisualContext(productName, description, targetGender);
-    const ctaText = cta || 'SAIBA MAIS';
-    
-    return {
-      // ==================== INFORMAÇÕES VEO 3 GEN ENGINE ====================
-      motor: 'Veo 3 (Geração de Vídeo Fotorealista Cinematográfica)',
-      formato: '9:16 Vertical (1080x1920) em 4K/60fps',
-      duracaoTotal: '48 segundos (6 cenas de 8 segundos geradas via Veo 3 multi-prompt)',
-      plataformas: 'Reels, TikTok, Stories, YouTube Shorts',
-      
-      // ==================== PADRÃO VISUAL OBRIGATÓRIO VEO 3 ====================
-      padraoVisual: {
-        protagonista: context.protagonist,
-        idadeAparente: context.ageRange,
-        vestimenta: 'Roupa casual elegante em tons neutros (MESMA em todas as cenas)',
-        ambiente: context.setting,
-        paletaDeCores: context.colorPalette,
-        estilo: context.style,
-        iluminacao: context.lighting,
-        camera: 'Movimentos suaves e cinematográficos, 24fps, estabilizado',
-        colorGrading: 'Cinematográfico, tons quentes com sombras levemente azuladas',
-        transicoes: 'Dissolve suave ou match cut entre cenas',
-        avisoImportante: '⚠️ MANTER MESMA PESSOA, MESMA ROUPA, MESMO AMBIENTE EM TODAS AS CENAS!'
-      },
-      
-      // ==================== CENAS (8 SEGUNDOS CADA) ====================
-      cenas: [
-        {
-          numero: 1,
-          nome: 'HOOK - Captura de Atenção',
-          duracao: '8 segundos',
-          tempoNoVideo: '0:00 - 0:08',
-          
-          roteiro: {
-            textoNaTela: `😰 "${painPoint}"`,
-            narracao: `Ei, você aí! Cansado de ${painPoint}? O que você vai ver nos próximos segundos pode mudar tudo...`
-          },
-          
-          promptVeo: `Cinematic vertical video 9:16, 8 seconds, 24fps.
-
-SETTING: ${context.setting}, golden hour lighting, warm tones.
-
-SUBJECT: ${context.protagonist}, ${context.ageRange}, wearing casual elegant neutral clothing, looking directly at camera with intrigued and slightly frustrated expression.
-
-ACTION SEQUENCE:
-- 0-2s: Close-up of subject's face, slight head tilt, direct eye contact
-- 2-4s: Slow zoom out revealing environment, subject raises eyebrow
-- 4-6s: Subject leans forward as if about to share a secret
-- 6-8s: Expression shifts from frustration to hope, slight smile forming
-
-CAMERA: Start tight on face, smooth slow dolly out to medium shot. 85mm lens look.
-LIGHTING: Soft key light from left, warm fill, golden hour feel.
-MOOD: Relatable frustration transitioning to curiosity.
-TEXT SPACE: Leave clean area in top third for text overlay.`
-        },
-        {
-          numero: 2,
-          nome: 'PROBLEMA - Conexão Emocional',
-          duracao: '8 segundos',
-          tempoNoVideo: '0:08 - 0:16',
-          
-          roteiro: {
-            textoNaTela: `"O desafio que milhares enfrentam..."`,
-            narracao: `${painPoint}. Eu sei como é difícil. A frustração de não encontrar uma solução real...`
-          },
-          
-          promptVeo: `Cinematic vertical video 9:16, 8 seconds, 24fps. CONTINUATION - same subject, same clothing.
-
-SETTING: Same ${context.setting}, lighting slightly cooler and more dramatic.
-
-SUBJECT: Same ${context.protagonist} from scene 1, same clothing, expression of deep thought and slight frustration.
-
-ACTION SEQUENCE:
-- 0-2s: Medium shot looking down thoughtfully, hand touching chin
-- 2-4s: Slow pan showing environment
-- 4-6s: Subject looks up, shakes head slightly with frustrated expression
-- 6-8s: Looks at camera with 'you know what I mean' connection
-
-CAMERA: Slow dolly, slightly lower angle for empathy.
-LIGHTING: Slightly cooler, more dramatic shadows.
-MOOD: Empathy, understanding, 'I see you' moment.`
-        },
-        {
-          numero: 3,
-          nome: 'VIRADA - A Descoberta',
-          duracao: '8 segundos',
-          tempoNoVideo: '0:16 - 0:24',
-          
-          roteiro: {
-            textoNaTela: `💡 "E se eu te dissesse que existe uma solução?"`,
-            narracao: `E se eu te dissesse que existe um caminho comprovado? ${productName} já ajudou mais de 15.000 pessoas...`
-          },
-          
-          promptVeo: `Cinematic vertical video 9:16, 8 seconds, 24fps. CONTINUATION - same subject, same clothing, PIVOTAL MOMENT.
-
-SETTING: Same ${context.setting}, lighting transitions from cool to warm.
-
-SUBJECT: Same ${context.protagonist}, same clothing. Expression transforms to excited discovery.
-
-ACTION SEQUENCE:
-- 0-2s: Expression shifts to realization - eyebrows raise, eyes widen
-- 2-4s: Light brightens, subject turns toward light
-- 4-6s: Smile growing, posture straightens with energy
-- 6-8s: Confident, knowing smile at camera - 'I found the answer'
-
-CAMERA: Dynamic, slight push in as realization happens.
-LIGHTING: Transition from cooler to warm golden light.
-MOOD: Transformation moment. Hope emerging.`
-        },
-        {
-          numero: 4,
-          nome: 'SOLUÇÃO - O Método',
-          duracao: '8 segundos',
-          tempoNoVideo: '0:24 - 0:32',
-          
-          roteiro: {
-            textoNaTela: `🎯 ${productName}\n✓ Método passo a passo\n✓ Simples e direto\n✓ Resultados comprovados`,
-            narracao: `${description}. Simples, direto e eficaz. Resultados desde a primeira semana de aplicação...`
-          },
-          
-          promptVeo: `Cinematic vertical video 9:16, 8 seconds, 24fps. CONTINUATION - same subject, same clothing.
-
-SETTING: Same ${context.setting}, fully bright and organized. Premium look.
-
-SUBJECT: Same ${context.protagonist}, same clothing. Confident posture, explaining with natural gestures.
-
-ACTION SEQUENCE:
-- 0-2s: Confident stance, hands gesturing as if explaining
-- 2-4s: Interacting with device showing the solution
-- 4-6s: Counting on fingers - 'step by step' gesture
-- 6-8s: 'It's that easy' gesture with satisfied smile
-
-CAMERA: Stable medium shot with space for text overlays.
-LIGHTING: Bright, professional, optimistic.
-MOOD: Confidence, simplicity, 'you can do this too'.`
-        },
-        {
-          numero: 5,
-          nome: 'PROVA SOCIAL - Resultados',
-          duracao: '8 segundos',
-          tempoNoVideo: '0:32 - 0:40',
-          
-          roteiro: {
-            textoNaTela: `⭐ +15.000 pessoas transformadas\n97% de satisfação`,
-            narracao: `Mais de 15.000 pessoas já transformaram suas vidas. 97% de satisfação. Sua vez chegou!`
-          },
-          
-          promptVeo: `Cinematic vertical video 9:16, 8 seconds, 24fps. CONTINUATION - same subject, same clothing, CELEBRATION.
-
-SETTING: Same ${context.setting}, subtle celebratory elements, warm festive lighting.
-
-SUBJECT: Same ${context.protagonist}, same clothing. Expression of genuine joy and pride.
-
-ACTION SEQUENCE:
-- 0-2s: Arms slightly raised in victory pose, genuine smile
-- 2-4s: Shows phone with testimonials
-- 4-6s: Counting gesture showing impressive numbers
-- 6-8s: Nodding confidently, 'you could be next' expression
-
-CAMERA: Dynamic, celebratory feel. Slight upward angle.
-LIGHTING: Warm, festive, premium. Subtle confetti particles.
-MOOD: Celebration, success is achievable.`
-        },
-        {
-          numero: 6,
-          nome: 'CTA - Chamada para Ação',
-          duracao: '8 segundos',
-          tempoNoVideo: '0:40 - 0:48',
-          
-          roteiro: {
-            textoNaTela: `🚀 SUA VEZ CHEGOU!\n👇 CLIQUE NO LINK\n🛡️ Garantia de 7 dias`,
-            narracao: `Clique no link agora! Você tem 7 dias de garantia total. Sua transformação começa com um clique!`
-          },
-          
-          promptVeo: `Cinematic vertical video 9:16, 8 seconds, 24fps. CONTINUATION - same subject, same clothing, FINAL CTA.
-
-SETTING: Same ${context.setting}, premium and inviting.
-
-SUBJECT: Same ${context.protagonist}, same clothing. Open arms, welcoming smile.
-
-ACTION SEQUENCE:
-- 0-2s: Welcoming posture, arms naturally open, warm smile
-- 2-4s: Gestures 'come with me' encouragingly
-- 4-6s: Shows 'guarantee' gesture (hands forming shield)
-- 6-8s: Final direct eye contact, confident nod - 'your turn'
-
-CAMERA: Medium shot, stable, slight push in for connection.
-LIGHTING: Warm, optimistic, premium. Best lighting of entire video.
-MOOD: Invitation, welcome, 'this is your moment'.`
-        }
-      ],
-      
-      // ==================== DICAS DE EDIÇÃO ====================
-      dicasEdicao: {
-        audio: [
-          'Adicionar música trending (TikTok Creative Center)',
-          'Sincronizar cortes com batida da música',
-          'Balancear música vs narração (música -6dB durante narração)'
-        ],
-        textos: [
-          'Fonte moderna (Montserrat, Poppins)',
-          'Cor branca com sombra para legibilidade',
-          'Animações suaves de entrada/saída'
-        ],
-        transicoes: [
-          'Dissolve suave entre cenas',
-          'Evitar transições bruscas',
-          'Manter flow narrativo contínuo'
-        ]
-      }
-    };
-  }
-  
-  function generateStrategyNotes(data: any): string {
-    const { objective, hasPixelConfigured, targetAgeRange, targetGender, targetLocation } = data;
-    
-    let notes = `## Estratégia de Campanha Andromeda\n\n`;
-    notes += `### Objetivo: ${objective}\n\n`;
-    
-    notes += `### Configuração Recomendada:\n`;
-    notes += `- **Otimização de Orçamento de Campanha (CBO)**: Ativado\n`;
-    notes += `- **Posicionamentos**: Advantage+ (automático)\n`;
-    notes += `- **Público**: Advantage+ Audience (deixe o Andromeda trabalhar)\n\n`;
-    
-    if (!hasPixelConfigured) {
-      notes += `### ⚠️ Alerta: Pixel não configurado\n`;
-      notes += `Configure o Meta Pixel ou a Conversions API para obter melhores resultados. Sem pixel, você perde:\n`;
-      notes += `- Otimização para conversões\n`;
-      notes += `- Públicos personalizados\n`;
-      notes += `- Retargeting\n\n`;
-    }
-    
-    notes += `### Orçamento Sugerido:\n`;
-    notes += `- **Teste inicial**: R$ 20-50/dia por 3-5 dias\n`;
-    notes += `- **Escala**: Aumentar 20% a cada 3 dias se CPA estiver bom\n\n`;
-    
-    notes += `### Dicas do Andromeda:\n`;
-    notes += `1. **Não restrinja demais o público** - Deixe a IA do Meta encontrar os melhores compradores\n`;
-    notes += `2. **Use múltiplos criativos** - O algoritmo vai priorizar os melhores automaticamente\n`;
-    notes += `3. **Seja paciente** - Aguarde 3-5 dias antes de fazer mudanças significativas\n`;
-    notes += `4. **Monitore o CPA** - Mais importante que CPM ou CTR\n`;
-    
-    return notes;
-  }
-
   // ==================== WHATSAPP INTEGRATION ====================
   
   // Get WhatsApp status
@@ -21471,6 +19593,10 @@ MOOD: Invitation, welcome, 'this is your moment'.`
 
   // GET /api/meta/test/dispatch-rafael-viemar - APENAS PARA TESTE! Dispara eventos para Rafael e Viemar
   app.get('/api/meta/test/dispatch-rafael-viemar', async (req: any, res) => {
+    // SECURITY: rota de teste que expunha PII real e disparava eventos de Purchase — bloqueada em produção.
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ message: "Not found" });
+    }
     try {
       logger.info('[Meta Test] 🚀 Iniciando disparo de eventos para Rafael e Viemar...');
 

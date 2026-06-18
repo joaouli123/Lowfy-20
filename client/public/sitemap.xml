@@ -76,7 +76,7 @@
   
   <!-- Páginas de Autenticação -->
   <url>
-    <loc>https://lowfy.com.br/auth</loc>
+    <loc>https://lowfy.com.br/login</loc>
     <lastmod>2024-12-23</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

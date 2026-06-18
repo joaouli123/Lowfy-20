@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
+import { sanitizeUserHtml } from '@/lib/sanitize';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -98,7 +99,7 @@ function renderContentWithHashtags(content: string, onHashtagClick: (tag: string
   while ((match = hashtagRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       parts.push(
-        <span key={`text-${lastIndex}`} dangerouslySetInnerHTML={{ __html: content.substring(lastIndex, match.index) }} />
+        <span key={`text-${lastIndex}`} dangerouslySetInnerHTML={{ __html: sanitizeUserHtml(content.substring(lastIndex, match.index)) }} />
       );
     }
 
@@ -121,11 +122,11 @@ function renderContentWithHashtags(content: string, onHashtagClick: (tag: string
 
   if (lastIndex < content.length) {
     parts.push(
-      <span key={`text-${lastIndex}`} dangerouslySetInnerHTML={{ __html: content.substring(lastIndex) }} />
+      <span key={`text-${lastIndex}`} dangerouslySetInnerHTML={{ __html: sanitizeUserHtml(content.substring(lastIndex)) }} />
     );
   }
 
-  return parts.length > 0 ? <>{parts}</> : <span dangerouslySetInnerHTML={{ __html: content }} />;
+  return parts.length > 0 ? <>{parts}</> : <span dangerouslySetInnerHTML={{ __html: sanitizeUserHtml(content) }} />;
 }
 
 export function PostCard({ post, currentUser, onOpenComments, onOpenReactions }: PostCardProps) {

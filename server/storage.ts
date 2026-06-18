@@ -144,9 +144,6 @@ import {
   type InsertClonedPage,
   type N8nAutomation,
   type InsertN8nAutomation,
-  metaAdsCampaigns,
-  type MetaAdsCampaign,
-  type InsertMetaAdsCampaign,
   openaiTokenUsage,
   type OpenAITokenUsage,
   type InsertOpenAITokenUsage,
@@ -2344,25 +2341,6 @@ export class DatabaseStorage {
     return await db.select().from(badges).orderBy(badges.name);
   }
 
-  async getUserBadges(userId: string): Promise<Badge[]> {
-    const result = await db
-      .select({
-        id: badges.id,
-        name: badges.name,
-        description: badges.description,
-        icon: badges.icon,
-        color: badges.color,
-        requirement: badges.requirement,
-        type: badges.type,
-        createdAt: badges.createdAt,
-      })
-      .from(userBadges)
-      .innerJoin(badges, eq(userBadges.badgeId, badges.id))
-      .where(eq(userBadges.userId, userId));
-
-    return result;
-  }
-
   async awardBadge(userId: string, badgeId: string): Promise<void> {
     const existing = await db
       .select()
@@ -2387,11 +2365,6 @@ export class DatabaseStorage {
   }
 
   // ==================== GAMIFICATION ====================
-
-  async getUserPoints(userId: string): Promise<UserPoints | undefined> {
-    const [points] = await db.select().from(userPoints).where(eq(userPoints.userId, userId));
-    return points;
-  }
 
   async updateUserPointsForAction(userId: string, action: string): Promise<void> {
     const pointsMap: Record<string, number> = {
@@ -2571,11 +2544,14 @@ export class DatabaseStorage {
     }));
   }
 
-  async markNotificationAsRead(id: string): Promise<void> {
+  async markNotificationAsRead(id: string, userId?: string): Promise<void> {
+    // SECURITY: quando userId é informado, garante que o usuário só marca as próprias notificações (anti-IDOR)
     await db
       .update(notifications)
       .set({ isRead: true })
-      .where(eq(notifications.id, id));
+      .where(userId
+        ? and(eq(notifications.id, id), eq(notifications.userId, userId))
+        : eq(notifications.id, id));
   }
 
   async getNotificationById(id: string): Promise<Notification | undefined> {
@@ -4322,43 +4298,6 @@ export class DatabaseStorage {
     return comment;
   }
 
-  async getPostCommentWithAuthor(commentId: string) {
-    const [result] = await db
-      .select({
-        comment: postComments,
-        author: users,
-        authorPoints: userPoints.points,
-      })
-      .from(postComments)
-      .leftJoin(users, eq(postComments.userId, users.id))
-      .leftJoin(userPoints, eq(users.id, userPoints.userId))
-      .where(eq(postComments.id, commentId));
-
-    if (!result) return null;
-
-    return {
-      id: result.comment.id,
-      content: result.comment.content,
-      postId: result.comment.postId,
-      userId: result.comment.userId,
-      parentCommentId: result.comment.parentCommentId,
-      likeCount: result.comment.likeCount || 0,
-      replyCount: result.comment.replyCount || 0,
-      isPinned: result.comment.isPinned || false,
-      isBestAnswer: result.comment.isBestAnswer || false,
-      userHasLiked: false,
-      createdAt: result.comment.createdAt,
-      author: result.author ? {
-        id: result.author.id,
-        name: result.author.name,
-        profileImageUrl: result.author.profileImageUrl,
-        profession: result.author.profession,
-        badge: result.author.badge,
-        points: result.authorPoints,
-      } : null,
-    };
-  }
-
   async toggleCommentLike(commentId: string, userId: string): Promise<{ userHasLiked: boolean; likeCount: number; notificationId?: string | null }> {
     // Check if user already liked the comment
     const existing = await db
@@ -4782,7 +4721,7 @@ export class DatabaseStorage {
       .where(
         and(
           eq(userDailyProgress.userId, userId),
-          sqlOp`${userDailyProgress.date} >= ${today}`
+          gte(userDailyProgress.progressDate, today)
         )
       );
   }
@@ -5393,7 +5332,7 @@ export class DatabaseStorage {
     return progress;
   }
 
-  async getUserDailyProgress(userId: string, activityId: string, date: Date): Promise<UserDailyProgress | undefined> {
+  async getUserDailyActivityProgress(userId: string, activityId: string, date: Date): Promise<UserDailyProgress | undefined> {
     const dayStart = startOfDaySaoPaulo(date);
     const dayEnd = endOfDaySaoPaulo(date);
 
@@ -5624,55 +5563,6 @@ export class DatabaseStorage {
       userName: r.userName,
       pointsEarned: r.pointsEarned || 0,
     }));
-  }
-
-  // ==================== META ADS ANDROMEDA CAMPAIGNS ====================
-
-  async createMetaAdsCampaign(data: InsertMetaAdsCampaign): Promise<MetaAdsCampaign> {
-    const [campaign] = await db.insert(metaAdsCampaigns).values(data).returning();
-    return campaign;
-  }
-
-  async getMetaAdsCampaigns(userId: string): Promise<MetaAdsCampaign[]> {
-    return await db
-      .select()
-      .from(metaAdsCampaigns)
-      .where(eq(metaAdsCampaigns.userId, userId))
-      .orderBy(desc(metaAdsCampaigns.createdAt));
-  }
-
-  async getMetaAdsCampaignById(id: string, userId: string): Promise<MetaAdsCampaign | undefined> {
-    const [campaign] = await db
-      .select()
-      .from(metaAdsCampaigns)
-      .where(and(
-        eq(metaAdsCampaigns.id, id),
-        eq(metaAdsCampaigns.userId, userId)
-      ));
-    return campaign;
-  }
-
-  async updateMetaAdsCampaign(id: string, userId: string, data: Partial<InsertMetaAdsCampaign>): Promise<MetaAdsCampaign> {
-    const [campaign] = await db
-      .update(metaAdsCampaigns)
-      .set({ ...data, updatedAt: new Date() })
-      .where(and(
-        eq(metaAdsCampaigns.id, id),
-        eq(metaAdsCampaigns.userId, userId)
-      ))
-      .returning();
-    return campaign;
-  }
-
-  async deleteMetaAdsCampaign(id: string, userId: string): Promise<boolean> {
-    const result = await db
-      .delete(metaAdsCampaigns)
-      .where(and(
-        eq(metaAdsCampaigns.id, id),
-        eq(metaAdsCampaigns.userId, userId)
-      ))
-      .returning({ id: metaAdsCampaigns.id });
-    return result.length > 0;
   }
 
   // OpenAI Token Usage Tracking

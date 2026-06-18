@@ -119,12 +119,11 @@ const RetroGrid = memo(({ angle = 65, cellSize = 50, opacity = 0.4, lightLineCol
 const lucasImg = 'https://ui-avatars.com/api/?name=Lucas+Felipe&background=29654f&color=fff&bold=true&size=128';
 const mariaImg = 'https://ui-avatars.com/api/?name=Maria+Silva&background=3db370&color=fff&bold=true&size=128';
 const pedroImg = 'https://ui-avatars.com/api/?name=Pedro+Santos&background=29654f&color=fff&bold=true&size=128';
-import { 
-  STATS, 
-  AI_TOOL_CATEGORIES, 
-  ANDROMEDA_FEATURES, 
-  FAQ_ITEMS, 
-  COURSE_CATEGORIES, 
+import {
+  STATS,
+  AI_TOOL_CATEGORIES,
+  FAQ_ITEMS,
+  COURSE_CATEGORIES,
   PLR_LANGUAGES,
   PLR_INCLUDES,
   SELLABLE_ITEMS,
@@ -389,7 +388,7 @@ const Home: React.FC = () => {
                 Arsenal de <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#29654f] to-[#4ade80]">Ferramentas</span>
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mt-3 max-w-2xl mx-auto text-sm md:text-base">
-                Mais de 39 ferramentas premium, +250 landing pages, +150 automações N8N, pack de plugins, criador de anúncios Andromeda — tudo que você precisa para criar, vender e escalar — segurança e perfis prontos.
+                Mais de 39 ferramentas premium, +250 landing pages, +150 automações N8N, pack de plugins — tudo que você precisa para criar, vender e escalar — segurança e perfis prontos.
               </p>
             </div>
 
@@ -1335,7 +1334,6 @@ const Home: React.FC = () => {
                  <ul className="space-y-4 relative z-10">
                     {[
                        { text: "+39 Ferramentas Premium (IA, Design e SEO)", price: "R$8.000" },
-                       { text: "IA de criação de copys Andromeda", price: "R$190" },
                        { text: "Biblioteca de PLR estruturados em 7 idiomas (Baixe e Venda)", price: null },
                        { text: "Clonador de Páginas", price: "R$99,90" },
                        { text: "Criador de Páginas", price: "R$99,90" },
@@ -1364,7 +1362,6 @@ const Home: React.FC = () => {
                     </h4>
                     <ul className="space-y-3 relative z-10">
                        {[
-                          { text: "IA de criação de copys Andromeda", price: "R$190" },
                           { text: "+15 plugins Premium e atualizados", price: "R$4.000" },
                           { text: "+150 automações N8N", price: "R$10.000" },
                           { text: "+250 landing pages para wordpress", price: "R$5.000" }
