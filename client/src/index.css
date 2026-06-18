@@ -262,6 +262,69 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ============================================================
+     POLIMENTO UI/UX GLOBAL (auditoria 2026-06)
+     Refinamentos que elevam o sistema inteiro de uma vez.
+     ============================================================ */
+
+  /* Tap highlight azul removido no mobile (toque mais limpo) */
+  a, button, [role="button"], input, select, textarea, label, summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Seleção de texto com o verde da marca */
+  ::selection { background-color: hsl(158 42% 28% / 0.16); }
+  .dark ::selection { background-color: hsl(158 45% 48% / 0.32); }
+
+  /* Foco visível consistente para teclado (acessibilidade WCAG) */
+  :focus-visible {
+    outline: 2px solid hsl(158 42% 35% / 0.7);
+    outline-offset: 2px;
+    border-radius: calc(var(--radius) - 6px);
+  }
+  :focus:not(:focus-visible) { outline: none; }
+
+  /* Transições suaves só em elementos interativos (escopado, não em '*') */
+  a, button, [role="button"], input, select, textarea,
+  [role="tab"], [role="menuitem"], [role="switch"], [role="checkbox"] {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Cursor consistente em desabilitados */
+  button:disabled, input:disabled, select:disabled, textarea:disabled,
+  [aria-disabled="true"] { cursor: not-allowed; }
+
+  /* Mídia nunca estoura o container */
+  img, svg, video, canvas { max-width: 100%; }
+
+  /* Acessibilidade: respeitar "reduzir movimento" do sistema */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Scrollbar moderna e sutil (só em dispositivos com mouse) */
+  @media (pointer: fine) {
+    * { scrollbar-width: thin; scrollbar-color: hsl(158 16% 62% / 0.55) transparent; }
+    *::-webkit-scrollbar { width: 10px; height: 10px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb {
+      background-color: hsl(158 14% 60% / 0.5);
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    *::-webkit-scrollbar-thumb:hover { background-color: hsl(158 28% 48% / 0.7); }
+    .dark *::-webkit-scrollbar-thumb { background-color: hsl(158 12% 42% / 0.6); }
+    .dark *::-webkit-scrollbar-thumb:hover { background-color: hsl(158 22% 52% / 0.7); }
   }
 
   .card-hover {
