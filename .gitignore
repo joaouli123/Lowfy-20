@@ -28,3 +28,6 @@ logs/
 # DB backup/temp scripts (auditoria)
 _backup_*.json
 _db_*.cjs
+
+# Local object storage (dev) — em prod usa volume
+objects-data/
