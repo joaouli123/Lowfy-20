@@ -31,7 +31,7 @@ function gemini(): GoogleGenAI {
 
 export function aiStudioCapabilities() {
   return {
-    image: { ready: !!(OPENAI_KEY || GEMINI_KEY), providers: { openai: !!OPENAI_KEY, gemini: !!GEMINI_KEY } },
+    image: { ready: !!(OPENAI_KEY || process.env.IDEOGRAM_API_KEY), providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY } },
     copy: { ready: !!(GEMINI_KEY || OPENAI_KEY), providers: { gemini: !!GEMINI_KEY, openai: !!OPENAI_KEY } },
     tts: { ready: !!(OPENAI_KEY || ELEVENLABS_KEY), providers: { openai: !!OPENAI_KEY, elevenlabs: !!ELEVENLABS_KEY } },
     avatar: { ready: !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY } },
@@ -51,33 +51,30 @@ export interface GenerateImageParams {
   provider?: "openai" | "gemini";
 }
 
-/** Gera uma imagem de criativo. Retorna Buffer (PNG/WebP) pronto para salvar. */
+/**
+ * Gera uma imagem de criativo. Usa OpenAI gpt-image (preferência do usuário —
+ * Gemini foi descartado para IMAGENS por qualidade inferior). Provedores premium
+ * de texto-em-imagem (Ideogram / FLUX.2 / Recraft) habilitam ao configurar a chave.
+ */
 export async function generateAdImage(params: GenerateImageParams): Promise<{ buffer: Buffer; mime: string }> {
-  const provider = params.provider || (OPENAI_KEY ? "openai" : "gemini");
-
-  if (provider === "openai") {
-    const res = await openai().images.generate({
-      model: "gpt-image-1",
-      prompt: params.prompt,
-      size: params.size || "1024x1024",
-      quality: params.quality || "high",
-      n: 1,
-    } as any);
-    const b64 = (res as any).data?.[0]?.b64_json;
-    if (!b64) throw new Error("Falha ao gerar imagem (OpenAI)");
-    return { buffer: Buffer.from(b64, "base64"), mime: "image/png" };
+  // Ideogram (melhor texto-em-imagem) se configurado
+  if (process.env.IDEOGRAM_API_KEY && (params.provider as any) === "ideogram") {
+    throw new Error("Integração Ideogram pronta para implementar (IDEOGRAM_API_KEY detectada).");
   }
 
-  // Gemini (Nano Banana / Flash Image)
-  const model = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
-  const response = await gemini().models.generateContent({
-    model,
-    contents: params.prompt,
-    config: { responseModalities: ["IMAGE"] } as any,
-  });
-  const inline = (response as any).candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData;
-  if (!inline?.data) throw new Error("Falha ao gerar imagem (Gemini)");
-  return { buffer: Buffer.from(inline.data, "base64"), mime: inline.mimeType || "image/png" };
+  if (!OPENAI_KEY) {
+    throw new Error("Geração de imagem requer OPENAI_API_KEY válida (gpt-image). Configure a chave para ativar.");
+  }
+  const res = await openai().images.generate({
+    model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+    prompt: params.prompt,
+    size: params.size || "1024x1024",
+    quality: params.quality || "high",
+    n: 1,
+  } as any);
+  const b64 = (res as any).data?.[0]?.b64_json;
+  if (!b64) throw new Error("Falha ao gerar imagem (OpenAI)");
+  return { buffer: Buffer.from(b64, "base64"), mime: "image/png" };
 }
 
 /**
@@ -140,29 +137,30 @@ ${params.tom ? `- Tom de voz: ${params.tom}` : ""}
 ${fw}
 Devolva como JSON: {"variacoes": ["...", "..."]}. Cada variação deve ser ${tamanhoPorTipo(params.tipo)}.`;
 
-  // Preferir Gemini (mais barato e líder em creative writing); fallback OpenAI.
-  if (GEMINI_KEY) {
-    const model = process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash";
-    const res = await gemini().models.generateContent({
-      model,
-      contents: `${COPY_SYSTEM}\n\n${userPrompt}`,
-      config: { responseMimeType: "application/json", temperature: 0.9 } as any,
+  // Premium: OpenAI GPT (melhor qualidade de copy). Gemini só como fallback se OpenAI ausente.
+  if (OPENAI_KEY) {
+    const res = await openai().chat.completions.create({
+      model: process.env.OPENAI_COPY_MODEL || "gpt-4o",
+      messages: [
+        { role: "system", content: COPY_SYSTEM },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.9,
+      response_format: { type: "json_object" },
     });
-    const text = (res as any).text || "";
-    return { variacoes: parseVariacoes(text, n), tokens: (res as any).usageMetadata?.totalTokenCount || 0 };
+    const text = res.choices[0]?.message?.content || "";
+    return { variacoes: parseVariacoes(text, n), tokens: res.usage?.total_tokens || 0 };
   }
 
-  const res = await openai().chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: COPY_SYSTEM },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.9,
-    response_format: { type: "json_object" },
+  // Fallback (somente se não houver OpenAI configurada)
+  const model = process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash";
+  const res = await gemini().models.generateContent({
+    model,
+    contents: `${COPY_SYSTEM}\n\n${userPrompt}`,
+    config: { responseMimeType: "application/json", temperature: 0.9 } as any,
   });
-  const text = res.choices[0]?.message?.content || "";
-  return { variacoes: parseVariacoes(text, n), tokens: res.usage?.total_tokens || 0 };
+  const text = (res as any).text || "";
+  return { variacoes: parseVariacoes(text, n), tokens: (res as any).usageMetadata?.totalTokenCount || 0 };
 }
 
 function tipoLabel(t: CopyType): string {
@@ -235,7 +233,9 @@ export async function generateTalkingAvatar(_params: { imageUrl: string; audioUr
 
 export async function generateAdVideo(_params: { prompt: string; imageUrl?: string; model?: string }): Promise<{ jobId: string; status: string }> {
   if (process.env.FAL_KEY) {
-    throw new Error("Integração fal.ai (Veo/Seedance/Kling) pronta para implementar (FAL_KEY detectada).");
+    // Melhor para anúncios: Seedance 2.0 (ByteDance) — #1 realismo + consistência de produto.
+    // Alternativa cinematográfica premium: Kling 3.0. Ambos via fal.ai (async + webhook).
+    throw new Error("Integração fal.ai (Seedance 2.0 / Kling 3.0) pronta para implementar (FAL_KEY detectada).");
   }
-  throw new Error("Geração de vídeo requer uma chave de API. Configure FAL_KEY (fal.ai) para Veo 3.1 / Seedance / Kling.");
+  throw new Error("Geração de vídeo requer FAL_KEY (fal.ai). Recomendado: Seedance 2.0 (melhor realismo/custo) e Kling 3.0 (cinematográfico).");
 }

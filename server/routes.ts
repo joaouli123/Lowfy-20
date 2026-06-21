@@ -72,6 +72,7 @@ import fs from "fs";
 import axios from "axios";
 import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
 import * as aiStudio from "./services/aiStudio";
+import * as quizStore from "./quizStore";
 import { sanitizePageName } from "./utils/slug-utils";
 import { writeJsonAtomic } from "./utils/safe-fs";
 import cookieParser from "cookie-parser";
@@ -6440,6 +6441,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(job);
     } catch (error: any) {
       res.status(501).json({ message: error?.message || 'Recurso indisponível', code: 'PROVIDER_NOT_CONFIGURED' });
+    }
+  });
+
+  // ==================== QUIZ BUILDER (funil de quiz estilo inlead) ====================
+
+  app.get('/api/quiz/list', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try { res.json(await quizStore.listQuizzes(req.user.id)); }
+    catch (e: any) { res.status(500).json({ message: e?.message || 'Erro' }); }
+  });
+
+  app.post('/api/quiz/save', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const spec = req.body || {};
+      if (!spec.name) return res.status(400).json({ message: 'Nome do quiz é obrigatório' });
+      const slug = quizStore.sanitizeSlug(spec.slug || spec.name);
+      if (!slug) return res.status(400).json({ message: 'Slug inválido' });
+      const meta = await quizStore.saveQuiz(slug, { ...spec, slug }, req.user.id);
+      res.json({ slug, meta, url: `/q/${slug}` });
+    } catch (e: any) {
+      if (e?.code === 'FORBIDDEN') return res.status(403).json({ message: 'Este quiz pertence a outro usuário' });
+      res.status(500).json({ message: e?.message || 'Erro ao salvar' });
+    }
+  });
+
+  app.get('/api/quiz/get/:slug', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    const slug = quizStore.sanitizeSlug(req.params.slug);
+    const meta = await quizStore.getQuizMeta(slug);
+    if (!meta) return res.status(404).json({ message: 'Quiz não encontrado' });
+    if (meta.userId !== req.user.id) return res.status(403).json({ message: 'Acesso negado' });
+    const spec = await quizStore.getQuiz(slug);
+    res.json({ spec, meta });
+  });
+
+  app.delete('/api/quiz/:slug', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try { await quizStore.deleteQuiz(quizStore.sanitizeSlug(req.params.slug), req.user.id); res.json({ success: true }); }
+    catch (e: any) { res.status(e?.code === 'FORBIDDEN' ? 403 : 500).json({ message: e?.message || 'Erro' }); }
+  });
+
+  app.get('/api/quiz/:slug/leads', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    res.json(await quizStore.getLeads(quizStore.sanitizeSlug(req.params.slug), req.user.id));
+  });
+
+  // ---- PÚBLICO (runtime do quiz) ----
+  app.get('/api/q/:slug', async (req, res) => {
+    const slug = quizStore.sanitizeSlug(req.params.slug);
+    const spec = await quizStore.getQuiz(slug);
+    if (!spec || !spec.isPublished) return res.status(404).json({ message: 'Quiz não encontrado' });
+    void quizStore.bumpMeta(slug, 'views');
+    // não expor webhookUrl ao público
+    const { webhookUrl, ...publicSpec } = spec as any;
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(publicSpec);
+  });
+
+  app.post('/api/q/:slug/start', async (req, res) => {
+    void quizStore.bumpMeta(quizStore.sanitizeSlug(req.params.slug), 'starts');
+    res.json({ ok: true });
+  });
+
+  app.post('/api/q/:slug/lead', async (req: any, res) => {
+    try {
+      const slug = quizStore.sanitizeSlug(req.params.slug);
+      const spec = await quizStore.getQuiz(slug);
+      if (!spec || !spec.isPublished) return res.status(404).json({ message: 'Quiz não encontrado' });
+      const lead = {
+        ...(req.body?.lead || {}),
+        respostas: req.body?.respostas || {},
+        score: req.body?.score ?? null,
+        ua: req.headers['user-agent'],
+      };
+      await quizStore.appendLead(slug, lead);
+      void quizStore.bumpMeta(slug, 'leads');
+      void quizStore.bumpMeta(slug, 'completions');
+
+      // dispara webhook do criador (best-effort, com proteção SSRF)
+      if ((spec as any).webhookUrl) {
+        try {
+          assertSafePublicUrl((spec as any).webhookUrl);
+          axios.post((spec as any).webhookUrl, { quiz: slug, ...lead }, ssrfSafeAxiosOptions({ timeout: 8000 })).catch(() => {});
+        } catch {}
+      }
+      res.json({ ok: true, redirectUrl: (spec as any).redirectUrl || null });
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message || 'Erro' });
     }
   });
 

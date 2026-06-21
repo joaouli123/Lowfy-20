@@ -140,10 +140,10 @@ export default function Sidebar() {
       testId: "nav-ai-studio"
     },
     {
-      name: "Quiz Interativo",
-      href: "/quiz-interativo",
+      name: "Quiz Builder",
+      href: "/quiz-builder",
       icon: MousePointerClick,
-      testId: "nav-quiz-interativo"
+      testId: "nav-quiz-builder"
     },
     {
       name: "Cursos Online",

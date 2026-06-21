@@ -26,6 +26,8 @@ const Timeline = lazy(() => import("@/pages/Timeline"));
 const PLRs = lazy(() => import("@/pages/PLRs"));
 const AITools = lazy(() => import("@/pages/AITools"));
 const AIStudio = lazy(() => import("@/pages/AIStudio"));
+const QuizPlay = lazy(() => import("@/pages/QuizPlay"));
+const QuizBuilder = lazy(() => import("@/pages/QuizBuilder"));
 const QuizInterativo = lazy(() => import("./pages/QuizInterativo"));
 const Plugins = lazy(() => import("./pages/Plugins"));
 const Templates = lazy(() => import("./pages/Templates"));
@@ -170,6 +172,8 @@ function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>
+        {/* Quiz público (funil) — fullscreen, sempre acessível */}
+        <Route path="/q/:slug" component={QuizPlay} />
         {!isAuthenticated ? (
           <>
             {/* Public routes without Layout */}
@@ -231,6 +235,7 @@ function Router() {
                 <Route path="/plrs" component={PLRs} />
                 <Route path="/ai-tools" component={AITools} />
                 <Route path="/ai-studio" component={AIStudio} />
+                <Route path="/quiz-builder" component={QuizBuilder} />
                 <Route path="/clonador" component={PageCloner} />
                 <Route path="/presell-dashboard" component={PreSellDashboard} />
                 <Route path="/presell-builder" component={PreSellBuilder} />
