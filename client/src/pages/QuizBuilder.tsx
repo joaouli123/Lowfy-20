@@ -102,6 +102,7 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
   const [saving, setSaving] = useState(false);
   const [savedSlug, setSavedSlug] = useState<string | null>(initial.slug || null);
   const [tab, setTab] = useState<"construtor" | "fluxo" | "design" | "leads" | "config">("construtor");
+  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const step = spec.steps[stepIdx] || spec.steps[0];
@@ -196,6 +197,10 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
             <input type="checkbox" checked={!!spec.isPublished} onChange={(e) => patch({ isPublished: e.target.checked })} className="accent-emerald-500 w-4 h-4" />
             Publicado
           </label>
+          <div className="flex items-center border rounded-lg p-0.5">
+            <button onClick={() => setDevice("mobile")} className={`p-1.5 rounded-md ${device === "mobile" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`} title="Celular"><Icons.Smartphone className="w-4 h-4" /></button>
+            <button onClick={() => setDevice("desktop")} className={`p-1.5 rounded-md ${device === "desktop" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`} title="Computador"><Icons.Monitor className="w-4 h-4" /></button>
+          </div>
           <button onClick={() => setPreview((v) => !v)} className={`text-sm border rounded-lg px-3 py-1.5 flex items-center gap-1.5 ${preview ? "bg-primary text-white border-primary" : "hover:bg-accent"}`}><Icons.Eye className="w-4 h-4" /> Preview</button>
           <button onClick={save} disabled={saving} className="text-sm bg-black text-white dark:bg-white dark:text-black rounded-lg px-4 py-1.5 font-semibold flex items-center gap-1.5 disabled:opacity-50">{saving ? <Icons.Loader2 className="w-4 h-4 animate-spin" /> : <Icons.Save className="w-4 h-4" />} Salvar</button>
         </div>
@@ -221,7 +226,7 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
       ) : tab === "config" ? (
         <div className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-950 p-6">
           <div className="max-w-lg mx-auto bg-white dark:bg-gray-900 rounded-xl border">
-            <StepPanel spec={spec} stepIdx={stepIdx} onPatch={patch} onStepName={(n: string) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, name: n } : s))} onMove={moveStep} onDel={delStep} publicUrl={publicUrl} only="config" />
+            <StepPanel spec={spec} stepIdx={stepIdx} onPatch={patch} onStepName={(n: string) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, name: n } : s))} onStepPatch={(pp: any) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, ...pp } : s))} onMove={moveStep} onDel={delStep} publicUrl={publicUrl} only="config" />
           </div>
         </div>
       ) : (
@@ -244,21 +249,22 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
 
             {/* CANVAS */}
             <div className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-950 py-8 px-4">
-              <Phone theme={spec.theme}>
+              <Frame device={device} theme={spec.theme}>
+                <QuizChrome theme={spec.theme} header={step?.header} canBack={stepIdx > 0} progress={Math.round(((stepIdx + 1) / Math.max(1, spec.steps.length)) * 100)} />
                 {preview
                   ? <RuntimePreview step={step} theme={spec.theme} />
                   : <Canvas comps={comps} selId={selId} onSelect={setSelId} onRemove={removeComp} onDup={dupComp} theme={spec.theme} />}
-              </Phone>
+              </Frame>
             </div>
 
             {/* PROPRIEDADES */}
             {!preview && (
               <div className="w-80 border-l bg-white dark:bg-gray-900 overflow-y-auto shrink-0">
                 {tab === "design"
-                  ? <StepPanel spec={spec} stepIdx={stepIdx} onPatch={patch} onStepName={(n: string) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, name: n } : s))} onMove={moveStep} onDel={delStep} publicUrl={publicUrl} only="design" />
+                  ? <StepPanel spec={spec} stepIdx={stepIdx} onPatch={patch} onStepName={(n: string) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, name: n } : s))} onStepPatch={(pp: any) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, ...pp } : s))} onMove={moveStep} onDel={delStep} publicUrl={publicUrl} only="design" />
                   : selected
                     ? <PropsPanel comp={selected} steps={spec.steps} onChange={(props, vis) => updateComp(selected.id, props, vis)} onClose={() => setSelId(null)} />
-                    : <StepPanel spec={spec} stepIdx={stepIdx} onPatch={patch} onStepName={(n: string) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, name: n } : s))} onMove={moveStep} onDel={delStep} publicUrl={publicUrl} />}
+                    : <StepPanel spec={spec} stepIdx={stepIdx} onPatch={patch} onStepName={(n: string) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, name: n } : s))} onStepPatch={(pp: any) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, ...pp } : s))} onMove={moveStep} onDel={delStep} publicUrl={publicUrl} />}
               </div>
             )}
           </div>
@@ -317,6 +323,49 @@ function CanvasItem({ comp, selected, onSelect, onRemove, onDup, theme }: any) {
   );
 }
 
+// ---- Chrome do quiz dentro do mockup (logo + barra de progresso + voltar) ----
+function QuizChrome({ theme, header, progress, canBack }: { theme?: any; header?: any; progress: number; canBack?: boolean }) {
+  const primary = theme?.primaryColor || "#22c55e";
+  const showLogo = (header?.showLogo !== false) && theme?.logoUrl;
+  const showProgress = (header?.showProgress !== false) && (theme?.showProgress !== false);
+  const showBack = (header?.allowBack !== false) && canBack;
+  if (!showLogo && !showProgress && !showBack) return null;
+  return (
+    <div style={{ padding: "10px 18px 2px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {(showLogo || showBack) && <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {showBack && <span style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#64748b" }}>‹</span>}
+        {showLogo && <img src={theme.logoUrl} alt="" style={{ height: 30, objectFit: "contain", margin: showBack ? 0 : "0 auto" }} />}
+      </div>}
+      {showProgress && <div style={{ width: "100%", height: 6, background: "#e5e9ee", borderRadius: 999 }}><div style={{ width: `${Math.max(4, progress)}%`, height: "100%", background: primary, borderRadius: 999, transition: "width .3s" }} /></div>}
+    </div>
+  );
+}
+
+// ---- Frame: escolhe iPhone (mobile) ou navegador (desktop) ----
+function Frame({ device, theme, children }: { device: "mobile" | "desktop"; theme?: any; children: React.ReactNode }) {
+  if (device === "desktop") return <DesktopFrame theme={theme}>{children}</DesktopFrame>;
+  return <Phone theme={theme}>{children}</Phone>;
+}
+
+// ---- Mockup desktop (janela de navegador) ----
+function DesktopFrame({ theme, children }: { theme?: any; children: React.ReactNode }) {
+  return (
+    <div className="mx-auto w-full" style={{ maxWidth: 860 }}>
+      <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid #cbd5e1", boxShadow: "0 24px 50px -20px rgba(0,0,0,.45)", background: "#fff" }}>
+        <div style={{ height: 38, background: "#e9edf1", display: "flex", alignItems: "center", gap: 6, padding: "0 14px", borderBottom: "1px solid #d8dee6" }}>
+          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#ec6a5e" }} />
+          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#f4bf50" }} />
+          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#61c354" }} />
+          <div style={{ flex: 1, margin: "0 12px", height: 22, borderRadius: 6, background: "#fff", border: "1px solid #d8dee6", fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", padding: "0 10px" }}>lowfy.com.br/q/seu-funil</div>
+        </div>
+        <div style={{ background: theme?.bgColor || "#fff", color: theme?.textColor || "#0f172a", fontFamily: theme?.font || "Inter, system-ui, sans-serif", maxHeight: "64vh", overflowY: "auto" }}>
+          <div style={{ maxWidth: 560, margin: "0 auto" }}>{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---- Mockup iPhone 16 Pro ----
 function Phone({ theme, children }: { theme?: any; children: React.ReactNode }) {
   const sc = theme?.textColor || "#0f172a";
@@ -334,7 +383,7 @@ function Phone({ theme, children }: { theme?: any; children: React.ReactNode }) 
         <span style={{ position: "absolute", left: -2.5, top: 230, width: 3, height: 48, borderRadius: 3, background: "#303236" }} />
         <span style={{ position: "absolute", right: -2.5, top: 190, width: 3, height: 70, borderRadius: 3, background: "#303236" }} />
         {/* tela */}
-        <div style={{ position: "relative", borderRadius: 49, overflow: "hidden", background: theme?.bgColor || "#fff", height: 712, maxHeight: "72vh" }}>
+        <div style={{ position: "relative", borderRadius: 49, overflow: "hidden", background: theme?.bgColor || "#fff", color: theme?.textColor || "#0f172a", fontFamily: theme?.font || "Inter, system-ui, sans-serif", height: 712, maxHeight: "72vh" }}>
           {/* barra de status */}
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", zIndex: 30, pointerEvents: "none" }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: sc, letterSpacing: ".3px" }}>9:41</span>
@@ -409,7 +458,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
           <Field l="Pergunta"><Ta v={p.question} onChange={(v: any) => set("question", v)} /></Field>
           <Field l="Ajuda (opcional)"><In v={p.help} onChange={(v: any) => set("help", v)} /></Field>
           <div className="grid grid-cols-2 gap-2">
-            <Field l="Layout"><Sel v={p.layout} onChange={(v) => set("layout", v)} opts={[["list", "Itens em lista"], ["grid", "Grade"]]} /></Field>
+            <Field l="Layout"><Sel v={p.layout} onChange={(v) => set("layout", v)} opts={[["list", "Itens em lista"], ["grid", "Grade"], ["spread", "Itens espalhados"]]} /></Field>
             <Field l="Direção"><Sel v={p.direction} onChange={(v) => set("direction", v)} opts={[["vertical", "Vertical"], ["horizontal", "Horizontal"]]} /></Field>
           </div>
           <Field l="Disposição"><Sel v={p.disposition} onChange={(v) => set("disposition", v)} opts={[["texto", "Texto"], ["image_texto", "Imagem | texto"], ["image", "Apenas imagem"], ["emoji_texto", "Emoji | texto"]]} /></Field>
@@ -420,6 +469,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
               <div className="flex gap-1.5">
                 <In v={o.emoji} onChange={(v: any) => patchItem({ emoji: v })} placeholder="😀" />
                 <In type="number" v={o.score} onChange={(v: any) => patchItem({ score: +v })} placeholder="pts" />
+                <In v={o.valor} onChange={(v: any) => patchItem({ valor: v })} placeholder="valor (A/B)" />
               </div>
               <In v={o.image} onChange={(v: any) => patchItem({ image: v })} placeholder="URL da imagem (opcional)" />
               <Sel v={o.nextStepId || ""} onChange={(v) => patchItem({ nextStepId: v })} opts={stepOpts} />
@@ -447,7 +497,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
           <ListEditor label="Campos" items={p.fields || []} onChange={(items) => set("fields", items)}
             create={() => ({ type: "text", name: "campo", label: "Campo", required: true })}
             render={(f, _u, patchItem) => <div className="space-y-1.5">
-              <Sel v={f.type} onChange={(v) => patchItem({ type: v })} opts={[["name", "Nome"], ["email", "E-mail"], ["phone", "Telefone"], ["text", "Texto"]]} />
+              <Sel v={f.type} onChange={(v) => patchItem({ type: v })} opts={[["name", "Nome"], ["email", "E-mail"], ["phone", "Telefone"], ["number", "Número"], ["date", "Data"], ["textarea", "Texto longo"], ["text", "Texto"]]} />
               <In v={f.name} onChange={(v: any) => patchItem({ name: v })} placeholder="variável (ex: nome)" />
               <In v={f.label} onChange={(v: any) => patchItem({ label: v })} placeholder="rótulo" />
               <Check l="Obrigatório" v={f.required !== false} onChange={(v) => patchItem({ required: v })} />
@@ -455,11 +505,15 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
         </>}
 
         {comp.type === "botao" && <>
-          <Field l="Texto"><In v={p.label} onChange={(v: any) => set("label", v)} /></Field>
-          <Field l="Ação"><Sel v={p.action} onChange={(v) => set("action", v)} opts={[["next", "Próxima etapa"], ["step", "Etapa específica"], ["url", "Link externo"]]} /></Field>
-          {p.action === "step" && <Field l="Etapa"><Sel v={p.stepId || ""} onChange={(v) => set("stepId", v)} opts={stepOpts} /></Field>}
-          {p.action === "url" && <Field l="URL"><In v={p.url} onChange={(v: any) => set("url", v)} placeholder="https://…" /></Field>}
+          <Field l="Texto do botão"><In v={p.label} onChange={(v: any) => set("label", v)} /></Field>
+          <Field l="Tipo de navegação"><Sel v={p.action} onChange={(v) => set("action", v)} opts={[["next", "Navegar entre etapas"], ["step", "Etapa específica"], ["url", "Redirecionar (link)"]]} /></Field>
+          {p.action === "step" && <Field l="Destino"><Sel v={p.stepId || ""} onChange={(v) => set("stepId", v)} opts={stepOpts} /></Field>}
+          {p.action === "url" && <>
+            <Field l="Destino do redirecionamento"><In v={p.url} onChange={(v: any) => set("url", v)} placeholder="https://…" /></Field>
+            <Check l="Abrir em nova aba" v={p.newTab} onChange={(v) => set("newTab", v)} />
+          </>}
           <Field l="Estilo"><Sel v={p.style} onChange={(v) => set("style", v)} opts={[["solid", "Sólido"], ["outline", "Contorno"]]} /></Field>
+          <div className="flex gap-3"><Check l="Fixar no rodapé" v={p.fixedBottom} onChange={(v) => set("fixedBottom", v)} /><Check l="Com animação" v={p.animated} onChange={(v) => set("animated", v)} /></div>
         </>}
 
         {comp.type === "nivel" && <>
@@ -514,6 +568,46 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
         </>}
 
         {comp.type === "espaco" && <Field l="Altura (px)"><In type="number" v={p.height} onChange={(v: any) => set("height", +v)} /></Field>}
+
+        {comp.type === "faq" && <ListEditor label="Perguntas e respostas" items={p.items || []} onChange={(items) => set("items", items)}
+          create={() => ({ q: "Nova pergunta?", a: "Resposta." })}
+          render={(it, _u, patchItem) => <div className="space-y-1.5"><In v={it.q} onChange={(v: any) => patchItem({ q: v })} placeholder="Pergunta" /><Ta v={it.a} onChange={(v: any) => patchItem({ a: v })} /></div>} />}
+
+        {comp.type === "carrossel" && <>
+          <Field l="Disposição"><Sel v={p.layout} onChange={(v) => set("layout", v)} opts={[["image_texto", "Imagem e texto"], ["image", "Apenas imagem"]]} /></Field>
+          <div className="flex gap-3"><Check l="Autoplay" v={p.autoplay} onChange={(v) => set("autoplay", v)} /><Check l="Paginação" v={p.pagination !== false} onChange={(v) => set("pagination", v)} /></div>
+          <ListEditor label="Itens" items={p.items || []} onChange={(items) => set("items", items)}
+            create={() => ({ image: "", title: "Novo item", desc: "" })}
+            render={(it, _u, patchItem) => <div className="space-y-1.5"><In v={it.image} onChange={(v: any) => patchItem({ image: v })} placeholder="URL da imagem" /><In v={it.title} onChange={(v: any) => patchItem({ title: v })} placeholder="Título" /><In v={it.desc} onChange={(v: any) => patchItem({ desc: v })} placeholder="Descrição" /></div>} />
+        </>}
+
+        {comp.type === "antes_depois" && <>
+          <Field l="Imagem 'Antes' (URL)"><In v={p.before} onChange={(v: any) => set("before", v)} placeholder="https://…" /></Field>
+          <Field l="Imagem 'Depois' (URL)"><In v={p.after} onChange={(v: any) => set("after", v)} placeholder="https://…" /></Field>
+          <div className="grid grid-cols-2 gap-2"><Field l="Rótulo antes"><In v={p.labelBefore} onChange={(v: any) => set("labelBefore", v)} /></Field><Field l="Rótulo depois"><In v={p.labelAfter} onChange={(v: any) => set("labelAfter", v)} /></Field></div>
+        </>}
+
+        {comp.type === "graficos" && <>
+          <Field l="Layout"><Sel v={p.layout} onChange={(v) => set("layout", v)} opts={[["list", "Itens em lista"], ["grid", "Grade 2 colunas"]]} /></Field>
+          <ListEditor label="Gráficos" items={p.items || []} onChange={(items) => set("items", items)}
+            create={() => ({ type: "circular", color: "tema", value: 50, label: "Métrica" })}
+            render={(it, _u, patchItem) => <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
+                <Sel v={it.type} onChange={(v) => patchItem({ type: v })} opts={[["circular", "Circular"], ["barra", "Barra"]]} />
+                <Sel v={it.color} onChange={(v) => patchItem({ color: v })} opts={[["tema", "Cor tema"], ["verde", "Verde"], ["vermelho", "Vermelho"]]} />
+              </div>
+              <div className="flex gap-1.5"><In type="number" v={it.value} onChange={(v: any) => patchItem({ value: +v })} placeholder="%" /><In v={it.label} onChange={(v: any) => patchItem({ label: v })} placeholder="Legenda" /></div>
+            </div>} />
+        </>}
+
+        {comp.type === "script" && <Field l="Código de incorporação (HTML/JS)"><Ta v={p.code} onChange={(v: any) => set("code", v)} /></Field>}
+
+        <div className="border-t pt-2 mt-1">
+          <details>
+            <summary className="text-[11px] uppercase tracking-wide text-muted-foreground/70 cursor-pointer">+ Avançado</summary>
+            <div className="mt-2"><Field l="ID / Name (CSS, pixel, variáveis)"><In v={p.name ?? p._id} onChange={(v: any) => set(p.name !== undefined ? "name" : "_id", v)} placeholder="ex: meu_componente" /></Field></div>
+          </details>
+        </div>
       </div>}
 
       {ptab === "estilo" && <div className="space-y-3">
@@ -553,10 +647,12 @@ function VisibilityEditor({ comp, onChange }: { comp: QComponent; onChange: (vis
 }
 
 // ---- Painel da etapa / funil ----
-function StepPanel({ spec, stepIdx, onPatch, onStepName, onMove, onDel, publicUrl, only }: any) {
+function StepPanel({ spec, stepIdx, onPatch, onStepName, onStepPatch, onMove, onDel, publicUrl, only }: any) {
   const step = spec.steps[stepIdx];
   const th = spec.theme || {};
+  const hd = step?.header || {};
   const setTheme = (k: string, v: any) => onPatch({ theme: { ...th, [k]: v } });
+  const setHeader = (k: string, v: any) => onStepPatch({ header: { ...hd, [k]: v } });
   const showStep = only !== "config";
   const showAppearance = only !== "config";
   const showConfig = only !== "design";
@@ -570,14 +666,23 @@ function StepPanel({ spec, stepIdx, onPatch, onStepName, onMove, onDel, publicUr
           <button onClick={() => onMove(stepIdx, 1)} className="flex-1 text-xs border rounded-lg py-1.5 hover:bg-accent">Mover →</button>
           <button onClick={() => onDel(stepIdx)} className="text-xs border rounded-lg py-1.5 px-3 hover:bg-red-50 hover:text-red-600"><Icons.Trash2 className="w-3.5 h-3.5" /></button>
         </div>
+        <div className="mt-3 space-y-1.5">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Cabeçalho</p>
+          <Check l="Mostrar logo" v={hd.showLogo !== false} onChange={(v) => setHeader("showLogo", v)} />
+          <Check l="Mostrar progresso" v={hd.showProgress !== false} onChange={(v) => setHeader("showProgress", v)} />
+          <Check l="Permitir voltar" v={hd.allowBack !== false} onChange={(v) => setHeader("allowBack", v)} />
+        </div>
       </div>}
 
       {showAppearance && <div className={showStep ? "border-t pt-3" : ""}>
         <p className="text-xs font-semibold text-muted-foreground mb-2">APARÊNCIA</p>
         <Field l="Cor primária"><div className="flex gap-2"><input type="color" value={th.primaryColor || "#22c55e"} onChange={(e) => setTheme("primaryColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.primaryColor} onChange={(v: any) => setTheme("primaryColor", v)} /></div></Field>
-        <Field l="Fundo"><div className="flex gap-2"><input type="color" value={th.bgColor || "#ffffff"} onChange={(e) => setTheme("bgColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.bgColor} onChange={(v: any) => setTheme("bgColor", v)} /></div></Field>
+        <Field l="Cor de fundo"><div className="flex gap-2"><input type="color" value={th.bgColor || "#ffffff"} onChange={(e) => setTheme("bgColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.bgColor} onChange={(v: any) => setTheme("bgColor", v)} /></div></Field>
+        <Field l="Cor dos textos"><div className="flex gap-2"><input type="color" value={th.textColor || "#0f172a"} onChange={(e) => setTheme("textColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.textColor} onChange={(v: any) => setTheme("textColor", v)} /></div></Field>
+        <Field l="Cor dos títulos"><div className="flex gap-2"><input type="color" value={th.titleColor || th.textColor || "#0f172a"} onChange={(e) => setTheme("titleColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.titleColor} onChange={(v: any) => setTheme("titleColor", v)} /></div></Field>
+        <Field l="Tipografia"><Sel v={th.font || ""} onChange={(v) => setTheme("font", v)} opts={[["", "Padrão (Inter)"], ["Inter, sans-serif", "Inter"], ["Poppins, sans-serif", "Poppins"], ["Montserrat, sans-serif", "Montserrat"], ["'Roboto', sans-serif", "Roboto"], ["Georgia, serif", "Georgia (serifa)"]]} /></Field>
         <Field l="Logo (URL)"><In v={th.logoUrl} onChange={(v: any) => setTheme("logoUrl", v)} placeholder="https://…" /></Field>
-        <Check l="Barra de progresso" v={th.showProgress !== false} onChange={(v) => setTheme("showProgress", v)} />
+        <Check l="Barra de progresso (padrão)" v={th.showProgress !== false} onChange={(v) => setTheme("showProgress", v)} />
       </div>}
 
       {showConfig && <div className={showAppearance ? "border-t pt-3" : ""}>

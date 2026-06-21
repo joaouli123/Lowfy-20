@@ -13,6 +13,7 @@ export default function QuizPlay() {
   // seleções por etapa: stepId -> compId -> optId -> score
   const [picks, setPicks] = useState<Record<string, Record<string, Record<string, number>>>>({});
   const [elapsed, setElapsed] = useState(0);
+  const [history, setHistory] = useState<number[]>([]);
   const sentLead = useRef(false);
 
   useEffect(() => {
@@ -51,13 +52,15 @@ export default function QuizPlay() {
   if (!spec || !step) return <Centered>Carregando…</Centered>;
 
   const goTo = (nextId?: string | null) => {
-    if (nextId) {
-      const i = steps.findIndex((s) => s.id === nextId);
-      if (i >= 0) return setIdx(i);
-    }
-    if (idx + 1 < steps.length) return setIdx(idx + 1);
-    finish();
+    let target = -1;
+    if (nextId) { const i = steps.findIndex((s) => s.id === nextId); if (i >= 0) target = i; }
+    if (target < 0) target = idx + 1 < steps.length ? idx + 1 : -1;
+    if (target < 0) return finish();
+    setHistory((h) => [...h, idx]);   // pilha p/ o botão "voltar"
+    setIdx(target);
   };
+
+  const goBack = () => setHistory((h) => { if (!h.length) return h; const prev = h[h.length - 1]; setIdx(prev); return h.slice(0, -1); });
 
   const finish = () => { fetch(`/api/q/${slug}/complete`, { method: "POST" }).catch(() => {}); const r = spec.redirectUrl; if (r) window.location.href = r; };
 
@@ -111,7 +114,10 @@ export default function QuizPlay() {
         if (opt) return goTo(opt.nextStepId);
       }
       const a = comp.props?.action;
-      if (a === "url" && comp.props?.url) { window.location.href = comp.props.url; return; }
+      if (a === "url" && comp.props?.url) {
+        if (comp.props?.newTab) { window.open(comp.props.url, "_blank"); return; }
+        window.location.href = comp.props.url; return;
+      }
       if (a === "step") return goTo(comp.props?.stepId);
       goTo();
     },
@@ -126,11 +132,20 @@ export default function QuizPlay() {
 
   const visibleComps = step.components.filter((c) => isVisible(c, { score, elapsedSec: elapsed }));
   const progress = Math.round(((idx + 1) / steps.length) * 100);
+  // header por etapa (sobrepõe o tema)
+  const hd = step.header || {};
+  const showLogo = hd.showLogo !== false && theme.logoUrl;
+  const showProgress = hd.showProgress !== false && theme.showProgress !== false;
+  const showBack = hd.allowBack !== false && history.length > 0;
 
   return (
     <div style={{ minHeight: "100vh", background: theme.bgColor || "#f8fafc", color: theme.textColor || "#0f172a", display: "flex", flexDirection: "column", alignItems: "center", fontFamily: theme.font || "Inter, system-ui, sans-serif", padding: "20px 16px" }}>
-      {theme.logoUrl && <img src={theme.logoUrl} alt="" style={{ height: 40, marginBottom: 18, objectFit: "contain" }} />}
-      {theme.showProgress !== false && (
+      <div style={{ width: "100%", maxWidth: 520, display: "flex", alignItems: "center", gap: 10, marginBottom: showProgress || showLogo ? 14 : 0 }}>
+        {showBack && <button type="button" onClick={goBack} aria-label="Voltar" style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18, lineHeight: "30px", color: theme.textColor, flexShrink: 0 }}>‹</button>}
+        {showLogo && <img src={theme.logoUrl!} alt="" style={{ height: 38, objectFit: "contain", margin: showBack ? 0 : "0 auto" }} />}
+        {showBack && !showLogo && <div style={{ flex: 1 }} />}
+      </div>
+      {showProgress && (
         <div style={{ width: "100%", maxWidth: 520, height: 6, background: "#e2e8f0", borderRadius: 999, marginBottom: 26 }}>
           <div style={{ width: `${progress}%`, height: "100%", background: primary, borderRadius: 999, transition: "width .3s" }} />
         </div>

@@ -3,7 +3,7 @@
  * Tailwind) para funcionar igual no canvas do builder e na página pública.
  * Modo `preview` desativa interações reais (usado no editor).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { QComponent, QuizTheme, QuizOption } from "@/lib/quizSchema";
 import { resolveVars } from "@/lib/quizSchema";
 
@@ -34,9 +34,10 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
     case "texto": {
       const align = (p.align || "center") as any;
       const color = p.color || t.textColor || "#0f172a";
-      if (p.variant === "subtitle") return <h2 style={{ fontSize: 18, fontWeight: 600, textAlign: align, color, margin: "0 0 6px" }}>{txt(p.text)}</h2>;
+      const titleColor = p.color || t.titleColor || t.textColor || "#0f172a";
+      if (p.variant === "subtitle") return <h2 style={{ fontSize: 18, fontWeight: 600, textAlign: align, color: titleColor, margin: "0 0 6px" }}>{txt(p.text)}</h2>;
       if (p.variant === "paragraph") return <p style={{ fontSize: 15, lineHeight: 1.6, textAlign: align, color, margin: "0 0 6px", whiteSpace: "pre-wrap" }}>{txt(p.text)}</p>;
-      return <h1 style={{ fontSize: 24, fontWeight: 800, textAlign: align, color, margin: "0 0 8px", lineHeight: 1.25 }}>{txt(p.text)}</h1>;
+      return <h1 style={{ fontSize: 24, fontWeight: 800, textAlign: align, color: titleColor, margin: "0 0 8px", lineHeight: 1.25 }}>{txt(p.text)}</h1>;
     }
     case "imagem":
       return p.url
@@ -58,7 +59,7 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
     case "opcoes": {
       const opts: QuizOption[] = p.options || [];
       const grid = p.layout === "grid";
-      const horizontal = p.direction === "horizontal";
+      const horizontal = p.direction === "horizontal" || p.layout === "spread";
       const disp = p.disposition || "texto";
       const showImg = disp === "image_texto" || disp === "image";
       const showText = disp !== "image";
@@ -102,12 +103,16 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
       return <CaptureView comp={comp} ctx={ctx} primary={primary} btnText={btnText} />;
     case "botao":
       return (
-        <button type="button" disabled={ctx.preview} onClick={() => ctx.onButton?.(comp)}
-          style={{
-            width: p.full === false ? "auto" : "100%", padding: "15px 28px", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: ctx.preview ? "default" : "pointer",
-            border: p.style === "outline" ? `2px solid ${primary}` : "none",
-            background: p.style === "outline" ? "transparent" : primary, color: p.style === "outline" ? primary : btnText,
-          }}>{txt(p.label) || "Continuar"}</button>
+        <div style={p.fixedBottom ? { position: "sticky", bottom: 8, zIndex: 5 } : undefined}>
+          <button type="button" disabled={ctx.preview} onClick={() => ctx.onButton?.(comp)}
+            style={{
+              width: p.full === false ? "auto" : "100%", padding: "15px 28px", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: ctx.preview ? "default" : "pointer",
+              border: p.style === "outline" ? `2px solid ${primary}` : "none",
+              background: p.style === "outline" ? "transparent" : primary, color: p.style === "outline" ? primary : btnText,
+              animation: p.animated ? "qpulse 1.6s ease-in-out infinite" : undefined,
+            }}>{txt(p.label) || "Continuar"}</button>
+          {p.animated && <style>{`@keyframes qpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}`}</style>}
+        </div>
       );
     case "nivel": {
       const pct = p.fromScore ? Math.min(100, Math.max(0, ctx.score)) : (p.percent ?? 50);
@@ -177,6 +182,54 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
       );
     case "espaco":
       return <div style={{ height: p.height ?? 24 }} />;
+    case "faq":
+      return <FaqView comp={comp} ctx={ctx} primary={primary} />;
+    case "carrossel":
+      return <CarrosselView comp={comp} ctx={ctx} primary={primary} />;
+    case "antes_depois": {
+      const ph = (label: string) => <div style={{ flex: 1, aspectRatio: "3/4", borderRadius: 12, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 13 }}>{label}</div>;
+      return (
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textAlign: "center", marginBottom: 6 }}>{p.labelBefore || "Antes"}</div>
+            {p.before ? <img src={p.before} style={{ width: "100%", borderRadius: 12 }} /> : ph("Antes")}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: primary, textAlign: "center", marginBottom: 6 }}>{p.labelAfter || "Depois"}</div>
+            {p.after ? <img src={p.after} style={{ width: "100%", borderRadius: 12 }} /> : ph("Depois")}
+          </div>
+        </div>
+      );
+    }
+    case "graficos": {
+      const items = p.items || [];
+      const grid = p.layout === "grid";
+      const colorOf = (c: string) => c === "vermelho" ? "#ef4444" : c === "verde" ? "#22c55e" : primary;
+      return (
+        <div style={{ display: "grid", gridTemplateColumns: grid ? "repeat(2,1fr)" : "1fr", gap: 14 }}>
+          {items.map((it: any, i: number) => {
+            const col = colorOf(it.color);
+            const pct = Math.min(100, Math.max(0, it.value || 0));
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {it.type === "circular" ? (
+                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: `conic-gradient(${col} ${pct * 3.6}deg, #eef2f7 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 46, height: 46, borderRadius: "50%", background: t.bgColor || "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{pct}%</div>
+                  </div>
+                ) : (
+                  <div style={{ flex: 1 }}>
+                    <div style={{ height: 12, background: "#eef2f7", borderRadius: 999 }}><div style={{ width: `${pct}%`, height: "100%", background: col, borderRadius: 999 }} /></div>
+                  </div>
+                )}
+                <div style={{ fontSize: 13, color: t.textColor }}>{it.type === "circular" ? "" : `${pct}% `}{txt(it.label)}</div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    case "script":
+      return <ScriptView comp={comp} preview={!!ctx.preview} />;
     default:
       return <Placeholder label={comp.type} />;
   }
@@ -219,10 +272,10 @@ function CaptureView({ comp, ctx, primary, btnText }: { comp: QComponent; ctx: R
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {fields.map((f, i) => {
           const key = f.name || f.type;
-          return <input key={i} type={f.type === "email" ? "email" : f.type === "phone" ? "tel" : "text"} placeholder={f.label || f.type}
-            value={vals[key] || ""} disabled={ctx.preview}
-            onChange={(e) => setVals((v) => ({ ...v, [key]: e.target.value }))}
-            style={{ height: 48, borderRadius: 12, border: "1.5px solid #e2e8f0", padding: "0 16px", fontSize: 15 }} />;
+          const common = { placeholder: f.label || f.type, value: vals[key] || "", disabled: ctx.preview, onChange: (e: any) => setVals((v) => ({ ...v, [key]: e.target.value })) };
+          if (f.type === "textarea") return <textarea key={i} {...common} rows={3} style={{ borderRadius: 12, border: "1.5px solid #e2e8f0", padding: "12px 16px", fontSize: 15, resize: "vertical" }} />;
+          const itype = f.type === "email" ? "email" : f.type === "phone" ? "tel" : f.type === "number" ? "number" : f.type === "date" ? "date" : "text";
+          return <input key={i} type={itype} {...common} style={{ height: 48, borderRadius: 12, border: "1.5px solid #e2e8f0", padding: "0 16px", fontSize: 15 }} />;
         })}
         <button type="button" disabled={ctx.preview} onClick={submit}
           style={{ height: 50, borderRadius: 12, border: "none", background: primary, color: btnText, fontWeight: 700, fontSize: 16, cursor: ctx.preview ? "default" : "pointer" }}>{p.buttonText || "Continuar"}</button>
@@ -254,6 +307,80 @@ function LoadingView({ comp, ctx, primary }: { comp: QComponent; ctx: RuntimeCtx
       <style>{`@keyframes qspin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
+}
+
+function FaqView({ comp, ctx, primary }: { comp: QComponent; ctx: RuntimeCtx; primary: string }) {
+  const items = comp.props?.items || [];
+  const [open, setOpen] = useState<number>(-1);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {items.map((it: any, i: number) => (
+        <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+          <button type="button" onClick={() => !ctx.preview && setOpen(open === i ? -1 : i)}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "13px 14px", background: "#fff", border: "none", cursor: ctx.preview ? "default" : "pointer", fontWeight: 600, fontSize: 14, textAlign: "left", color: ctx.theme.textColor }}>
+            {resolveVars(it.q, ctx.vars)}
+            <span style={{ color: primary, transform: open === i ? "rotate(45deg)" : "none", transition: "transform .15s", fontSize: 18 }}>+</span>
+          </button>
+          {(open === i || ctx.preview) && <div style={{ padding: "0 14px 13px", fontSize: 14, color: "#475569", lineHeight: 1.55 }}>{resolveVars(it.a, ctx.vars)}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CarrosselView({ comp, ctx, primary }: { comp: QComponent; ctx: RuntimeCtx; primary: string }) {
+  const p = comp.props || {};
+  const items: any[] = p.items || [];
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (ctx.preview || !p.autoplay || items.length < 2) return;
+    const iv = setInterval(() => setIdx((i) => (i + 1) % items.length), 3500);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length, p.autoplay]);
+  if (!items.length) return <Placeholder label="Carrossel (adicione itens)" />;
+  const cur = items[Math.min(idx, items.length - 1)];
+  return (
+    <div>
+      <div style={{ position: "relative", borderRadius: 14, overflow: "hidden", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+        {cur.image ? <img src={cur.image} style={{ width: "100%", display: "block" }} /> : <div style={{ aspectRatio: "16/10", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}>Imagem</div>}
+        {(cur.title || cur.desc) && <div style={{ padding: "12px 14px" }}>
+          {cur.title && <div style={{ fontWeight: 700, marginBottom: 2, color: ctx.theme.textColor }}>{resolveVars(cur.title, ctx.vars)}</div>}
+          {cur.desc && <div style={{ fontSize: 13, color: "#64748b" }}>{resolveVars(cur.desc, ctx.vars)}</div>}
+        </div>}
+        {items.length > 1 && !ctx.preview && <>
+          <button type="button" onClick={() => setIdx((i) => (i - 1 + items.length) % items.length)} style={navBtn("left")}>‹</button>
+          <button type="button" onClick={() => setIdx((i) => (i + 1) % items.length)} style={navBtn("right")}>›</button>
+        </>}
+      </div>
+      {p.pagination !== false && items.length > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 8 }}>
+          {items.map((_: any, i: number) => <span key={i} style={{ width: 7, height: 7, borderRadius: 999, background: i === idx ? primary : "#cbd5e1" }} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+function navBtn(side: "left" | "right"): React.CSSProperties {
+  return { position: "absolute", top: "50%", [side]: 8, transform: "translateY(-50%)", width: 30, height: 30, borderRadius: "50%", border: "none", background: "rgba(255,255,255,.9)", boxShadow: "0 2px 8px rgba(0,0,0,.15)", cursor: "pointer", fontSize: 18, lineHeight: "30px" } as React.CSSProperties;
+}
+
+function ScriptView({ comp, preview }: { comp: QComponent; preview: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const code: string = comp.props?.code || "";
+  useEffect(() => {
+    if (preview || !ref.current || !code) return;
+    ref.current.innerHTML = code;
+    // re-executa <script> (innerHTML não executa scripts)
+    ref.current.querySelectorAll("script").forEach((old) => {
+      const s = document.createElement("script");
+      for (const a of Array.from(old.attributes)) s.setAttribute(a.name, a.value);
+      s.textContent = old.textContent;
+      old.parentNode?.replaceChild(s, old);
+    });
+  }, [code, preview]);
+  if (preview) return <Placeholder label={code ? "Script embutido (executa no quiz publicado)" : "Script (cole o código)"} />;
+  return <div ref={ref} />;
 }
 
 function TimerView({ comp, primary }: { comp: QComponent; primary: string }) {
