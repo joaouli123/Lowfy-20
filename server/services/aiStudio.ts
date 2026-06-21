@@ -31,9 +31,9 @@ function gemini(): GoogleGenAI {
 
 export function aiStudioCapabilities() {
   return {
-    image: { ready: !!(OPENAI_KEY || process.env.IDEOGRAM_API_KEY), providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY } },
+    image: { ready: true, premium: !!OPENAI_KEY, providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY, free: true } },
     copy: { ready: !!(GEMINI_KEY || OPENAI_KEY), providers: { gemini: !!GEMINI_KEY, openai: !!OPENAI_KEY } },
-    tts: { ready: !!(OPENAI_KEY || ELEVENLABS_KEY), providers: { openai: !!OPENAI_KEY, elevenlabs: !!ELEVENLABS_KEY } },
+    tts: { ready: true, premium: !!(OPENAI_KEY || ELEVENLABS_KEY), providers: { openai: !!OPENAI_KEY, elevenlabs: !!ELEVENLABS_KEY, free: true } },
     avatar: { ready: !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY } },
     video: { ready: !!(process.env.FAL_KEY || process.env.GEMINI_API_KEY), providers: { fal: !!process.env.FAL_KEY, veo: !!process.env.GEMINI_API_KEY } },
     canva: { ready: !!(process.env.CANVA_CLIENT_ID && process.env.CANVA_CLIENT_SECRET) },
@@ -62,19 +62,31 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
     throw new Error("Integração Ideogram pronta para implementar (IDEOGRAM_API_KEY detectada).");
   }
 
-  if (!OPENAI_KEY) {
-    throw new Error("Geração de imagem requer OPENAI_API_KEY válida (gpt-image). Configure a chave para ativar.");
+  // Premium: OpenAI gpt-image (quando a chave é válida). Em falha/ausência,
+  // cai para um gerador GRATUITO (Flux via Pollinations) para o recurso funcionar
+  // sem chave — o gpt-image assume automaticamente quando a chave válida é configurada.
+  if (OPENAI_KEY) {
+    try {
+      const res = await openai().images.generate({
+        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+        prompt: params.prompt,
+        size: params.size || "1024x1024",
+        quality: params.quality || "high",
+        n: 1,
+      } as any);
+      const b64 = (res as any).data?.[0]?.b64_json;
+      if (b64) return { buffer: Buffer.from(b64, "base64"), mime: "image/png" };
+    } catch (e: any) {
+      logger.warn(`[AI Studio] gpt-image indisponível (${e?.message?.slice(0, 60)}), usando gerador gratuito.`);
+    }
   }
-  const res = await openai().images.generate({
-    model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-    prompt: params.prompt,
-    size: params.size || "1024x1024",
-    quality: params.quality || "high",
-    n: 1,
-  } as any);
-  const b64 = (res as any).data?.[0]?.b64_json;
-  if (!b64) throw new Error("Falha ao gerar imagem (OpenAI)");
-  return { buffer: Buffer.from(b64, "base64"), mime: "image/png" };
+
+  const [w, h] = (params.size || "1024x1024").split("x").map((n) => parseInt(n, 10) || 1024);
+  const seed = Math.floor(Math.random() * 1_000_000);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(params.prompt)}?width=${w}&height=${h}&nologo=true&model=flux&seed=${seed}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Falha ao gerar imagem (${r.status})`);
+  return { buffer: Buffer.from(await r.arrayBuffer()), mime: "image/jpeg" };
 }
 
 /**
@@ -191,29 +203,78 @@ export interface GenerateTTSParams {
 }
 
 export async function generateNarration(params: GenerateTTSParams): Promise<{ buffer: Buffer; mime: string }> {
-  const provider = params.provider || (ELEVENLABS_KEY ? "elevenlabs" : "openai");
-
-  if (provider === "elevenlabs") {
-    if (!ELEVENLABS_KEY) throw new Error("ELEVENLABS_API_KEY não configurada");
-    const voiceId = params.voice || process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
-    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: "POST",
-      headers: { "xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json", Accept: "audio/mpeg" },
-      body: JSON.stringify({ text: params.text, model_id: "eleven_multilingual_v2" }),
-    });
-    if (!r.ok) throw new Error(`ElevenLabs erro ${r.status}: ${await r.text().catch(() => "")}`);
-    return { buffer: Buffer.from(await r.arrayBuffer()), mime: "audio/mpeg" };
+  // Premium 1: ElevenLabs (melhor realismo + clonagem) — quando a chave existe.
+  if (ELEVENLABS_KEY && params.provider !== "openai") {
+    try {
+      const voiceId = params.voice || process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
+      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: "POST",
+        headers: { "xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json", Accept: "audio/mpeg" },
+        body: JSON.stringify({ text: params.text, model_id: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2" }),
+      });
+      if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), mime: "audio/mpeg" };
+      logger.warn(`[AI Studio] ElevenLabs indisponível (${r.status}), tentando próximo provedor.`);
+    } catch (e: any) {
+      logger.warn(`[AI Studio] ElevenLabs falhou (${e?.message?.slice(0, 60)}), tentando próximo provedor.`);
+    }
   }
 
-  // OpenAI TTS (steerable)
-  const res = await openai().audio.speech.create({
-    model: "gpt-4o-mini-tts",
-    voice: (params.voice as any) || "alloy",
-    input: params.text,
-    ...(params.instructions ? { instructions: params.instructions } : {}),
-  } as any);
-  const buf = Buffer.from(await res.arrayBuffer());
-  return { buffer: buf, mime: "audio/mpeg" };
+  // Premium 2: OpenAI TTS (steerable) — quando a chave é válida.
+  if (OPENAI_KEY) {
+    try {
+      const res = await openai().audio.speech.create({
+        model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
+        voice: (params.voice as any) || "alloy",
+        input: params.text,
+        ...(params.instructions ? { instructions: params.instructions } : {}),
+      } as any);
+      return { buffer: Buffer.from(await res.arrayBuffer()), mime: "audio/mpeg" };
+    } catch (e: any) {
+      logger.warn(`[AI Studio] OpenAI TTS indisponível (${e?.message?.slice(0, 60)}), usando narração gratuita.`);
+    }
+  }
+
+  // Fallback GRATUITO (pt-BR, sem chave) — para o recurso funcionar imediatamente.
+  // ElevenLabs/OpenAI assumem automaticamente quando a chave é configurada.
+  return { buffer: await googleTtsFree(params.text, "pt-BR"), mime: "audio/mpeg" };
+}
+
+/** Narração gratuita pt-BR via Google translate_tts. Divide o texto em blocos
+ *  (limite ~200 chars) e concatena os MP3s. Robótico, mas funcional sem chave. */
+async function googleTtsFree(text: string, lang: string): Promise<Buffer> {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (!clean) throw new Error("Texto vazio para narração");
+  const chunks = chunkText(clean, 190);
+  const parts: Buffer[] = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunks[i])}&tl=${encodeURIComponent(lang)}&client=tw-ob&textlen=${chunks[i].length}&idx=${i}&total=${chunks.length}`;
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", Referer: "https://translate.google.com/" } });
+    if (!r.ok) throw new Error(`Falha na narração gratuita (${r.status})`);
+    parts.push(Buffer.from(await r.arrayBuffer()));
+  }
+  return Buffer.concat(parts);
+}
+
+/** Quebra texto em blocos <= max chars, respeitando limites de frase/palavra. */
+function chunkText(text: string, max: number): string[] {
+  if (text.length <= max) return [text];
+  const out: string[] = [];
+  const sentences = text.match(/[^.!?…]+[.!?…]*\s*/g) || [text];
+  let cur = "";
+  for (const s of sentences) {
+    if (s.length > max) {
+      if (cur) { out.push(cur.trim()); cur = ""; }
+      const words = s.split(" ");
+      for (const w of words) {
+        if ((cur + " " + w).trim().length > max) { if (cur) out.push(cur.trim()); cur = w; }
+        else cur = (cur + " " + w).trim();
+      }
+    } else if ((cur + s).length > max) {
+      out.push(cur.trim()); cur = s;
+    } else cur += s;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out.filter(Boolean);
 }
 
 // ============================================================
