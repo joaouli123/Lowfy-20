@@ -57,26 +57,37 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
     case "opcoes": {
       const opts: QuizOption[] = p.options || [];
       const grid = p.layout === "grid";
+      const horizontal = p.direction === "horizontal";
+      const disp = p.disposition || "texto";
+      const showImg = disp === "image_texto" || disp === "image";
+      const showText = disp !== "image";
+      const stackInner = grid || disp === "image" || disp === "image_texto";
+      const containerStyle: React.CSSProperties = grid
+        ? { display: "grid", gridTemplateColumns: `repeat(${horizontal ? Math.min(opts.length, 3) || 2 : 2},1fr)`, gap: 10, marginTop: 12 }
+        : { display: "flex", flexDirection: horizontal ? "row" : "column", flexWrap: horizontal ? "wrap" : "nowrap", gap: 10, marginTop: 12 };
       return (
         <div>
           {p.question && <h2 style={{ fontSize: 20, fontWeight: 700, textAlign: "center", color: t.textColor, margin: "0 0 4px" }}>{txt(p.question)}</h2>}
           {p.help && <p style={{ textAlign: "center", color: "#64748b", fontSize: 14, margin: "0 0 14px" }}>{txt(p.help)}</p>}
-          <div style={{ display: grid ? "grid" : "flex", gridTemplateColumns: grid ? "repeat(2,1fr)" : undefined, flexDirection: grid ? undefined : "column", gap: 10, marginTop: 12 }}>
+          <div style={containerStyle}>
             {opts.map((o, i) => {
               const sel = ctx.selectedOptionIds?.includes(o.id);
               return (
                 <button key={o.id} type="button" disabled={ctx.preview}
                   onClick={() => ctx.onPick?.(comp, o)}
                   style={{
-                    display: "flex", alignItems: "center", gap: 10, textAlign: "left", cursor: ctx.preview ? "default" : "pointer",
+                    position: "relative", display: "flex", alignItems: "center", gap: 10, textAlign: stackInner ? "center" : "left", cursor: ctx.preview ? "default" : "pointer",
                     background: sel ? primary + "1a" : "#fff", border: `1.5px solid ${sel ? primary : "#e2e8f0"}`,
-                    borderRadius: 12, padding: grid ? "16px 12px" : "14px 16px", fontSize: 15, color: t.textColor, transition: "all .15s",
-                    flexDirection: grid ? "column" : "row", justifyContent: grid ? "center" : "flex-start",
+                    borderRadius: 12, padding: stackInner ? "14px 12px" : "14px 16px", fontSize: 15, color: t.textColor, transition: "all .15s",
+                    flexDirection: stackInner ? "column" : "row", justifyContent: stackInner ? "center" : "flex-start", flex: horizontal && !grid ? "1 1 0" : undefined, minWidth: horizontal && !grid ? 90 : undefined,
                   }}>
-                  {o.emoji && <span style={{ fontSize: 22 }}>{o.emoji}</span>}
-                  {o.image && <img src={o.image} style={{ width: grid ? 56 : 40, height: grid ? 56 : 40, borderRadius: 8, objectFit: "cover" }} />}
-                  {!o.emoji && !o.image && !grid && <span style={{ width: 24, height: 24, borderRadius: 6, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#64748b", flexShrink: 0 }}>{String.fromCharCode(65 + i)}</span>}
-                  <span style={{ fontWeight: 600 }}>{txt(o.label)}</span>
+                  {p.multiple && <span style={{ position: "absolute", top: 8, right: 8, width: 18, height: 18, borderRadius: 5, border: `2px solid ${sel ? primary : "#cbd5e1"}`, background: sel ? primary : "transparent", color: "#fff", fontSize: 12, lineHeight: "14px", textAlign: "center" }}>{sel ? "✓" : ""}</span>}
+                  {disp === "emoji_texto" && o.emoji && <span style={{ fontSize: 24 }}>{o.emoji}</span>}
+                  {showImg && (o.image
+                    ? <img src={o.image} style={{ width: stackInner ? 64 : 40, height: stackInner ? 64 : 40, borderRadius: 8, objectFit: "cover" }} />
+                    : <span style={{ width: stackInner ? 64 : 40, height: stackInner ? 64 : 40, borderRadius: 8, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1", fontSize: 18 }}>▦</span>)}
+                  {disp === "texto" && !stackInner && <span style={{ width: 24, height: 24, borderRadius: 6, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#64748b", flexShrink: 0 }}>{String.fromCharCode(65 + i)}</span>}
+                  {showText && <span style={{ fontWeight: 600 }}>{txt(o.label)}</span>}
                 </button>
               );
             })}
@@ -84,6 +95,20 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
         </div>
       );
     }
+    case "video_resposta":
+      return (
+        <div>
+          {p.question && <h2 style={{ fontSize: 20, fontWeight: 700, textAlign: "center", color: t.textColor, margin: "0 0 4px" }}>{txt(p.question)}</h2>}
+          {p.help && <p style={{ textAlign: "center", color: "#64748b", fontSize: 14, margin: "0 0 12px" }}>{txt(p.help)}</p>}
+          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, border: "2px dashed #cbd5e1", borderRadius: 14, padding: "28px 16px", color: "#64748b", cursor: ctx.preview ? "default" : "pointer" }}>
+            <span style={{ fontSize: 30 }}>🎥</span>
+            <span style={{ fontSize: 14 }}>Toque para gravar / enviar um vídeo</span>
+            {!ctx.preview && <input type="file" accept="video/*" capture="user" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) ctx.onSubmitCapture?.(comp, { [p.name || "video_resposta"]: f.name }); }} />}
+          </label>
+          {!ctx.preview && <button type="button" onClick={() => ctx.onButton?.(comp)} style={{ width: "100%", marginTop: 12, padding: "13px", borderRadius: 12, border: "none", background: primary, color: btnText, fontWeight: 700, cursor: "pointer" }}>{p.buttonText || "Continuar"}</button>}
+        </div>
+      );
     case "captura":
       return <CaptureView comp={comp} ctx={ctx} primary={primary} btnText={btnText} />;
     case "botao":

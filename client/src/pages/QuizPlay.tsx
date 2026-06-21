@@ -11,9 +11,11 @@ export default function QuizPlay() {
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [vars, setVars] = useState<Record<string, string>>({});
-  const [selected, setSelected] = useState<string[]>([]);
+  const [picks, setPicks] = useState<Record<string, Record<string, number>>>({});
   const [elapsed, setElapsed] = useState(0);
   const sentLead = useRef(false);
+  const optNextRef = useRef<string | null>(null);
+  const selected = useMemo(() => Object.values(picks).flatMap((m) => Object.keys(m)), [picks]);
 
   useEffect(() => {
     fetch(`/api/q/${slug}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((s: QuizSpec) => {
@@ -26,7 +28,8 @@ export default function QuizPlay() {
   // cronômetro por etapa (para exibição condicional por tempo)
   useEffect(() => {
     setElapsed(0);
-    setSelected([]);
+    setPicks({});
+    optNextRef.current = null;
     const iv = setInterval(() => setElapsed((e) => e + 1), 1000);
     window.scrollTo(0, 0);
     return () => clearInterval(iv);
@@ -52,14 +55,45 @@ export default function QuizPlay() {
 
   const finish = () => { fetch(`/api/q/${slug}/complete`, { method: "POST" }).catch(() => {}); const r = spec.redirectUrl; if (r) window.location.href = r; };
 
+  // valida componentes de opções com "seleção obrigatória" na etapa atual
+  const requiredSatisfied = () => {
+    for (const c of step.components) {
+      if (c.type === "opcoes" && c.props?.required && !Object.keys(picks[c.id] || {}).length) return false;
+    }
+    return true;
+  };
+
   const ctx: RuntimeCtx = {
     theme, vars: allVars, score, selectedOptionIds: selected,
     onPick: (comp, o: QuizOption) => {
-      setSelected((s) => (comp.props?.multiple ? (s.includes(o.id) ? s.filter((x) => x !== o.id) : [...s, o.id]) : [o.id]));
-      setScore((v) => v + (o.score || 0));
-      setAnswers((a) => ({ ...a, [comp.props?.question || comp.id]: o.label }));
-      if (comp.props?.multiple) return; // múltipla: precisa de um botão para avançar
-      if (comp.props?.autoAdvance !== false) setTimeout(() => goTo(o.nextStepId), 200);
+      const cid = comp.id;
+      const multiple = !!comp.props?.multiple;
+      setPicks((prev) => {
+        const cur = { ...(prev[cid] || {}) };
+        if (multiple) {
+          if (cur[o.id] !== undefined) { const s = cur[o.id]; delete cur[o.id]; setScore((v) => v - s); }
+          else { cur[o.id] = o.score || 0; setScore((v) => v + (o.score || 0)); }
+        } else {
+          const prevScore = Object.values(cur).reduce((a, b) => a + b, 0);
+          setScore((v) => v - prevScore + (o.score || 0));
+          for (const k of Object.keys(cur)) delete cur[k];
+          cur[o.id] = o.score || 0;
+        }
+        return { ...prev, [cid]: cur };
+      });
+      // resposta (variável {{name}}): única = label; múltipla = lista
+      const name = comp.props?.name || comp.props?.question || cid;
+      setAnswers((a) => {
+        if (!multiple) return { ...a, [name]: o.label };
+        const arr = Array.isArray(a[name]) ? [...a[name]] : [];
+        const i = arr.indexOf(o.label);
+        if (i >= 0) arr.splice(i, 1); else arr.push(o.label);
+        return { ...a, [name]: arr };
+      });
+      if (o.nextStepId) optNextRef.current = o.nextStepId;
+      // avanço: única + autoAdvance e SEM "avançar só no botão" → avança sozinha
+      const waitButton = multiple || comp.props?.advanceOnButton || comp.props?.autoAdvance === false;
+      if (!waitButton) setTimeout(() => goTo(o.nextStepId), 220);
     },
     onSubmitCapture: (comp, values) => {
       setVars((v) => ({ ...v, ...values }));
@@ -67,6 +101,10 @@ export default function QuizPlay() {
       goTo(comp.props?.nextStepId);
     },
     onButton: (comp) => {
+      if (!requiredSatisfied()) return; // bloqueia se faltou opção obrigatória
+      // prioridade: a próxima etapa definida na OPÇÃO selecionada vence a do botão
+      const optNext = optNextRef.current;
+      if (optNext) { optNextRef.current = null; return goTo(optNext); }
       const a = comp.props?.action;
       if (a === "url" && comp.props?.url) { window.location.href = comp.props.url; return; }
       if (a === "step") return goTo(comp.props?.stepId);
@@ -95,7 +133,7 @@ export default function QuizPlay() {
       <div style={{ width: "100%", maxWidth: 520, display: "flex", flexDirection: "column", gap: 16 }}>
         {visibleComps.length === 0
           ? <Centered>Etapa vazia.</Centered>
-          : visibleComps.map((c) => <div key={c.id}><ComponentView comp={c} ctx={ctx} /></div>)}
+          : visibleComps.map((c) => <div key={c.id} style={{ marginTop: c.props?._mt || 0, marginBottom: c.props?._mb || 0 }}><ComponentView comp={c} ctx={ctx} /></div>)}
       </div>
       <div style={{ marginTop: "auto", paddingTop: 26, fontSize: 12, color: "#94a3b8" }}>Feito com Lowfy</div>
     </div>

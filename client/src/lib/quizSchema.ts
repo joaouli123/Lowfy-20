@@ -6,7 +6,7 @@
 
 export type QComponentType =
   | "texto" | "imagem" | "video" | "audio"
-  | "opcoes" | "captura" | "botao"
+  | "opcoes" | "video_resposta" | "captura" | "botao"
   | "timer" | "loading" | "nivel"
   | "alerta" | "notificacao" | "depoimentos" | "argumentos"
   | "preco" | "galeria" | "espaco";
@@ -71,43 +71,78 @@ export interface QuizSpec {
 // ---------------------------------------------------------------------------
 
 export interface PaletteItem {
-  type: QComponentType;
+  key: string;           // id único na paleta
+  type: QComponentType;  // tipo de componente produzido
   label: string;
   icon: string;          // nome do ícone lucide (resolvido na UI)
   category: string;
+  novo?: boolean;        // selo "novo"
   defaults: () => Record<string, any>;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-/** Catálogo de componentes da paleta, agrupado por categoria (espelha o Inlead). */
+/** Props padrão de um componente de Opções (com presets por variante). */
+function opcoesDefaults(over: Record<string, any> = {}): Record<string, any> {
+  return {
+    name: "pergunta",
+    question: "Qual a sua pergunta?",
+    help: "",
+    layout: "list",            // list | grid
+    direction: "vertical",     // vertical | horizontal
+    disposition: "texto",      // texto | image_texto | image | emoji_texto
+    required: true,            // seleção obrigatória
+    multiple: false,           // permitir múltipla escolha
+    advanceOnButton: false,    // redirecionar apenas ao clicar no botão
+    autoAdvance: true,
+    options: [
+      { id: uid(), label: "Opção 1", score: 0 },
+      { id: uid(), label: "Opção 2", score: 0 },
+    ],
+    ...over,
+  };
+}
+
+/** Catálogo de componentes da paleta, agrupado por categoria (espelha o Inlead/Movify). */
 export const PALETTE: PaletteItem[] = [
-  // Conteúdo
-  { type: "texto", label: "Texto", icon: "Type", category: "Conteúdo", defaults: () => ({ text: "Escreva seu título aqui", variant: "title", align: "center", color: "" }) },
-  { type: "imagem", label: "Imagem", icon: "Image", category: "Conteúdo", defaults: () => ({ url: "", alt: "", radius: 14, maxWidth: 100 }) },
-  { type: "video", label: "Vídeo", icon: "Video", category: "Conteúdo", defaults: () => ({ url: "" }) },
-  { type: "audio", label: "Áudio", icon: "Volume2", category: "Conteúdo", defaults: () => ({ url: "" }) },
-  { type: "galeria", label: "Galeria", icon: "Images", category: "Conteúdo", defaults: () => ({ images: [], layout: "grid" }) },
+  // Perguntas
+  { key: "escolha_unica", type: "opcoes", label: "Escolha Única", icon: "CircleDot", category: "Perguntas", defaults: () => opcoesDefaults({ name: "escolha", multiple: false }) },
+  { key: "multipla_escolha", type: "opcoes", label: "Múltipla Escolha", icon: "ListChecks", category: "Perguntas", defaults: () => opcoesDefaults({ name: "interesses", multiple: true, advanceOnButton: true, autoAdvance: false, options: [{ id: uid(), label: "Opção 1", score: 0 }, { id: uid(), label: "Opção 2", score: 0 }, { id: uid(), label: "Opção 3", score: 0 }] }) },
+  { key: "sim_nao", type: "opcoes", label: "Sim / Não", icon: "ToggleLeft", category: "Perguntas", defaults: () => opcoesDefaults({ name: "sim_nao", direction: "horizontal", options: [{ id: uid(), label: "Sim", score: 1 }, { id: uid(), label: "Não", score: 0 }] }) },
+  { key: "video_resposta", type: "video_resposta", label: "Vídeo Resposta", icon: "Video", category: "Perguntas", novo: true, defaults: () => ({ name: "video_resposta", question: "Grave um vídeo respondendo:", help: "", maxSeconds: 60, buttonText: "Continuar" }) },
+  // Mídia e conteúdo
+  { key: "texto", type: "texto", label: "Texto", icon: "Type", category: "Mídia e conteúdo", defaults: () => ({ text: "Escreva seu título aqui", variant: "title", align: "center", color: "" }) },
+  { key: "imagem", type: "imagem", label: "Imagem", icon: "Image", category: "Mídia e conteúdo", defaults: () => ({ url: "", alt: "", radius: 14, maxWidth: 100 }) },
+  { key: "video", type: "video", label: "Vídeo", icon: "Clapperboard", category: "Mídia e conteúdo", defaults: () => ({ url: "" }) },
+  { key: "audio", type: "audio", label: "Áudio", icon: "Volume2", category: "Mídia e conteúdo", defaults: () => ({ url: "" }) },
+  { key: "galeria", type: "galeria", label: "Galeria", icon: "Images", category: "Mídia e conteúdo", defaults: () => ({ images: [], layout: "grid" }) },
   // Interação
-  { type: "opcoes", label: "Opções", icon: "ListChecks", category: "Interação", defaults: () => ({ question: "Qual a sua pergunta?", help: "", multiple: false, layout: "list", autoAdvance: true, options: [{ id: uid(), label: "Opção 1", score: 0 }, { id: uid(), label: "Opção 2", score: 0 }] }) },
-  { type: "captura", label: "Captura", icon: "UserPlus", category: "Interação", defaults: () => ({ title: "Falta pouco!", description: "", fields: [{ type: "name", name: "nome", label: "Seu nome", required: true }, { type: "email", name: "email", label: "Seu melhor e-mail", required: true }], buttonText: "Continuar", nextStepId: "" }) },
-  { type: "botao", label: "Botão", icon: "MousePointerClick", category: "Interação", defaults: () => ({ label: "Continuar", action: "next", url: "", stepId: "", style: "solid", full: true }) },
-  { type: "nivel", label: "Nível", icon: "BarChart3", category: "Interação", defaults: () => ({ label: "Seu progresso", percent: 75, fromScore: false }) },
-  { type: "loading", label: "Loading", icon: "Loader", category: "Interação", defaults: () => ({ text: "Analisando suas respostas…", durationSec: 3, nextStepId: "", redirectUrl: "" }) },
+  { key: "captura", type: "captura", label: "Captura", icon: "UserPlus", category: "Interação", defaults: () => ({ title: "Falta pouco!", description: "", fields: [{ type: "name", name: "nome", label: "Seu nome", required: true }, { type: "email", name: "email", label: "Seu melhor e-mail", required: true }], buttonText: "Continuar", nextStepId: "" }) },
+  { key: "botao", type: "botao", label: "Botão", icon: "MousePointerClick", category: "Interação", defaults: () => ({ label: "Continuar", action: "next", url: "", stepId: "", style: "solid", full: true }) },
+  { key: "nivel", type: "nivel", label: "Nível", icon: "BarChart3", category: "Interação", defaults: () => ({ label: "Seu progresso", percent: 75, fromScore: false }) },
+  { key: "loading", type: "loading", label: "Loading", icon: "Loader", category: "Interação", defaults: () => ({ text: "Analisando suas respostas…", durationSec: 3, nextStepId: "", redirectUrl: "" }) },
   // Prova social
-  { type: "depoimentos", label: "Depoimentos", icon: "Quote", category: "Prova social", defaults: () => ({ layout: "list", items: [{ name: "Maria Silva", text: "Esse produto mudou a minha vida!", stars: 5 }] }) },
-  { type: "argumentos", label: "Argumentos", icon: "LayoutGrid", category: "Prova social", defaults: () => ({ items: [{ title: "Durabilidade", text: "Feito para durar" }, { title: "Eficiência", text: "Resultados rápidos" }] }) },
-  { type: "preco", label: "Preço", icon: "Tag", category: "Prova social", defaults: () => ({ price: "R$ 297", installments: "ou 12x de R$ 29,70", ctaLabel: "Comprar agora", url: "", highlight: true }) },
+  { key: "depoimentos", type: "depoimentos", label: "Depoimentos", icon: "Quote", category: "Prova social", defaults: () => ({ layout: "list", items: [{ name: "Maria Silva", text: "Esse produto mudou a minha vida!", stars: 5 }] }) },
+  { key: "argumentos", type: "argumentos", label: "Argumentos", icon: "LayoutGrid", category: "Prova social", defaults: () => ({ items: [{ title: "Durabilidade", text: "Feito para durar" }, { title: "Eficiência", text: "Resultados rápidos" }] }) },
+  { key: "preco", type: "preco", label: "Preço", icon: "Tag", category: "Prova social", defaults: () => ({ price: "R$ 297", installments: "ou 12x de R$ 29,70", ctaLabel: "Comprar agora", url: "", highlight: true }) },
   // Urgência
-  { type: "timer", label: "Timer", icon: "Clock", category: "Urgência", defaults: () => ({ minutes: 10, text: "A oferta termina em", expiredText: "Tempo esgotado!" }) },
-  { type: "alerta", label: "Alerta", icon: "AlertTriangle", category: "Urgência", defaults: () => ({ text: "Oferta por tempo limitado! Só hoje.", variant: "warning" }) },
-  { type: "notificacao", label: "Notificação", icon: "BellRing", category: "Urgência", defaults: () => ({ title: "Novo!", text: "Você desbloqueou um bônus exclusivo." }) },
+  { key: "timer", type: "timer", label: "Timer", icon: "Clock", category: "Urgência", defaults: () => ({ minutes: 10, text: "A oferta termina em", expiredText: "Tempo esgotado!" }) },
+  { key: "alerta", type: "alerta", label: "Alerta", icon: "AlertTriangle", category: "Urgência", defaults: () => ({ text: "Oferta por tempo limitado! Só hoje.", variant: "warning" }) },
+  { key: "notificacao", type: "notificacao", label: "Notificação", icon: "BellRing", category: "Urgência", defaults: () => ({ title: "Novo!", text: "Você desbloqueou um bônus exclusivo." }) },
   // Layout
-  { type: "espaco", label: "Espaço", icon: "Minus", category: "Layout", defaults: () => ({ height: 24 }) },
+  { key: "espaco", type: "espaco", label: "Espaço", icon: "Minus", category: "Layout", defaults: () => ({ height: 24 }) },
 ];
 
+export const PALETTE_BY_KEY: Record<string, PaletteItem> = Object.fromEntries(PALETTE.map((p) => [p.key, p]));
 export const PALETTE_BY_TYPE: Record<string, PaletteItem> = Object.fromEntries(PALETTE.map((p) => [p.type, p]));
 export const CATEGORIES = Array.from(new Set(PALETTE.map((p) => p.category)));
+
+/** Cria um componente a partir da CHAVE da paleta (presets por variante). */
+export function newComponentFromPalette(key: string): QComponent {
+  const item = PALETTE_BY_KEY[key];
+  if (!item) return newComponent("texto");
+  return { id: uid(), type: item.type, props: item.defaults(), visibility: { mode: "always" } };
+}
 
 export function newComponent(type: QComponentType): QComponent {
   const def = PALETTE_BY_TYPE[type];
