@@ -51,7 +51,8 @@ import {
   Building2,
   CreditCard,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Wand2
 } from "lucide-react";
 import type { Notification } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -131,6 +132,12 @@ export default function Sidebar() {
       href: "/ai-tools",
       icon: Sparkles,
       testId: "nav-ai-tools"
+    },
+    {
+      name: "Estúdio IA",
+      href: "/ai-studio",
+      icon: Wand2,
+      testId: "nav-ai-studio"
     },
     {
       name: "Quiz Interativo",

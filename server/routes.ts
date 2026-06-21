@@ -71,6 +71,7 @@ import path from "path";
 import fs from "fs";
 import axios from "axios";
 import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
+import * as aiStudio from "./services/aiStudio";
 import { sanitizePageName } from "./utils/slug-utils";
 import { writeJsonAtomic } from "./utils/safe-fs";
 import cookieParser from "cookie-parser";
@@ -6359,6 +6360,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating quiz settings:", error);
       res.status(500).json({ message: "Failed to update quiz settings" });
+    }
+  });
+
+  // ==================== AI STUDIO (gerador de criativos) ====================
+
+  app.get('/api/ai-studio/capabilities', authMiddleware, async (_req, res) => {
+    res.json(aiStudio.aiStudioCapabilities());
+  });
+
+  // Gerar imagem de criativo
+  app.post('/api/ai-studio/image', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const { produto, estilo, headline, formato, publico, prompt, size, quality, provider } = req.body || {};
+      const finalPrompt = prompt || aiStudio.buildAdImagePrompt({ produto, estilo, headline, formato, publico });
+      if (!finalPrompt || finalPrompt.trim().length < 3) {
+        return res.status(400).json({ message: 'Descreva o produto/criativo' });
+      }
+      const { buffer, mime } = await aiStudio.generateAdImage({ prompt: finalPrompt, size, quality, provider });
+      const ext = mime.includes('webp') ? 'webp' : 'png';
+      const objectStorageService = new ObjectStorageService();
+      const url = await objectStorageService.uploadBuffer(buffer, 'ai-criativos', mime, ext);
+      res.json({ url, prompt: finalPrompt });
+    } catch (error: any) {
+      logger.error('[AI Studio] Erro ao gerar imagem:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar imagem' });
+    }
+  });
+
+  // Gerar copy persuasiva
+  app.post('/api/ai-studio/copy', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const { produto, publico, dor, beneficios, oferta, tipo, framework, tom, variacoes } = req.body || {};
+      if (!produto || !tipo) {
+        return res.status(400).json({ message: 'Informe o produto e o tipo de copy' });
+      }
+      const result = await aiStudio.generateCopy({ produto, publico, dor, beneficios, oferta, tipo, framework, tom, variacoes });
+      res.json({ variacoes: result.variacoes });
+    } catch (error: any) {
+      logger.error('[AI Studio] Erro ao gerar copy:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar copy' });
+    }
+  });
+
+  // Gerar narração (TTS)
+  app.post('/api/ai-studio/tts', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const { text, voice, provider, instructions } = req.body || {};
+      if (!text || String(text).trim().length < 2) {
+        return res.status(400).json({ message: 'Informe o texto para narração' });
+      }
+      if (String(text).length > 5000) {
+        return res.status(400).json({ message: 'Texto muito longo (máx. 5000 caracteres)' });
+      }
+      const { buffer, mime } = await aiStudio.generateNarration({ text, voice, provider, instructions });
+      const objectStorageService = new ObjectStorageService();
+      const url = await objectStorageService.uploadBuffer(buffer, 'ai-audio', mime, 'mp3');
+      res.json({ url });
+    } catch (error: any) {
+      logger.error('[AI Studio] Erro ao gerar narração:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar narração' });
+    }
+  });
+
+  // Avatar falante (scaffold — requer chave)
+  app.post('/api/ai-studio/avatar', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const job = await aiStudio.generateTalkingAvatar(req.body || {});
+      res.json(job);
+    } catch (error: any) {
+      res.status(501).json({ message: error?.message || 'Recurso indisponível', code: 'PROVIDER_NOT_CONFIGURED' });
+    }
+  });
+
+  // Vídeo (scaffold — requer chave)
+  app.post('/api/ai-studio/video', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const job = await aiStudio.generateAdVideo(req.body || {});
+      res.json(job);
+    } catch (error: any) {
+      res.status(501).json({ message: error?.message || 'Recurso indisponível', code: 'PROVIDER_NOT_CONFIGURED' });
     }
   });
 

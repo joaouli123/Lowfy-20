@@ -25,6 +25,7 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Timeline = lazy(() => import("@/pages/Timeline"));
 const PLRs = lazy(() => import("@/pages/PLRs"));
 const AITools = lazy(() => import("@/pages/AITools"));
+const AIStudio = lazy(() => import("@/pages/AIStudio"));
 const QuizInterativo = lazy(() => import("./pages/QuizInterativo"));
 const Plugins = lazy(() => import("./pages/Plugins"));
 const Templates = lazy(() => import("./pages/Templates"));
@@ -229,6 +230,7 @@ function Router() {
                 <Route path="/dashboard" component={Dashboard} />
                 <Route path="/plrs" component={PLRs} />
                 <Route path="/ai-tools" component={AITools} />
+                <Route path="/ai-studio" component={AIStudio} />
                 <Route path="/clonador" component={PageCloner} />
                 <Route path="/presell-dashboard" component={PreSellDashboard} />
                 <Route path="/presell-builder" component={PreSellBuilder} />
