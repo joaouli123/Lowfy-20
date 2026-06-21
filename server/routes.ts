@@ -6529,7 +6529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       await quizStore.appendLead(slug, lead);
       void quizStore.bumpMeta(slug, 'leads');
-      void quizStore.bumpMeta(slug, 'completions');
+      // 'completions' é contabilizado só em /complete (finish), evitando contagem dupla.
 
       // dispara webhook do criador (best-effort, com proteção SSRF)
       if ((spec as any).webhookUrl) {

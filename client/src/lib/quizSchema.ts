@@ -141,7 +141,7 @@ export const CATEGORIES = Array.from(new Set(PALETTE.map((p) => p.category)));
 export function newComponentFromPalette(key: string): QComponent {
   const item = PALETTE_BY_KEY[key];
   if (!item) return newComponent("texto");
-  return { id: uid(), type: item.type, props: item.defaults(), visibility: { mode: "always" } };
+  return { id: uid(), type: item.type, props: { ...item.defaults(), _pk: item.key }, visibility: { mode: "always" } };
 }
 
 export function newComponent(type: QComponentType): QComponent {

@@ -8,7 +8,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from "@dnd-kit/utilities";
 import ComponentView, { type RuntimeCtx } from "@/components/quiz/ComponentView";
 import {
-  PALETTE, CATEGORIES, newComponentFromPalette, newStep, emptySpec,
+  PALETTE, PALETTE_BY_KEY, CATEGORIES, newComponentFromPalette, newStep, emptySpec,
   type QComponent, type QuizSpec, type QuizStep,
 } from "@/lib/quizSchema";
 import * as Icons from "lucide-react";
@@ -143,11 +143,32 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
   const delStep = (i: number) => { if (spec.steps.length <= 1) return; setSteps(spec.steps.filter((_, x) => x !== i)); setStepIdx(Math.max(0, i - 1)); setSelId(null); };
   const moveStep = (i: number, dir: number) => { const j = i + dir; if (j < 0 || j >= spec.steps.length) return; setSteps(arrayMove(spec.steps, i, j)); setStepIdx(j); };
 
+  // garante 'name' (variável {{}}) único entre componentes opcoes/video_resposta,
+  // evitando que respostas se sobrescrevam no lead/{{}}.
+  const dedupeNames = (s: QuizSpec): QuizSpec => {
+    const seen = new Map<string, number>();
+    return {
+      ...s,
+      steps: s.steps.map((st) => ({
+        ...st,
+        components: st.components.map((c) => {
+          if (c.type !== "opcoes" && c.type !== "video_resposta") return c;
+          let base = (c.props?.name || c.type) as string;
+          if (seen.has(base)) { const n = (seen.get(base) || 1) + 1; seen.set(base, n); base = `${base}_${n}`; }
+          else seen.set(base, 1);
+          return c.props?.name === base ? c : { ...c, props: { ...c.props, name: base } };
+        }),
+      })),
+    };
+  };
+
   const save = async () => {
     if (!spec.name?.trim()) { toast({ title: "Dê um nome ao funil", variant: "destructive" }); return; }
     setSaving(true);
     try {
-      const r = await apiRequest("POST", "/api/quiz/save", spec);
+      const clean = dedupeNames(spec);
+      setSpec(clean);
+      const r = await apiRequest("POST", "/api/quiz/save", clean);
       const d = await r.json();
       setSavedSlug(d.slug); setSpec((s) => ({ ...s, slug: d.slug }));
       toast({ title: "Funil salvo!", description: spec.isPublished ? `Publicado em /q/${d.slug}` : "Rascunho salvo." });
@@ -323,7 +344,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
   const set = (k: string, v: any) => onChange({ [k]: v });
   const stepOpts: [string, string][] = [["", "Próxima etapa"], ...steps.map((s, i) => [s.id, s.name || `Etapa ${i + 1}`] as [string, string])];
   const [ptab, setPtab] = useState<"componente" | "estilo" | "exibicao">("componente");
-  const label = (PALETTE.find((x) => x.type === comp.type) as any);
+  const label = PALETTE_BY_KEY[p._pk] || (PALETTE.find((x) => x.type === comp.type) as any);
 
   return (
     <div className="p-4">
@@ -573,15 +594,18 @@ function LeadsDashboard({ slug }: { slug: string | null }) {
   const interaction = views ? ((starts / views) * 100).toFixed(1) : "0";
   const cards = [
     { label: "Visitantes", value: views, sub: "acessaram o funil", icon: "Eye" },
-    { label: "Leads adquiridos", value: leads.length, sub: "iniciaram interação", icon: "UserPlus" },
+    { label: "Leads adquiridos", value: leads.length, sub: "enviaram dados/contato", icon: "UserPlus" },
     { label: "Taxa de interação", value: `${interaction}%`, sub: "interagiram", icon: "TrendingUp" },
     { label: "Leads qualificados", value: qualified, sub: "score > 0", icon: "Star" },
     { label: "Fluxos completos", value: completions, sub: "até a última etapa", icon: "CheckCircle2" },
   ];
 
+  const nomeOf = (l: any) => l.nome || l.name || "";
+  const contatoOf = (l: any) => l.email || l.phone || l.telefone || l.whatsapp || l.celular || "";
+
   const exportCsv = () => {
-    const cols = ["data", "nome", "email", "telefone", "score", "respostas"];
-    const rows = leads.map((l) => [l.at, l.nome || "", l.email || "", l.telefone || "", l.score ?? "", JSON.stringify(l.respostas || {})]);
+    const cols = ["data", "nome", "contato", "score", "respostas"];
+    const rows = leads.map((l) => [l.at, nomeOf(l), contatoOf(l), l.score ?? "", JSON.stringify(l.respostas || {})]);
     const csv = [cols.join(","), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `${slug}-leads.csv`; a.click();
   };
@@ -616,8 +640,8 @@ function LeadsDashboard({ slug }: { slug: string | null }) {
                   {leads.map((l, i) => (
                     <tr key={i} className="border-b last:border-0 hover:bg-accent/40">
                       <td className="px-4 py-2 text-xs whitespace-nowrap">{l.at ? new Date(l.at).toLocaleString("pt-BR") : "—"}</td>
-                      <td className="px-4 py-2">{l.nome || "—"}</td>
-                      <td className="px-4 py-2 text-xs">{l.email || l.telefone || "—"}</td>
+                      <td className="px-4 py-2">{nomeOf(l) || "—"}</td>
+                      <td className="px-4 py-2 text-xs">{contatoOf(l) || "—"}</td>
                       <td className="px-4 py-2"><span className="bg-primary/10 text-primary rounded px-2 py-0.5 text-xs font-medium">{l.score ?? 0}</span></td>
                       <td className="px-4 py-2 text-xs text-muted-foreground max-w-[280px] truncate">{Object.entries(l.respostas || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join("/") : v}`).join(" · ") || "—"}</td>
                     </tr>
@@ -645,6 +669,7 @@ function FlowOverview({ spec, onPick }: { spec: QuizSpec; onPick: (i: number) =>
           for (const c of s.components) {
             if (c.type === "opcoes") for (const o of (c.props?.options || [])) if (o.nextStepId) { const n = stepName(o.nextStepId); if (n) branches.push(`${o.label} → ${n}`); }
             if ((c.type === "captura" || c.type === "loading") && c.props?.nextStepId) { const n = stepName(c.props.nextStepId); if (n) branches.push(`→ ${n}`); }
+            if (c.type === "botao" && c.props?.action === "step" && c.props?.stepId) { const n = stepName(c.props.stepId); if (n) branches.push(`${c.props.label || "Botão"} → ${n}`); }
           }
           return (
             <div key={s.id}>

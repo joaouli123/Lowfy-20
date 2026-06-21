@@ -15,6 +15,7 @@ export interface RuntimeCtx {
   selectedOptionIds?: string[];
   onPick?: (comp: QComponent, option: QuizOption) => void;
   onSubmitCapture?: (comp: QComponent, values: Record<string, string>) => void;
+  onAnswer?: (comp: QComponent, values: Record<string, string>) => void; // grava resposta SEM avançar/enviar lead
   onButton?: (comp: QComponent) => void;
   onAdvance?: (comp: QComponent) => void;
 }
@@ -96,19 +97,7 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
       );
     }
     case "video_resposta":
-      return (
-        <div>
-          {p.question && <h2 style={{ fontSize: 20, fontWeight: 700, textAlign: "center", color: t.textColor, margin: "0 0 4px" }}>{txt(p.question)}</h2>}
-          {p.help && <p style={{ textAlign: "center", color: "#64748b", fontSize: 14, margin: "0 0 12px" }}>{txt(p.help)}</p>}
-          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, border: "2px dashed #cbd5e1", borderRadius: 14, padding: "28px 16px", color: "#64748b", cursor: ctx.preview ? "default" : "pointer" }}>
-            <span style={{ fontSize: 30 }}>🎥</span>
-            <span style={{ fontSize: 14 }}>Toque para gravar / enviar um vídeo</span>
-            {!ctx.preview && <input type="file" accept="video/*" capture="user" style={{ display: "none" }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) ctx.onSubmitCapture?.(comp, { [p.name || "video_resposta"]: f.name }); }} />}
-          </label>
-          {!ctx.preview && <button type="button" onClick={() => ctx.onButton?.(comp)} style={{ width: "100%", marginTop: 12, padding: "13px", borderRadius: 12, border: "none", background: primary, color: btnText, fontWeight: 700, cursor: "pointer" }}>{p.buttonText || "Continuar"}</button>}
-        </div>
-      );
+      return <VideoRespostaView comp={comp} ctx={ctx} primary={primary} btnText={btnText} />;
     case "captura":
       return <CaptureView comp={comp} ctx={ctx} primary={primary} btnText={btnText} />;
     case "botao":
@@ -195,6 +184,24 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
 
 function Placeholder({ label }: { label: string }) {
   return <div style={{ border: "1.5px dashed #cbd5e1", borderRadius: 12, padding: "24px 12px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>{label}</div>;
+}
+
+function VideoRespostaView({ comp, ctx, primary, btnText }: { comp: QComponent; ctx: RuntimeCtx; primary: string; btnText: string }) {
+  const p = comp.props || {};
+  const [fileName, setFileName] = useState<string>("");
+  return (
+    <div>
+      {p.question && <h2 style={{ fontSize: 20, fontWeight: 700, textAlign: "center", color: ctx.theme.textColor, margin: "0 0 4px" }}>{resolveVars(p.question, ctx.vars)}</h2>}
+      {p.help && <p style={{ textAlign: "center", color: "#64748b", fontSize: 14, margin: "0 0 12px" }}>{resolveVars(p.help, ctx.vars)}</p>}
+      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, border: `2px dashed ${fileName ? primary : "#cbd5e1"}`, borderRadius: 14, padding: "28px 16px", color: fileName ? primary : "#64748b", cursor: ctx.preview ? "default" : "pointer" }}>
+        <span style={{ fontSize: 30 }}>🎥</span>
+        <span style={{ fontSize: 14 }}>{fileName ? `Vídeo selecionado: ${fileName}` : "Toque para gravar / enviar um vídeo"}</span>
+        {!ctx.preview && <input type="file" accept="video/*" capture="user" style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFileName(f.name); ctx.onAnswer?.(comp, { [p.name || "video_resposta"]: f.name }); } }} />}
+      </label>
+      {!ctx.preview && <button type="button" onClick={() => ctx.onButton?.(comp)} style={{ width: "100%", marginTop: 12, padding: "13px", borderRadius: 12, border: "none", background: primary, color: btnText, fontWeight: 700, cursor: "pointer" }}>{p.buttonText || "Continuar"}</button>}
+    </div>
+  );
 }
 
 function CaptureView({ comp, ctx, primary, btnText }: { comp: QComponent; ctx: RuntimeCtx; primary: string; btnText: string }) {

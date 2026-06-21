@@ -8,14 +8,12 @@ export default function QuizPlay() {
   const [spec, setSpec] = useState<QuizSpec | null>(null);
   const [err, setErr] = useState(false);
   const [idx, setIdx] = useState(0);
-  const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [vars, setVars] = useState<Record<string, string>>({});
-  const [picks, setPicks] = useState<Record<string, Record<string, number>>>({});
+  // seleções por etapa: stepId -> compId -> optId -> score
+  const [picks, setPicks] = useState<Record<string, Record<string, Record<string, number>>>>({});
   const [elapsed, setElapsed] = useState(0);
   const sentLead = useRef(false);
-  const optNextRef = useRef<string | null>(null);
-  const selected = useMemo(() => Object.values(picks).flatMap((m) => Object.keys(m)), [picks]);
 
   useEffect(() => {
     fetch(`/api/q/${slug}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((s: QuizSpec) => {
@@ -25,11 +23,10 @@ export default function QuizPlay() {
     }).catch(() => setErr(true));
   }, [slug]);
 
-  // cronômetro por etapa (para exibição condicional por tempo)
+  // cronômetro por etapa (exibição condicional por tempo). NÃO apaga picks:
+  // preserva seleções ao navegar para trás (evita contar score em dobro).
   useEffect(() => {
     setElapsed(0);
-    setPicks({});
-    optNextRef.current = null;
     const iv = setInterval(() => setElapsed((e) => e + 1), 1000);
     window.scrollTo(0, 0);
     return () => clearInterval(iv);
@@ -39,6 +36,15 @@ export default function QuizPlay() {
   const primary = theme.primaryColor || "#22c55e";
   const steps = spec?.steps || [];
   const step = steps[idx];
+  const stepId = step?.id;
+
+  // score DERIVADO de todas as seleções acumuladas (sem deltas manuais)
+  const score = useMemo(() => {
+    let s = 0;
+    for (const byComp of Object.values(picks)) for (const byOpt of Object.values(byComp)) for (const v of Object.values(byOpt)) s += v;
+    return s;
+  }, [picks]);
+  const selected = useMemo(() => Object.values(picks[stepId || ""] || {}).flatMap((m) => Object.keys(m)), [picks, stepId]);
   const allVars = useMemo(() => ({ score, ...vars }), [score, vars]);
 
   if (err) return <Centered>Quiz não encontrado.</Centered>;
@@ -58,7 +64,7 @@ export default function QuizPlay() {
   // valida componentes de opções com "seleção obrigatória" na etapa atual
   const requiredSatisfied = () => {
     for (const c of step.components) {
-      if (c.type === "opcoes" && c.props?.required && !Object.keys(picks[c.id] || {}).length) return false;
+      if (c.type === "opcoes" && c.props?.required && !Object.keys(picks[step.id]?.[c.id] || {}).length) return false;
     }
     return true;
   };
@@ -66,20 +72,14 @@ export default function QuizPlay() {
   const ctx: RuntimeCtx = {
     theme, vars: allVars, score, selectedOptionIds: selected,
     onPick: (comp, o: QuizOption) => {
-      const cid = comp.id;
-      const multiple = !!comp.props?.multiple;
+      const cid = comp.id, sid = step.id, multiple = !!comp.props?.multiple;
       setPicks((prev) => {
-        const cur = { ...(prev[cid] || {}) };
-        if (multiple) {
-          if (cur[o.id] !== undefined) { const s = cur[o.id]; delete cur[o.id]; setScore((v) => v - s); }
-          else { cur[o.id] = o.score || 0; setScore((v) => v + (o.score || 0)); }
-        } else {
-          const prevScore = Object.values(cur).reduce((a, b) => a + b, 0);
-          setScore((v) => v - prevScore + (o.score || 0));
-          for (const k of Object.keys(cur)) delete cur[k];
-          cur[o.id] = o.score || 0;
-        }
-        return { ...prev, [cid]: cur };
+        const byComp = { ...(prev[sid] || {}) };
+        const cur = { ...(byComp[cid] || {}) };
+        if (multiple) { if (cur[o.id] !== undefined) delete cur[o.id]; else cur[o.id] = o.score || 0; }
+        else { for (const k of Object.keys(cur)) delete cur[k]; cur[o.id] = o.score || 0; }
+        byComp[cid] = cur;
+        return { ...prev, [sid]: byComp };
       });
       // resposta (variável {{name}}): única = label; múltipla = lista
       const name = comp.props?.name || comp.props?.question || cid;
@@ -90,8 +90,7 @@ export default function QuizPlay() {
         if (i >= 0) arr.splice(i, 1); else arr.push(o.label);
         return { ...a, [name]: arr };
       });
-      if (o.nextStepId) optNextRef.current = o.nextStepId;
-      // avanço: única + autoAdvance e SEM "avançar só no botão" → avança sozinha
+      // avanço: escolha única + autoAdvance e SEM "avançar só no botão" → avança sozinha
       const waitButton = multiple || comp.props?.advanceOnButton || comp.props?.autoAdvance === false;
       if (!waitButton) setTimeout(() => goTo(o.nextStepId), 220);
     },
@@ -100,11 +99,17 @@ export default function QuizPlay() {
       sendLead({ ...vars, ...values });
       goTo(comp.props?.nextStepId);
     },
+    onAnswer: (comp, values) => { setVars((v) => ({ ...v, ...values })); setAnswers((a) => ({ ...a, ...values })); },
     onButton: (comp) => {
       if (!requiredSatisfied()) return; // bloqueia se faltou opção obrigatória
-      // prioridade: a próxima etapa definida na OPÇÃO selecionada vence a do botão
-      const optNext = optNextRef.current;
-      if (optNext) { optNextRef.current = null; return goTo(optNext); }
+      // prioridade: o destino da OPÇÃO selecionada (escolha ÚNICA) vence a ação do botão.
+      // Múltipla escolha NÃO roteia por opção — o botão decide (regra Movify).
+      for (const c of step.components) {
+        if (c.type !== "opcoes" || c.props?.multiple) continue;
+        const sel = picks[step.id]?.[c.id]; if (!sel) continue;
+        const opt = (c.props.options || []).find((o: QuizOption) => sel[o.id] !== undefined && o.nextStepId);
+        if (opt) return goTo(opt.nextStepId);
+      }
       const a = comp.props?.action;
       if (a === "url" && comp.props?.url) { window.location.href = comp.props.url; return; }
       if (a === "step") return goTo(comp.props?.stepId);
