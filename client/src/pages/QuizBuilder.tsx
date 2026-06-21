@@ -8,7 +8,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from "@dnd-kit/utilities";
 import ComponentView, { type RuntimeCtx } from "@/components/quiz/ComponentView";
 import {
-  PALETTE, PALETTE_BY_KEY, CATEGORIES, newComponentFromPalette, newStep, emptySpec,
+  PALETTE, PALETTE_BY_KEY, CATEGORIES, newComponentFromPalette, newStep, emptySpec, ensureGoogleFont,
   type QComponent, type QuizSpec, type QuizStep,
 } from "@/lib/quizSchema";
 import * as Icons from "lucide-react";
@@ -105,6 +105,7 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  useEffect(() => { ensureGoogleFont(spec.theme?.font); }, [spec.theme?.font]);
   const step = spec.steps[stepIdx] || spec.steps[0];
   const comps = step?.components || [];
   const selected = comps.find((c) => c.id === selId) || null;
@@ -347,19 +348,19 @@ function Frame({ device, theme, children }: { device: "mobile" | "desktop"; them
   return <Phone theme={theme}>{children}</Phone>;
 }
 
-// ---- Mockup desktop (janela de navegador) ----
+// ---- Mockup desktop (janela de navegador ~1280x800) ----
 function DesktopFrame({ theme, children }: { theme?: any; children: React.ReactNode }) {
   return (
-    <div className="mx-auto w-full" style={{ maxWidth: 860 }}>
-      <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid #cbd5e1", boxShadow: "0 24px 50px -20px rgba(0,0,0,.45)", background: "#fff" }}>
-        <div style={{ height: 38, background: "#e9edf1", display: "flex", alignItems: "center", gap: 6, padding: "0 14px", borderBottom: "1px solid #d8dee6" }}>
-          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#ec6a5e" }} />
-          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#f4bf50" }} />
-          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#61c354" }} />
-          <div style={{ flex: 1, margin: "0 12px", height: 22, borderRadius: 6, background: "#fff", border: "1px solid #d8dee6", fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", padding: "0 10px" }}>lowfy.com.br/q/seu-funil</div>
+    <div className="mx-auto w-full" style={{ maxWidth: 1280 }}>
+      <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid #cbd5e1", boxShadow: "0 28px 60px -20px rgba(0,0,0,.5)", background: "#fff" }}>
+        <div style={{ height: 40, background: "#e9edf1", display: "flex", alignItems: "center", gap: 7, padding: "0 16px", borderBottom: "1px solid #d8dee6" }}>
+          <span style={{ width: 12, height: 12, borderRadius: "50%", background: "#ec6a5e" }} />
+          <span style={{ width: 12, height: 12, borderRadius: "50%", background: "#f4bf50" }} />
+          <span style={{ width: 12, height: 12, borderRadius: "50%", background: "#61c354" }} />
+          <div style={{ flex: 1, margin: "0 14px", maxWidth: 460, height: 24, borderRadius: 7, background: "#fff", border: "1px solid #d8dee6", fontSize: 12, color: "#94a3b8", display: "flex", alignItems: "center", padding: "0 12px" }}>🔒 lowfy.com.br/q/seu-funil</div>
         </div>
-        <div style={{ background: theme?.bgColor || "#fff", color: theme?.textColor || "#0f172a", fontFamily: theme?.font || "Inter, system-ui, sans-serif", maxHeight: "64vh", overflowY: "auto" }}>
-          <div style={{ maxWidth: 560, margin: "0 auto" }}>{children}</div>
+        <div style={{ background: theme?.bgColor || "#fff", color: theme?.textColor || "#0f172a", fontFamily: theme?.font || "Inter, system-ui, sans-serif", height: 800, maxHeight: "70vh", overflowY: "auto", padding: "8px 0 40px" }}>
+          <div style={{ maxWidth: 680, margin: "0 auto" }}>{children}</div>
         </div>
       </div>
     </div>
@@ -653,9 +654,10 @@ function StepPanel({ spec, stepIdx, onPatch, onStepName, onStepPatch, onMove, on
   const hd = step?.header || {};
   const setTheme = (k: string, v: any) => onPatch({ theme: { ...th, [k]: v } });
   const setHeader = (k: string, v: any) => onStepPatch({ header: { ...hd, [k]: v } });
-  const showStep = only !== "config";
-  const showAppearance = only !== "config";
-  const showConfig = only !== "design";
+  // Construtor (sem `only`) = config por etapa; Design = tema global; Config = integrações
+  const showStep = !only;
+  const showAppearance = only === "design";
+  const showConfig = only === "config";
   return (
     <div className="p-4 space-y-4">
       {showStep && <div>
@@ -674,15 +676,33 @@ function StepPanel({ spec, stepIdx, onPatch, onStepName, onStepPatch, onMove, on
         </div>
       </div>}
 
-      {showAppearance && <div className={showStep ? "border-t pt-3" : ""}>
-        <p className="text-xs font-semibold text-muted-foreground mb-2">APARÊNCIA</p>
-        <Field l="Cor primária"><div className="flex gap-2"><input type="color" value={th.primaryColor || "#22c55e"} onChange={(e) => setTheme("primaryColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.primaryColor} onChange={(v: any) => setTheme("primaryColor", v)} /></div></Field>
-        <Field l="Cor de fundo"><div className="flex gap-2"><input type="color" value={th.bgColor || "#ffffff"} onChange={(e) => setTheme("bgColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.bgColor} onChange={(v: any) => setTheme("bgColor", v)} /></div></Field>
-        <Field l="Cor dos textos"><div className="flex gap-2"><input type="color" value={th.textColor || "#0f172a"} onChange={(e) => setTheme("textColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.textColor} onChange={(v: any) => setTheme("textColor", v)} /></div></Field>
-        <Field l="Cor dos títulos"><div className="flex gap-2"><input type="color" value={th.titleColor || th.textColor || "#0f172a"} onChange={(e) => setTheme("titleColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.titleColor} onChange={(v: any) => setTheme("titleColor", v)} /></div></Field>
-        <Field l="Tipografia"><Sel v={th.font || ""} onChange={(v) => setTheme("font", v)} opts={[["", "Padrão (Inter)"], ["Inter, sans-serif", "Inter"], ["Poppins, sans-serif", "Poppins"], ["Montserrat, sans-serif", "Montserrat"], ["'Roboto', sans-serif", "Roboto"], ["Georgia, serif", "Georgia (serifa)"]]} /></Field>
-        <Field l="Logo (URL)"><In v={th.logoUrl} onChange={(v: any) => setTheme("logoUrl", v)} placeholder="https://…" /></Field>
-        <Check l="Barra de progresso (padrão)" v={th.showProgress !== false} onChange={(v) => setTheme("showProgress", v)} />
+      {showAppearance && <div className="space-y-4">
+        <p className="text-[11px] text-muted-foreground bg-muted/50 rounded-lg px-2.5 py-2">🎨 O Design se aplica a <b>todo o funil</b> — cores, fonte e logo valem para todas as etapas.</p>
+
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">GERAL</p>
+          <Field l="Logo no topo (URL)"><In v={th.logoUrl} onChange={(v: any) => setTheme("logoUrl", v)} placeholder="https://…" /></Field>
+        </div>
+
+        <div className="border-t pt-3">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">CORES</p>
+          <Field l="Cor primária (botões e destaques)"><div className="flex gap-2"><input type="color" value={th.primaryColor || "#22c55e"} onChange={(e) => setTheme("primaryColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.primaryColor} onChange={(v: any) => setTheme("primaryColor", v)} /></div></Field>
+          <Field l="Cor de fundo"><div className="flex gap-2"><input type="color" value={th.bgColor || "#ffffff"} onChange={(e) => setTheme("bgColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.bgColor} onChange={(v: any) => setTheme("bgColor", v)} /></div></Field>
+          <Field l="Cor dos textos"><div className="flex gap-2"><input type="color" value={th.textColor || "#0f172a"} onChange={(e) => setTheme("textColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.textColor} onChange={(v: any) => setTheme("textColor", v)} /></div></Field>
+          <Field l="Cor dos títulos"><div className="flex gap-2"><input type="color" value={th.titleColor || th.textColor || "#0f172a"} onChange={(e) => setTheme("titleColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.titleColor} onChange={(v: any) => setTheme("titleColor", v)} /></div></Field>
+          <Field l="Cor do texto do botão"><div className="flex gap-2"><input type="color" value={th.buttonTextColor || "#ffffff"} onChange={(e) => setTheme("buttonTextColor", e.target.value)} className="w-9 h-9 rounded border" /><In v={th.buttonTextColor} onChange={(v: any) => setTheme("buttonTextColor", v)} /></div></Field>
+        </div>
+
+        <div className="border-t pt-3">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">TIPOGRAFIA</p>
+          <Field l="Fonte"><Sel v={th.font || ""} onChange={(v) => setTheme("font", v)} opts={[["", "Padrão (Inter)"], ["Inter, sans-serif", "Inter"], ["Poppins, sans-serif", "Poppins"], ["Montserrat, sans-serif", "Montserrat"], ["'Roboto', sans-serif", "Roboto"], ["Georgia, serif", "Georgia (serifa)"]]} /></Field>
+        </div>
+
+        <div className="border-t pt-3">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">CABEÇALHO (PADRÃO)</p>
+          <Check l="Mostrar barra de progresso" v={th.showProgress !== false} onChange={(v) => setTheme("showProgress", v)} />
+          <p className="text-[11px] text-muted-foreground mt-1">Cada etapa pode sobrescrever no Construtor.</p>
+        </div>
       </div>}
 
       {showConfig && <div className={showAppearance ? "border-t pt-3" : ""}>

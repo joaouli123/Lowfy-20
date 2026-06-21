@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "wouter";
 import ComponentView, { type RuntimeCtx } from "@/components/quiz/ComponentView";
-import { isVisible, type QComponent, type QuizOption, type QuizSpec } from "@/lib/quizSchema";
+import { ensureGoogleFont, isVisible, type QComponent, type QuizOption, type QuizSpec } from "@/lib/quizSchema";
 
 export default function QuizPlay() {
   const { slug } = useParams<{ slug: string }>();
@@ -19,6 +19,7 @@ export default function QuizPlay() {
   useEffect(() => {
     fetch(`/api/q/${slug}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((s: QuizSpec) => {
       setSpec(s);
+      ensureGoogleFont(s.theme?.font);
       fetch(`/api/q/${slug}/start`, { method: "POST" }).catch(() => {});
       if (s.pixelId) injectPixel(s.pixelId);
     }).catch(() => setErr(true));

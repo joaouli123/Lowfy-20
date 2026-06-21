@@ -179,6 +179,19 @@ export function emptySpec(name: string, slug: string): QuizSpec {
   };
 }
 
+/** Garante que a fonte do Google (Poppins/Montserrat/Roboto…) esteja carregada. */
+export function ensureGoogleFont(font?: string) {
+  if (!font || typeof document === "undefined") return;
+  const fam = font.split(",")[0].replace(/['"]/g, "").trim();
+  if (["Inter", "Georgia", "system-ui", "sans-serif", "serif", ""].includes(fam)) return;
+  const id = "gf-" + fam.replace(/\s+/g, "-");
+  if (document.getElementById(id)) return;
+  const l = document.createElement("link");
+  l.id = id; l.rel = "stylesheet";
+  l.href = `https://fonts.googleapis.com/css2?family=${fam.replace(/\s+/g, "+")}:wght@400;600;700;800&display=swap`;
+  document.head.appendChild(l);
+}
+
 // ---- Runtime helpers ----
 
 /** Substitui {{score}} e {{nome_do_campo}} pelos valores correntes. */
