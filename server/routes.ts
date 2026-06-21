@@ -6511,6 +6511,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ ok: true });
   });
 
+  app.post('/api/q/:slug/complete', async (req, res) => {
+    void quizStore.bumpMeta(quizStore.sanitizeSlug(req.params.slug), 'completions');
+    res.json({ ok: true });
+  });
+
   app.post('/api/q/:slug/lead', async (req: any, res) => {
     try {
       const slug = quizStore.sanitizeSlug(req.params.slug);

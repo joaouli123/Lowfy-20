@@ -6,8 +6,10 @@ import { writeJsonAtomic } from "./utils/safe-fs";
  * Armazenamento de quizzes (funis de quiz estilo inlead/xQuiz) em filesystem
  * sob o volume persistente. Cada quiz é um spec JSON; leads são gravados em JSONL.
  *
- * Modelo: Quiz → steps[] (páginas) → cada step com elementos (pergunta/conteúdo/
- * captura/resultado), opções com PONTUAÇÃO e roteamento condicional (nextStepId).
+ * Modelo (estilo Inlead): Funil → steps[] (etapas) → cada step é um canvas com
+ * components[] arrastáveis. Componentes de Opções carregam PONTUAÇÃO (score),
+ * captura define variáveis {{nome}}, e cada componente pode ter exibição
+ * condicional (por score comparativo ou por tempo). Roteamento via nextStepId.
  */
 
 const DATA_ROOT = process.env.OBJECT_STORAGE_DIR
@@ -16,43 +18,63 @@ const DATA_ROOT = process.env.OBJECT_STORAGE_DIR
 const QUIZ_DIR = path.join(DATA_ROOT, "quizzes");
 const LEADS_DIR = path.join(DATA_ROOT, "quiz-leads");
 
+/** Tipos de componente arrastáveis (paridade com a paleta do Inlead). */
+export type QComponentType =
+  | "texto" | "imagem" | "video" | "audio"
+  | "opcoes" | "captura" | "botao"
+  | "timer" | "loading" | "nivel"
+  | "alerta" | "notificacao" | "depoimentos" | "argumentos"
+  | "preco" | "galeria" | "espaco";
+
+/** Exibição condicional de um componente. */
+export interface QVisibility {
+  mode?: "always" | "score" | "time";
+  op?: ">" | "<" | ">=" | "<=" | "==";
+  value?: number;        // limiar de score (modo score)
+  afterSeconds?: number; // atraso em segundos (modo time)
+}
+
+/** Uma opção de resposta (componente "opcoes") — carrega o SCORE. */
 export interface QuizOption {
   id: string;
   label: string;
+  emoji?: string;
   image?: string | null;
   score?: number;
   nextStepId?: string | null; // pulo condicional (branching)
 }
+
+/** Campo do componente de captura — o `name` vira a variável {{nome}}. */
 export interface QuizField {
   type: "name" | "email" | "phone" | "text";
+  name?: string;
   label?: string;
   required?: boolean;
 }
+
+/** Componente posicionado no canvas de uma etapa. `props` é específico do tipo. */
+export interface QComponent {
+  id: string;
+  type: QComponentType;
+  props: Record<string, any>;
+  visibility?: QVisibility;
+}
+
+/** Etapa (página) do funil — um canvas de componentes. */
 export interface QuizStep {
   id: string;
-  type: "question" | "content" | "capture" | "result";
-  title?: string;
-  description?: string;
-  image?: string | null;
-  video?: string | null;
-  multiple?: boolean; // permite múltipla seleção
-  options?: QuizOption[];
-  fields?: QuizField[];
-  buttonText?: string;
-  nextStepId?: string | null;
-  // result step
-  minScore?: number;
-  resultTitle?: string;
-  resultDescription?: string;
-  resultButtonText?: string;
-  resultRedirectUrl?: string;
+  name?: string;
+  components: QComponent[];
 }
+
 export interface QuizTheme {
   primaryColor?: string;
   bgColor?: string;
   textColor?: string;
+  buttonTextColor?: string;
   logoUrl?: string | null;
   showProgress?: boolean;
+  font?: string;
 }
 export interface QuizSpec {
   name: string;
