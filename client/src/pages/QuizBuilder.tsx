@@ -317,13 +317,37 @@ function CanvasItem({ comp, selected, onSelect, onRemove, onDup, theme }: any) {
   );
 }
 
-// ---- Phone frame ----
+// ---- Mockup iPhone 16 Pro ----
 function Phone({ theme, children }: { theme?: any; children: React.ReactNode }) {
+  const sc = theme?.textColor || "#0f172a";
   return (
-    <div className="mx-auto" style={{ maxWidth: 420 }}>
-      <div className="rounded-[36px] border-[10px] border-black bg-black shadow-2xl overflow-hidden">
-        <div className="rounded-[26px] overflow-hidden" style={{ background: theme?.bgColor || "#fff", minHeight: 560 }}>
-          <div className="max-h-[70vh] overflow-y-auto">{children}</div>
+    <div className="mx-auto" style={{ width: 348 }}>
+      {/* moldura de titânio */}
+      <div style={{
+        position: "relative", borderRadius: 60, padding: 11,
+        background: "linear-gradient(150deg,#46484d 0%,#1a1b1e 52%,#3c3e43 100%)",
+        boxShadow: "0 28px 60px -18px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.45), inset 0 0 0 2px rgba(255,255,255,.07)",
+      }}>
+        {/* botões laterais */}
+        <span style={{ position: "absolute", left: -2.5, top: 118, width: 3, height: 26, borderRadius: 3, background: "#303236" }} />
+        <span style={{ position: "absolute", left: -2.5, top: 168, width: 3, height: 48, borderRadius: 3, background: "#303236" }} />
+        <span style={{ position: "absolute", left: -2.5, top: 230, width: 3, height: 48, borderRadius: 3, background: "#303236" }} />
+        <span style={{ position: "absolute", right: -2.5, top: 190, width: 3, height: 70, borderRadius: 3, background: "#303236" }} />
+        {/* tela */}
+        <div style={{ position: "relative", borderRadius: 49, overflow: "hidden", background: theme?.bgColor || "#fff", height: 712, maxHeight: "72vh" }}>
+          {/* barra de status */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", zIndex: 30, pointerEvents: "none" }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: sc, letterSpacing: ".3px" }}>9:41</span>
+            <span style={{ display: "flex", gap: 5, alignItems: "center", color: sc }}>
+              <Icons.Signal style={{ width: 15, height: 15 }} />
+              <Icons.Wifi style={{ width: 15, height: 15 }} />
+              <Icons.BatteryFull style={{ width: 24, height: 15 }} />
+            </span>
+          </div>
+          {/* Dynamic Island */}
+          <div style={{ position: "absolute", top: 11, left: "50%", transform: "translateX(-50%)", width: 110, height: 32, background: "#000", borderRadius: 20, zIndex: 40, boxShadow: "inset 0 0 0 1px rgba(255,255,255,.04)" }} />
+          {/* conteúdo */}
+          <div style={{ height: "100%", overflowY: "auto", paddingTop: 56 }}>{children}</div>
         </div>
       </div>
     </div>
