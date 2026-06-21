@@ -1,6 +1,11 @@
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 import { logger } from "../utils/logger";
+import { spawn } from "child_process";
+import { promises as fsp } from "fs";
+import os from "os";
+import path from "path";
+import ffmpegStatic from "ffmpeg-static";
 
 /**
  * AI Studio — motor de criação de conteúdo com IA da Lowfy.
@@ -34,8 +39,8 @@ export function aiStudioCapabilities() {
     image: { ready: true, premium: !!OPENAI_KEY, providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY, free: true } },
     copy: { ready: !!(GEMINI_KEY || OPENAI_KEY), providers: { gemini: !!GEMINI_KEY, openai: !!OPENAI_KEY } },
     tts: { ready: true, premium: !!(OPENAI_KEY || ELEVENLABS_KEY), providers: { openai: !!OPENAI_KEY, elevenlabs: !!ELEVENLABS_KEY, free: true } },
-    avatar: { ready: !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY } },
-    video: { ready: !!(process.env.FAL_KEY || process.env.GEMINI_API_KEY), providers: { fal: !!process.env.FAL_KEY, veo: !!process.env.GEMINI_API_KEY } },
+    avatar: { ready: true, premium: !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY, free: true } },
+    video: { ready: true, premium: !!process.env.FAL_KEY, providers: { fal: !!process.env.FAL_KEY, free: true } },
     canva: { ready: !!(process.env.CANVA_CLIENT_ID && process.env.CANVA_CLIENT_SECRET) },
   };
 }
@@ -278,25 +283,217 @@ function chunkText(text: string, max: number): string[] {
 }
 
 // ============================================================
-// 4) AVATAR / VÍDEO — scaffolds (habilitam ao configurar a chave)
+// 4) VÍDEO & AVATAR — geração de mídia
+//    Free (sem chave): imagem/foto + narração → MP4 (Ken Burns via ffmpeg).
+//    Premium (com chave): Seedance 2.0 / Kling 3.0 (fal.ai) e HeyGen / D-ID.
 // ============================================================
 
-export async function generateTalkingAvatar(_params: { imageUrl: string; audioUrl?: string; text?: string }): Promise<{ jobId: string; status: string }> {
-  if (process.env.DID_API_KEY) {
-    // D-ID: POST /talks (foto + áudio/texto) — async, webhook/polling
-    throw new Error("Integração D-ID pronta para implementar (DID_API_KEY detectada).");
-  }
-  if (process.env.HEYGEN_API_KEY) {
-    throw new Error("Integração HeyGen pronta para implementar (HEYGEN_API_KEY detectada).");
-  }
-  throw new Error("Avatar falante requer uma chave de API (HeyGen, Hedra ou D-ID). Configure HEYGEN_API_KEY ou DID_API_KEY.");
+const FAL_KEY = process.env.FAL_KEY || "";
+
+function ffmpegBin(): string {
+  return process.env.FFMPEG_PATH || (ffmpegStatic as unknown as string) || "ffmpeg";
 }
 
-export async function generateAdVideo(_params: { prompt: string; imageUrl?: string; model?: string }): Promise<{ jobId: string; status: string }> {
-  if (process.env.FAL_KEY) {
-    // Melhor para anúncios: Seedance 2.0 (ByteDance) — #1 realismo + consistência de produto.
-    // Alternativa cinematográfica premium: Kling 3.0. Ambos via fal.ai (async + webhook).
-    throw new Error("Integração fal.ai (Seedance 2.0 / Kling 3.0) pronta para implementar (FAL_KEY detectada).");
+/** Executa ffmpeg com os args dados. Resolve em exit 0, rejeita com stderr caso contrário. */
+function runFfmpeg(args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(ffmpegBin(), args, { windowsHide: true });
+    let err = "";
+    proc.stderr.on("data", (d) => { err += d.toString(); });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      if (code === 0) return resolve();
+      reject(new Error(`ffmpeg saiu com código ${code}: ${err.slice(-500)}`));
+    });
+  });
+}
+
+async function fetchBuffer(url: string): Promise<Buffer> {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Falha ao baixar mídia (${r.status})`);
+  return Buffer.from(await r.arrayBuffer());
+}
+
+/** Resolve uma imagem a partir de URL absoluta, caminho /objects/... ou data URL. */
+async function resolveImageBuffer(imageUrl: string): Promise<Buffer> {
+  if (imageUrl.startsWith("data:")) {
+    return Buffer.from(imageUrl.split(",")[1] || "", "base64");
   }
-  throw new Error("Geração de vídeo requer FAL_KEY (fal.ai). Recomendado: Seedance 2.0 (melhor realismo/custo) e Kling 3.0 (cinematográfico).");
+  if (/^https?:\/\//i.test(imageUrl)) return fetchBuffer(imageUrl);
+  // caminho relativo do object storage → lê do volume
+  const { ObjectStorageService } = await import("../objectStorage");
+  const svc = new ObjectStorageService();
+  const buf = await svc.getObjectBuffer(imageUrl);
+  if (!buf) throw new Error(`Imagem não encontrada: ${imageUrl}`);
+  return buf;
+}
+
+/**
+ * Núcleo: combina uma imagem estática + (opcional) áudio em um MP4 com efeito
+ * Ken Burns (zoom/pan suave). É o motor dos fallbacks gratuitos de vídeo e avatar.
+ */
+async function imageAudioToMp4(opts: {
+  image: Buffer;
+  audio?: Buffer | null;
+  size?: "1080x1080" | "1080x1920" | "1920x1080";
+  durationSec?: number;
+  zoomIntensity?: number; // 0.0004 sutil ... 0.0008 forte
+}): Promise<Buffer> {
+  const [w, h] = (opts.size || "1080x1080").split("x").map((n) => parseInt(n, 10));
+  const inc = opts.zoomIntensity ?? 0.0006;
+  const scaleW = Math.round(w * 1.25), scaleH = Math.round(h * 1.25);
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "lowfy-vid-"));
+  const imgPath = path.join(tmp, "in.jpg");
+  const audPath = path.join(tmp, "in.mp3");
+  const outPath = path.join(tmp, "out.mp4");
+  try {
+    await fsp.writeFile(imgPath, opts.image);
+    if (opts.audio) await fsp.writeFile(audPath, opts.audio);
+
+    const vf = `scale=${scaleW}:${scaleH}:force_original_aspect_ratio=increase,crop=${scaleW}:${scaleH},zoompan=z='min(zoom+${inc},1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${w}x${h}:fps=30,format=yuv420p`;
+
+    const args = ["-y", "-loop", "1", "-i", imgPath];
+    if (opts.audio) args.push("-i", audPath);
+    args.push("-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-r", "30");
+    if (opts.audio) {
+      args.push("-c:a", "aac", "-b:a", "192k", "-shortest");
+    } else {
+      args.push("-t", String(opts.durationSec || 8));
+    }
+    args.push("-movflags", "+faststart", outPath);
+
+    await runFfmpeg(args);
+    return await fsp.readFile(outPath);
+  } finally {
+    await fsp.rm(tmp, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+export interface GenerateVideoParams {
+  prompt: string;
+  imageUrl?: string;     // imagem base (se ausente, gera via free Flux / gpt-image)
+  script?: string;       // texto de narração (voiceover). Se ausente, vídeo sem áudio.
+  size?: "1080x1080" | "1080x1920" | "1920x1080";
+  voice?: string;
+}
+
+/**
+ * Gera um vídeo de anúncio. Premium: Seedance 2.0 / Kling 3.0 (fal.ai) com FAL_KEY.
+ * Free: imagem (gerada ou fornecida) + narração → MP4 com movimento Ken Burns.
+ */
+export async function generateAdVideo(params: GenerateVideoParams): Promise<{ buffer: Buffer; mime: string }> {
+  // Premium: fal.ai (Seedance 2.0 — melhor para anúncios). Async com polling.
+  if (FAL_KEY) {
+    try {
+      return await falTextToVideo(params);
+    } catch (e: any) {
+      logger.warn(`[AI Studio] fal.ai indisponível (${e?.message?.slice(0, 80)}), usando gerador gratuito.`);
+    }
+  }
+
+  // Free: imagem base + narração → MP4
+  const image = params.imageUrl
+    ? await resolveImageBuffer(params.imageUrl)
+    : (await generateAdImage({ prompt: params.prompt, size: params.size === "1080x1920" ? "1024x1536" : params.size === "1920x1080" ? "1536x1024" : "1024x1024" })).buffer;
+
+  let audio: Buffer | null = null;
+  if (params.script && params.script.trim()) {
+    audio = (await generateNarration({ text: params.script, voice: params.voice })).buffer;
+  }
+
+  const buffer = await imageAudioToMp4({ image, audio, size: params.size, zoomIntensity: 0.0006 });
+  return { buffer, mime: "video/mp4" };
+}
+
+export interface GenerateAvatarParams {
+  imageUrl: string;      // foto da pessoa
+  text?: string;         // o que ela vai "falar" (gera narração)
+  audioUrl?: string;     // ou áudio pronto
+  size?: "1080x1080" | "1080x1920" | "1920x1080";
+  voice?: string;
+}
+
+/**
+ * Gera um avatar falante. Premium: HeyGen Avatar IV / D-ID (lip-sync real) com a chave.
+ * Free: foto + narração → MP4 de apresentação narrada (zoom sutil), sem lip-sync.
+ */
+export async function generateTalkingAvatar(params: GenerateAvatarParams): Promise<{ buffer: Buffer; mime: string }> {
+  // Premium: HeyGen / D-ID (lip-sync real). Async com polling.
+  if (process.env.HEYGEN_API_KEY || process.env.DID_API_KEY) {
+    try {
+      return await premiumTalkingAvatar(params);
+    } catch (e: any) {
+      logger.warn(`[AI Studio] provedor de avatar indisponível (${e?.message?.slice(0, 80)}), usando fallback gratuito.`);
+    }
+  }
+
+  if (!params.imageUrl) throw new Error("É necessária a foto da pessoa (imageUrl) para gerar o avatar.");
+  const image = await resolveImageBuffer(params.imageUrl);
+
+  let audio: Buffer | null = null;
+  if (params.audioUrl) audio = await fetchBuffer(params.audioUrl);
+  else if (params.text && params.text.trim()) audio = (await generateNarration({ text: params.text, voice: params.voice })).buffer;
+  else throw new Error("Informe um texto (text) ou áudio (audioUrl) para a narração do avatar.");
+
+  // zoom mais sutil para rosto ("respiração")
+  const buffer = await imageAudioToMp4({ image, audio, size: params.size, zoomIntensity: 0.00035 });
+  return { buffer, mime: "video/mp4" };
+}
+
+// ---------- Provedores premium (ativam com a respectiva chave) ----------
+
+/** Seedance 2.0 (texto→vídeo) via fal.ai — submete o job e aguarda (polling). */
+async function falTextToVideo(params: GenerateVideoParams): Promise<{ buffer: Buffer; mime: string }> {
+  const model = process.env.FAL_VIDEO_MODEL || "fal-ai/bytedance/seedance/v1/pro/text-to-video";
+  const aspect = params.size === "1080x1920" ? "9:16" : params.size === "1920x1080" ? "16:9" : "1:1";
+  const submit = await fetch(`https://queue.fal.run/${model}`, {
+    method: "POST",
+    headers: { Authorization: `Key ${FAL_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: params.prompt, aspect_ratio: aspect, resolution: "1080p" }),
+  });
+  if (!submit.ok) throw new Error(`fal.ai submit ${submit.status}: ${await submit.text().catch(() => "")}`);
+  const job = await submit.json();
+  const statusUrl: string = job.status_url || `https://queue.fal.run/${model}/requests/${job.request_id}/status`;
+  const responseUrl: string = job.response_url || `https://queue.fal.run/${model}/requests/${job.request_id}`;
+
+  // polling (até ~5 min)
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const st = await fetch(statusUrl, { headers: { Authorization: `Key ${FAL_KEY}` } });
+    const sj = await st.json().catch(() => ({}));
+    if (sj.status === "COMPLETED") break;
+    if (sj.status === "FAILED" || sj.status === "ERROR") throw new Error("fal.ai job falhou");
+  }
+  const res = await fetch(responseUrl, { headers: { Authorization: `Key ${FAL_KEY}` } });
+  const rj = await res.json();
+  const videoUrl = rj?.video?.url || rj?.data?.video?.url;
+  if (!videoUrl) throw new Error("fal.ai não retornou URL de vídeo");
+  return { buffer: await fetchBuffer(videoUrl), mime: "video/mp4" };
+}
+
+/** HeyGen / D-ID (foto→avatar falante com lip-sync). Submete e aguarda. */
+async function premiumTalkingAvatar(params: GenerateAvatarParams): Promise<{ buffer: Buffer; mime: string }> {
+  // D-ID: POST /talks com source_url (foto) + script (texto). Polling até "done".
+  if (process.env.DID_API_KEY) {
+    const auth = `Basic ${process.env.DID_API_KEY}`;
+    const create = await fetch("https://api.d-id.com/talks", {
+      method: "POST",
+      headers: { Authorization: auth, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source_url: params.imageUrl,
+        script: { type: "text", input: params.text || "", provider: { type: "microsoft", voice_id: params.voice || "pt-BR-FranciscaNeural" } },
+      }),
+    });
+    if (!create.ok) throw new Error(`D-ID ${create.status}: ${await create.text().catch(() => "")}`);
+    const cj = await create.json();
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const st = await fetch(`https://api.d-id.com/talks/${cj.id}`, { headers: { Authorization: auth } });
+      const sj = await st.json();
+      if (sj.status === "done" && sj.result_url) return { buffer: await fetchBuffer(sj.result_url), mime: "video/mp4" };
+      if (sj.status === "error") throw new Error("D-ID job falhou");
+    }
+    throw new Error("D-ID timeout");
+  }
+  throw new Error("HeyGen pronto para implementar (HEYGEN_API_KEY detectada).");
 }

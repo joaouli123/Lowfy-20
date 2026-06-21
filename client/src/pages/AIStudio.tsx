@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Sparkles, Image as ImageIcon, Type, Mic, Video, UserSquare2,
-  Loader2, Copy, Download, Wand2, Lock,
+  Loader2, Copy, Download, Wand2,
 } from "lucide-react";
 
 const COPY_TYPES = [
@@ -23,6 +23,11 @@ const COPY_TYPES = [
 ];
 const FRAMEWORKS = ["auto", "AIDA", "PAS", "BAB", "4P", "FAB"];
 const TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer", "verse", "ballad"];
+const VIDEO_FORMATS = [
+  { v: "1080x1080", label: "Quadrado (feed)" },
+  { v: "1080x1920", label: "Vertical (story/reels)" },
+  { v: "1920x1080", label: "Horizontal (YouTube)" },
+];
 
 export default function AIStudio() {
   const { toast } = useToast();
@@ -62,6 +67,38 @@ export default function AIStudio() {
     onSuccess: (d) => setTtsUrl(d.url),
     onError: (e: any) => toast({ title: "Erro ao gerar narração", description: e.message, variant: "destructive" }),
   });
+
+  // ---- Avatar (foto + texto → vídeo) ----
+  const [avatar, setAvatar] = useState<{ photo: string | null; text: string; voice: string; size: string }>({ photo: null, text: "", voice: "nova", size: "1080x1080" });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const avatarMut = useMutation({
+    mutationFn: async () => {
+      const r = await apiRequest("POST", "/api/ai-studio/avatar", { imageUrl: avatar.photo, text: avatar.text, voice: avatar.voice, size: avatar.size });
+      return (await r.json()) as { url: string };
+    },
+    onSuccess: (d) => setAvatarUrl(d.url),
+    onError: (e: any) => toast({ title: "Erro ao gerar avatar", description: e.message, variant: "destructive" }),
+  });
+
+  // ---- Vídeo (descrição + roteiro → vídeo) ----
+  const [vid, setVid] = useState({ prompt: "", script: "", voice: "nova", size: "1080x1080" });
+  const [vidUrl, setVidUrl] = useState<string | null>(null);
+  const videoMut = useMutation({
+    mutationFn: async () => {
+      const r = await apiRequest("POST", "/api/ai-studio/video", vid);
+      return (await r.json()) as { url: string };
+    },
+    onSuccess: (d) => setVidUrl(d.url),
+    onError: (e: any) => toast({ title: "Erro ao gerar vídeo", description: e.message, variant: "destructive" }),
+  });
+
+  const onPhotoPick = (file?: File) => {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { toast({ title: "Foto muito grande", description: "Use uma imagem de até 8MB.", variant: "destructive" }); return; }
+    const reader = new FileReader();
+    reader.onload = () => setAvatar((a) => ({ ...a, photo: String(reader.result) }));
+    reader.readAsDataURL(file);
+  };
 
   const copyToClipboard = (t: string) => {
     navigator.clipboard.writeText(t);
@@ -187,20 +224,94 @@ export default function AIStudio() {
           </CardContent></Card>
         </TabsContent>
 
-        {/* ---------- AVATAR / VÍDEO (em breve) ---------- */}
-        <TabsContent value="avatar" className="mt-4"><ComingSoon icon={<UserSquare2 className="w-10 h-10" />} title="Avatar falante" desc="Transforme uma foto em um vídeo falando (HeyGen / D-ID). Conecte a chave de API para ativar." /></TabsContent>
-        <TabsContent value="video" className="mt-4"><ComingSoon icon={<Video className="w-10 h-10" />} title="Vídeo super realista" desc="Gere vídeos de anúncio com Veo 3.1 / Seedance / Kling. Disponível via API." /></TabsContent>
+        {/* ---------- AVATAR ---------- */}
+        <TabsContent value="avatar" className="mt-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card><CardContent className="p-5 space-y-3">
+              <div>
+                <Label>Foto da pessoa *</Label>
+                <label className="mt-1 flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-4 cursor-pointer hover:border-primary/50 transition">
+                  {avatar.photo ? (
+                    <img src={avatar.photo} alt="Foto" className="h-32 rounded-md object-cover" />
+                  ) : (
+                    <div className="text-center text-muted-foreground text-sm py-4"><UserSquare2 className="w-8 h-8 mx-auto mb-1 opacity-40" />Clique para enviar uma foto (rosto)</div>
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => onPhotoPick(e.target.files?.[0])} />
+                </label>
+              </div>
+              <div><Label>O que a pessoa vai falar *</Label><Textarea rows={4} value={avatar.text} onChange={(e) => setAvatar({ ...avatar, text: e.target.value })} placeholder="Cole o roteiro que será narrado…" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Voz</Label>
+                  <select className="w-full h-10 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm" value={avatar.voice} onChange={(e) => setAvatar({ ...avatar, voice: e.target.value })}>
+                    {TTS_VOICES.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div><Label>Formato</Label>
+                  <select className="w-full h-10 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm" value={avatar.size} onChange={(e) => setAvatar({ ...avatar, size: e.target.value })}>
+                    {VIDEO_FORMATS.map((f) => <option key={f.v} value={f.v}>{f.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <Button className="w-full" disabled={avatarMut.isPending || !avatar.photo || !avatar.text} onClick={() => avatarMut.mutate()}>
+                {avatarMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                Gerar avatar
+              </Button>
+              <p className="text-xs text-muted-foreground">Lip-sync realista (HeyGen / D-ID) ativa ao conectar a chave nas configurações.</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-5 flex flex-col items-center justify-center min-h-[320px]">
+              {avatarMut.isPending ? (
+                <div className="text-center text-muted-foreground"><Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />Gerando seu avatar… (pode levar alguns segundos)</div>
+              ) : avatarUrl ? (
+                <div className="w-full space-y-3">
+                  <video controls src={avatarUrl} className="w-full rounded-lg border" />
+                  <a href={avatarUrl} download className="block"><Button variant="outline" className="w-full"><Download className="w-4 h-4 mr-2" />Baixar vídeo</Button></a>
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground"><UserSquare2 className="w-10 h-10 mx-auto mb-2 opacity-40" />Seu avatar aparecerá aqui</div>
+              )}
+            </CardContent></Card>
+          </div>
+        </TabsContent>
+
+        {/* ---------- VÍDEO ---------- */}
+        <TabsContent value="video" className="mt-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card><CardContent className="p-5 space-y-3">
+              <div><Label>Descrição do vídeo / produto *</Label><Textarea rows={3} value={vid.prompt} onChange={(e) => setVid({ ...vid, prompt: e.target.value })} placeholder="Ex.: tênis esportivo premium em fundo escuro com luz de estúdio, foco no produto" /></div>
+              <div><Label>Roteiro de narração (opcional)</Label><Textarea rows={4} value={vid.script} onChange={(e) => setVid({ ...vid, script: e.target.value })} placeholder="Cole a copy/voiceover. Deixe vazio para vídeo sem áudio." /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Voz</Label>
+                  <select className="w-full h-10 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm" value={vid.voice} onChange={(e) => setVid({ ...vid, voice: e.target.value })}>
+                    {TTS_VOICES.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div><Label>Formato</Label>
+                  <select className="w-full h-10 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm" value={vid.size} onChange={(e) => setVid({ ...vid, size: e.target.value })}>
+                    {VIDEO_FORMATS.map((f) => <option key={f.v} value={f.v}>{f.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <Button className="w-full" disabled={videoMut.isPending || !vid.prompt} onClick={() => videoMut.mutate()}>
+                {videoMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                Gerar vídeo
+              </Button>
+              <p className="text-xs text-muted-foreground">Vídeo super-realista (Seedance 2.0 / Kling 3.0) ativa ao conectar a FAL_KEY.</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-5 flex flex-col items-center justify-center min-h-[320px]">
+              {videoMut.isPending ? (
+                <div className="text-center text-muted-foreground"><Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />Renderizando seu vídeo…</div>
+              ) : vidUrl ? (
+                <div className="w-full space-y-3">
+                  <video controls src={vidUrl} className="w-full rounded-lg border" />
+                  <a href={vidUrl} download className="block"><Button variant="outline" className="w-full"><Download className="w-4 h-4 mr-2" />Baixar vídeo</Button></a>
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground"><Video className="w-10 h-10 mx-auto mb-2 opacity-40" />Seu vídeo aparecerá aqui</div>
+              )}
+            </CardContent></Card>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function ComingSoon({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
-  return (
-    <Card><CardContent className="p-10 flex flex-col items-center text-center">
-      <div className="text-muted-foreground mb-3 opacity-50">{icon}</div>
-      <div className="flex items-center gap-2 mb-1"><Lock className="w-4 h-4 text-amber-500" /><h3 className="font-semibold">{title}</h3></div>
-      <p className="text-sm text-muted-foreground max-w-md">{desc}</p>
-    </CardContent></Card>
   );
 }

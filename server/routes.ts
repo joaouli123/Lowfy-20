@@ -6424,23 +6424,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Avatar falante (scaffold — requer chave)
+  // Avatar falante (foto + narração → MP4)
   app.post('/api/ai-studio/avatar', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
-      const job = await aiStudio.generateTalkingAvatar(req.body || {});
-      res.json(job);
+      const { imageUrl, text, audioUrl, size, voice } = req.body || {};
+      if (!imageUrl) return res.status(400).json({ message: 'Envie a foto da pessoa (imageUrl)' });
+      if (!text && !audioUrl) return res.status(400).json({ message: 'Informe o texto a ser falado' });
+      const { buffer, mime } = await aiStudio.generateTalkingAvatar({ imageUrl, text, audioUrl, size, voice });
+      const objectStorageService = new ObjectStorageService();
+      const url = await objectStorageService.uploadBuffer(buffer, 'ai-avatares', mime, 'mp4');
+      res.json({ url });
     } catch (error: any) {
-      res.status(501).json({ message: error?.message || 'Recurso indisponível', code: 'PROVIDER_NOT_CONFIGURED' });
+      logger.error('[AI Studio] Erro ao gerar avatar:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar avatar' });
     }
   });
 
-  // Vídeo (scaffold — requer chave)
+  // Vídeo de anúncio (imagem + narração → MP4; Seedance/Kling com FAL_KEY)
   app.post('/api/ai-studio/video', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
-      const job = await aiStudio.generateAdVideo(req.body || {});
-      res.json(job);
+      const { prompt, imageUrl, script, size, voice } = req.body || {};
+      if (!prompt && !imageUrl) return res.status(400).json({ message: 'Descreva o vídeo ou envie uma imagem base' });
+      const { buffer, mime } = await aiStudio.generateAdVideo({ prompt, imageUrl, script, size, voice });
+      const objectStorageService = new ObjectStorageService();
+      const url = await objectStorageService.uploadBuffer(buffer, 'ai-videos', mime, 'mp4');
+      res.json({ url });
     } catch (error: any) {
-      res.status(501).json({ message: error?.message || 'Recurso indisponível', code: 'PROVIDER_NOT_CONFIGURED' });
+      logger.error('[AI Studio] Erro ao gerar vídeo:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar vídeo' });
     }
   });
 
