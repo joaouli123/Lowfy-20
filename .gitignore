@@ -31,3 +31,7 @@ _db_*.cjs
 
 # Local object storage (dev) — em prod usa volume
 objects-data/
+
+# Runtime do quiz (em prod usa volume)
+quizzes/
+quiz-leads/
