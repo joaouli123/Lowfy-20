@@ -89,8 +89,8 @@
 
 :root {
   /* Design system Lowfy — verde esmeralda fresco + neutros slate (estilo Stripe) */
-  --background: hsl(210, 33%, 98.5%);
-  --foreground: hsl(222, 47%, 11%);
+  --background: hsl(210, 20%, 98%);
+  --foreground: hsl(222, 40%, 12%);
   --card: hsl(0, 0%, 100%);
   --card-foreground: hsl(222, 47%, 11%);
   --popover: hsl(0, 0%, 100%);
@@ -101,12 +101,12 @@
   --secondary-foreground: hsl(222, 30%, 20%);
   --muted: hsl(210, 24%, 96%);
   --muted-foreground: hsl(215, 16%, 47%);
-  --accent: hsl(152, 60%, 96%);
-  --accent-foreground: hsl(161, 84%, 26%);
+  --accent: hsl(154, 56%, 96%);
+  --accent-foreground: hsl(161, 88%, 26%);
   --destructive: hsl(0, 72%, 51%);
   --destructive-foreground: hsl(0, 0%, 100%);
-  --border: hsl(214, 28%, 90%);
-  --input: hsl(214, 28%, 90%);
+  --border: hsl(214, 22%, 91%);
+  --input: hsl(214, 22%, 91%);
   --ring: hsl(161, 84%, 38%);
   --chart-1: hsl(161, 84%, 38%);
   --chart-2: hsl(173, 70%, 40%);
@@ -114,12 +114,12 @@
   --chart-4: hsl(43, 96%, 56%);
   --chart-5: hsl(258, 70%, 62%);
   --sidebar: hsl(0, 0%, 100%);
-  --sidebar-foreground: hsl(222, 20%, 30%);
-  --sidebar-primary: hsl(161, 84%, 33%);
+  --sidebar-foreground: hsl(215, 16%, 42%);
+  --sidebar-primary: hsl(160, 84%, 32%);
   --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(152, 60%, 96%);
-  --sidebar-accent-foreground: hsl(161, 84%, 26%);
-  --sidebar-border: hsl(214, 28%, 92%);
+  --sidebar-accent: hsl(154, 56%, 96%);
+  --sidebar-accent-foreground: hsl(161, 88%, 26%);
+  --sidebar-border: hsl(214, 24%, 92%);
   --sidebar-ring: hsl(161, 84%, 38%);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   --font-serif: Georgia, serif;
@@ -362,17 +362,21 @@
   }
 
   .sidebar-link {
-    @apply transition-all duration-150 ease-out relative;
+    @apply transition-colors duration-150 ease-out relative gap-3;
+    color: hsl(215, 16%, 42%);
   }
 
-  .sidebar-link:hover {
-    @apply bg-sidebar-accent;
+  /* Sidebar clara: hover neutro sutil (estilo Linear/Stripe) */
+  .sidebar-link:not(.active):hover {
+    background: hsl(210, 22%, 96.5%);
+    color: hsl(222, 40%, 12%);
   }
 
+  /* Ativo: pílula verde suave + texto/ícone esmeralda — SEM barra lateral */
   .sidebar-link.active {
-    @apply bg-sidebar-accent text-sidebar-accent-foreground font-semibold;
-    /* Barra de destaque à esquerda indicando a página atual */
-    box-shadow: inset 3px 0 0 0 var(--sidebar-primary);
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+    font-weight: 600;
   }
 
   /* Gradient Animations */

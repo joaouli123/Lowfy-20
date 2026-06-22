@@ -381,7 +381,7 @@ export default function Sidebar() {
       <aside
         className={cn(
           "fixed lg:sticky top-0 z-50 lg:z-auto",
-          "bg-white dark:bg-sidebar border-r border-sidebar-border",
+          "bg-sidebar border-r border-sidebar-border",
           "flex flex-col h-screen",
           "transition-all duration-300 ease-in-out",
           isSidebarCollapsed ? "lg:w-20" : "lg:w-72",
@@ -397,14 +397,14 @@ export default function Sidebar() {
             <img
               src="/lowfy-logo-dark.webp"
               alt="Lowfy"
-              className="h-8 w-auto object-contain"
+              className="h-7 w-auto object-contain"
               loading="eager"
             />
           ) : (
             <img
               src="/lowfy-logo-green.webp"
               alt="Lowfy"
-              className="h-8 w-8 object-contain"
+              className="h-7 w-7 object-contain"
               loading="eager"
             />
           )}
@@ -451,7 +451,13 @@ export default function Sidebar() {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {/* Section label */}
+        {!isSidebarCollapsed && (
+          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 select-none">
+            Plataforma
+          </p>
+        )}
         {/* Main Navigation */}
         {navigation.map((item) => {
           const Icon = item.icon;
@@ -467,7 +473,7 @@ export default function Sidebar() {
                     isSidebarCollapsed ? "justify-center px-2 py-3" : "space-x-3 px-4 py-3",
                     isCurrentLocation
                       ? "active"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                      : "text-sidebar-foreground hover:text-foreground"
                   )}
                   data-testid={item.testId}
                   onMouseEnter={() => !isAdminSection && preloadOnHover(item.href)}
@@ -507,7 +513,7 @@ export default function Sidebar() {
                           className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
                             isNavLinkActive(subItem.href)
                               ? "active"
-                              : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                              : "text-sidebar-foreground hover:text-foreground"
                           }`}
                           data-testid={subItem.testId}
                         >
@@ -523,12 +529,12 @@ export default function Sidebar() {
           );
         })}
 
-        {/* Utilidades Section */}
-        <div className="pt-4 mt-4 border-t border-sidebar-border">
+        {/* Ferramentas Section */}
+        <div className="pt-3 mt-3 border-t border-sidebar-border">
           <div>
             <div
               className={cn(
-                "sidebar-link flex items-center rounded-lg text-sm font-medium cursor-pointer text-sidebar-foreground/70 hover:text-sidebar-foreground",
+                "sidebar-link flex items-center rounded-lg text-sm font-medium cursor-pointer text-sidebar-foreground hover:text-foreground",
                 isSidebarCollapsed ? "justify-center px-2 py-3" : "space-x-3 px-4 py-3"
               )}
               onClick={() => setIsUtilitiesExpanded(!isUtilitiesExpanded)}
@@ -562,7 +568,7 @@ export default function Sidebar() {
                           : `cursor-pointer ${
                               isNavLinkActive(item.href)
                                 ? "active"
-                                : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                                : "text-sidebar-foreground hover:text-foreground"
                             }`
                       }`}
                       data-testid={item.testId}
@@ -597,7 +603,7 @@ export default function Sidebar() {
         </div>
 
         {/* Community Section */}
-        <div className="pt-4 mt-4 border-t border-sidebar-border">
+        <div className="pt-3 mt-3 border-t border-sidebar-border">
           {communityNav.map((item) => {
             const Icon = item.icon;
             // Check if the current item is Marketplace
@@ -611,7 +617,7 @@ export default function Sidebar() {
                       isSidebarCollapsed ? "justify-center px-2 py-3" : "space-x-3 px-4 py-3",
                       isNavLinkActive(item.href)
                         ? "active"
-                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                        : "text-sidebar-foreground hover:text-foreground"
                     )}
                     data-testid={item.testId}
                     onClick={(e) => {
@@ -650,7 +656,7 @@ export default function Sidebar() {
                         className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
                           isNavLinkActive("/marketplace/vitrine")
                             ? "active"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                            : "text-sidebar-foreground hover:text-foreground"
                         }`}
                         data-testid="nav-marketplace-vitrine"
                       >
@@ -663,7 +669,7 @@ export default function Sidebar() {
                         className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
                           isNavLinkActive("/marketplace/meus-produtos")
                             ? "active"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                            : "text-sidebar-foreground hover:text-foreground"
                         }`}
                         data-testid="nav-marketplace-meus-produtos"
                       >
@@ -676,7 +682,7 @@ export default function Sidebar() {
                         className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
                           isNavLinkActive("/marketplace/compras")
                             ? "active"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                            : "text-sidebar-foreground hover:text-foreground"
                         }`}
                         data-testid="nav-marketplace-compras"
                       >
@@ -689,7 +695,7 @@ export default function Sidebar() {
                         className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
                           isNavLinkActive("/marketplace/financeiro")
                             ? "active"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                            : "text-sidebar-foreground hover:text-foreground"
                         }`}
                         data-testid="nav-marketplace-financeiro"
                       >
@@ -716,7 +722,7 @@ export default function Sidebar() {
                     isSidebarCollapsed ? "justify-center px-2 py-3" : "space-x-3 px-4 py-3",
                     isNavLinkActive(item.href)
                       ? "active"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                      : "text-sidebar-foreground hover:text-foreground"
                   )}
                   data-testid={item.testId}
                   title={isSidebarCollapsed ? item.name : undefined}
@@ -736,15 +742,15 @@ export default function Sidebar() {
           "flex items-center px-4 py-3",
           isSidebarCollapsed ? "flex-col gap-2" : "space-x-3"
         )}>
-          <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center flex-shrink-0 ring-1 ring-border">
             {user?.profileImageUrl ? (
               <img
                 src={user.profileImageUrl}
                 alt="Profile"
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-9 h-9 rounded-full object-cover"
               />
             ) : (
-              <span className="text-sm font-medium text-muted-foreground" data-testid="user-initials">
+              <span className="text-sm font-semibold text-primary" data-testid="user-initials">
                 {getInitials(user?.name)}
               </span>
             )}
@@ -752,7 +758,7 @@ export default function Sidebar() {
           {!isSidebarCollapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate" data-testid="user-name">
+                <p className="text-sm font-medium text-foreground truncate" data-testid="user-name">
                   {user?.name || user?.email || "Usuário"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate" data-testid="user-email">
@@ -763,7 +769,7 @@ export default function Sidebar() {
                 variant="ghost"
                 size="icon"
                 onClick={() => logoutMutation.mutate()}
-                className="p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
+                className="p-2 hover:bg-red-50 text-muted-foreground hover:text-red-600 rounded-lg transition-colors"
                 title="Sair"
                 data-testid="button-logout"
                 disabled={logoutMutation.isPending}

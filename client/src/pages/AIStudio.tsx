@@ -106,56 +106,89 @@ export default function AIStudio() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-1">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center">
-          <Sparkles className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Estúdio de Criação IA</h1>
-          <p className="text-sm text-muted-foreground">Gere criativos, copy persuasiva, narração e vídeos para seus anúncios.</p>
+    <div className="max-w-5xl mx-auto">
+      {/* Hero Header */}
+      <div className="mb-6 p-5 rounded-xl bg-gradient-to-br from-primary/[0.07] via-primary/[0.03] to-transparent border border-primary/10 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_0%_0%,hsl(161,84%,33%,0.10),transparent)]" />
+        <div className="relative flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center shadow-lg shadow-primary/25 flex-shrink-0">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Estúdio de Criação IA</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Imagens, copy persuasiva, narração realista, avatar lip-sync e vídeos para anúncios.</p>
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="criativo" className="mt-6">
-        <TabsList className="flex flex-wrap h-auto">
-          <TabsTrigger value="criativo"><ImageIcon className="w-4 h-4 mr-1.5" /> Criativo</TabsTrigger>
-          <TabsTrigger value="copy"><Type className="w-4 h-4 mr-1.5" /> Copy</TabsTrigger>
-          <TabsTrigger value="narracao"><Mic className="w-4 h-4 mr-1.5" /> Narração</TabsTrigger>
-          <TabsTrigger value="avatar"><UserSquare2 className="w-4 h-4 mr-1.5" /> Avatar</TabsTrigger>
-          <TabsTrigger value="video"><Video className="w-4 h-4 mr-1.5" /> Vídeo</TabsTrigger>
+      <Tabs defaultValue="criativo">
+        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="criativo" className="gap-1.5 text-xs font-medium"><ImageIcon className="w-3.5 h-3.5" /> Criativo</TabsTrigger>
+          <TabsTrigger value="copy" className="gap-1.5 text-xs font-medium"><Type className="w-3.5 h-3.5" /> Copy</TabsTrigger>
+          <TabsTrigger value="narracao" className="gap-1.5 text-xs font-medium"><Mic className="w-3.5 h-3.5" /> Narração</TabsTrigger>
+          <TabsTrigger value="avatar" className="gap-1.5 text-xs font-medium"><UserSquare2 className="w-3.5 h-3.5" /> Avatar</TabsTrigger>
+          <TabsTrigger value="video" className="gap-1.5 text-xs font-medium"><Video className="w-3.5 h-3.5" /> Vídeo</TabsTrigger>
         </TabsList>
 
         {/* ---------- CRIATIVO ---------- */}
         <TabsContent value="criativo" className="mt-4">
           <div className="grid md:grid-cols-2 gap-4">
-            <Card><CardContent className="p-5 space-y-3">
-              <div><Label>Produto / oferta *</Label><Input value={img.produto} onChange={(e) => setImg({ ...img, produto: e.target.value })} placeholder="Ex.: tênis esportivo branco premium" /></div>
-              <div><Label>Headline na imagem (opcional)</Label><Input value={img.headline} onChange={(e) => setImg({ ...img, headline: e.target.value })} placeholder="Ex.: 50% OFF HOJE" /></div>
-              <div><Label>Estilo visual</Label><Input value={img.estilo} onChange={(e) => setImg({ ...img, estilo: e.target.value })} placeholder="Ex.: fundo gradiente, estúdio, minimalista" /></div>
-              <div><Label>Público-alvo</Label><Input value={img.publico} onChange={(e) => setImg({ ...img, publico: e.target.value })} placeholder="Ex.: corredores iniciantes" /></div>
-              <Button className="w-full" disabled={imageMut.isPending || !img.produto} onClick={() => imageMut.mutate()}>
-                {imageMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                Gerar criativo
-              </Button>
-            </CardContent></Card>
-            <Card><CardContent className="p-5 flex flex-col items-center justify-center min-h-[320px]">
-              {imageMut.isPending ? (
-                <div className="text-center text-muted-foreground"><Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />Gerando seu criativo…</div>
-              ) : imgUrl ? (
-                <div className="w-full space-y-3">
-                  <img src={imgUrl} alt="Criativo gerado" className="w-full rounded-lg border" />
-                  <div className="flex gap-2">
-                    <a href={imgUrl} download className="flex-1"><Button variant="outline" className="w-full"><Download className="w-4 h-4 mr-2" />Baixar</Button></a>
-                    <Button variant="outline" className="flex-1" onClick={() => toast({ title: "Edição no Canva", description: "Conecte sua conta Canva nas configurações para editar." })}>
-                      <Sparkles className="w-4 h-4 mr-2" />Editar no Canva
-                    </Button>
-                  </div>
+            <Card className="shadow-sm">
+              <CardContent className="p-5 space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto / oferta *</Label>
+                  <Input value={img.produto} onChange={(e) => setImg({ ...img, produto: e.target.value })} placeholder="Ex.: tênis esportivo branco premium" />
                 </div>
-              ) : (
-                <div className="text-center text-muted-foreground"><ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />Seu criativo aparecerá aqui</div>
-              )}
-            </CardContent></Card>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Headline na imagem</Label>
+                  <Input value={img.headline} onChange={(e) => setImg({ ...img, headline: e.target.value })} placeholder="Ex.: 50% OFF HOJE" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estilo visual</Label>
+                  <Input value={img.estilo} onChange={(e) => setImg({ ...img, estilo: e.target.value })} placeholder="Ex.: fundo gradiente, estúdio, minimalista" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Público-alvo</Label>
+                  <Input value={img.publico} onChange={(e) => setImg({ ...img, publico: e.target.value })} placeholder="Ex.: corredores iniciantes" />
+                </div>
+                <Button className="w-full shadow-sm" disabled={imageMut.isPending || !img.produto} onClick={() => imageMut.mutate()}>
+                  {imageMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                  Gerar criativo
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="p-5 flex flex-col items-center justify-center min-h-[340px]">
+                {imageMut.isPending ? (
+                  <div className="text-center space-y-3">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Gerando seu criativo…</p>
+                  </div>
+                ) : imgUrl ? (
+                  <div className="w-full space-y-3">
+                    <img src={imgUrl} alt="Criativo gerado" className="w-full rounded-lg border shadow-sm" />
+                    <div className="flex gap-2">
+                      <a href={imgUrl} download className="flex-1"><Button variant="outline" size="sm" className="w-full"><Download className="w-3.5 h-3.5 mr-1.5" />Baixar</Button></a>
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => toast({ title: "Edição no Canva", description: "Conecte sua conta Canva nas configurações." })}>
+                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />Canva
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-3">
+                    <div className="w-16 h-16 rounded-2xl bg-muted/60 border-2 border-dashed border-border flex items-center justify-center mx-auto">
+                      <ImageIcon className="w-7 h-7 text-muted-foreground/40" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Seu criativo aparecerá aqui</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">Preencha os campos e clique em Gerar</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 

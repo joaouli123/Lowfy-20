@@ -64,7 +64,7 @@ export default function TopBar() {
   };
 
   return (
-    <div className="h-16 border-b bg-card sticky top-0 z-40" data-testid="topbar">
+    <div className="h-14 border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-40" data-testid="topbar">
       <div className="h-full px-4 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
         {/* Mobile Menu Button */}
         <Button
@@ -78,12 +78,12 @@ export default function TopBar() {
         </Button>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-xl">
+        <div className="flex-1 max-w-sm">
           <div className="relative hidden sm:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
             <Input
-              placeholder="Buscar discussões, usuários..."
-              className="pl-10 bg-muted/50"
+              placeholder="Buscar..."
+              className="pl-9 h-8 text-sm bg-muted/40 border-border/50 placeholder:text-muted-foreground/50 focus-visible:ring-1"
               data-testid="input-topbar-search"
             />
           </div>
@@ -114,22 +114,22 @@ export default function TopBar() {
             </Button>
           </Link>
 
-          {/* Progress Bar - Hidden on mobile */}
+          {/* XP Badge - Hidden on mobile */}
           <Link href="/profile">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <Trophy className="h-4 w-4 text-amber-500 flex-shrink-0" />
-              <div className="flex flex-col gap-0.5 min-w-[120px]">
+            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-muted/60 transition-colors cursor-pointer group">
+              <Trophy className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+              <div className="flex flex-col gap-0.5 min-w-[100px]">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">
+                  <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                     {xpInCurrentLevel} / {xpNeededForNextLevel} XP
                   </span>
-                  <span className="text-xs font-medium">
+                  <span className="text-[11px] font-semibold text-foreground">
                     Nv {level}
                   </span>
                 </div>
-                <Progress 
-                  value={progressPercentage} 
-                  className="h-1.5 bg-[#0000001a]"
+                <Progress
+                  value={progressPercentage}
+                  className="h-1 bg-muted"
                   data-testid="topbar-progress-xp"
                 />
               </div>
