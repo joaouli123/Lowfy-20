@@ -136,7 +136,9 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
     case "notificacao":
       return (
         <div style={{ display: "flex", gap: 12, alignItems: "flex-start", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 14px", boxShadow: "0 4px 14px rgba(0,0,0,.06)" }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: primary + "1a", color: primary, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>!</div>
+          {p.avatar
+            ? <img src={p.avatar} style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+            : <div style={{ width: 36, height: 36, borderRadius: 10, background: primary + "1a", color: primary, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, flexShrink: 0 }}>!</div>}
           <div><div style={{ fontWeight: 700, fontSize: 14 }}>{txt(p.title)}</div><div style={{ fontSize: 13, color: "#64748b" }}>{txt(p.text)}</div></div>
         </div>
       );

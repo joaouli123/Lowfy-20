@@ -456,8 +456,8 @@ function ConfigPanel({ spec, onPatch, publicUrl }: { spec: QuizSpec; onPatch: (p
             <h3 className="font-semibold text-sm mb-1">SEO & Favicon</h3>
             <Field l="Título (SEO)"><In v={s.seoTitle} onChange={(v: any) => onPatch({ seoTitle: v } as any)} placeholder="Aparece na aba do navegador" /></Field>
             <Field l="Descrição (SEO)"><Ta v={s.seoDescription} onChange={(v: any) => onPatch({ seoDescription: v } as any)} /></Field>
-            <Field l="Favicon (URL)"><In v={s.faviconUrl} onChange={(v: any) => onPatch({ faviconUrl: v } as any)} placeholder="https://…/favicon.png" /></Field>
-            <Field l="Imagem de compartilhamento (URL)"><In v={s.shareImage} onChange={(v: any) => onPatch({ shareImage: v } as any)} placeholder="https://…/og.jpg" /></Field>
+            <Field l="Favicon"><ImageUpload value={s.faviconUrl} onChange={(u) => onPatch({ faviconUrl: u } as any)} folder="quiz-favicons" /></Field>
+            <Field l="Imagem de compartilhamento (Open Graph)"><ImageUpload value={s.shareImage} onChange={(u) => onPatch({ shareImage: u } as any)} folder="quiz-og" /></Field>
           </>}
           {sec === "webhooks" && <>
             <h3 className="font-semibold text-sm mb-1">Webhooks</h3>
@@ -763,6 +763,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
         </>}
 
         {comp.type === "notificacao" && <>
+          <Field l="Avatar (opcional)"><ImageUpload value={p.avatar} onChange={(u) => set("avatar", u)} compact folder="quiz-avatares" /></Field>
           <Field l="Título"><In v={p.title} onChange={(v: any) => set("title", v)} /></Field>
           <Field l="Texto"><In v={p.text} onChange={(v: any) => set("text", v)} /></Field>
         </>}
@@ -772,7 +773,9 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
           <ListEditor label="Depoimentos" items={p.items || []} onChange={(items) => set("items", items)}
             create={() => ({ name: "Cliente", text: "Adorei!", stars: 5 })}
             render={(it, _u, patchItem) => <div className="space-y-1.5">
+              <ImageUpload value={it.avatar} onChange={(u) => patchItem({ avatar: u })} compact folder="quiz-avatares" />
               <In v={it.name} onChange={(v: any) => patchItem({ name: v })} placeholder="Nome" />
+              <In v={it.handle} onChange={(v: any) => patchItem({ handle: v })} placeholder="@usuário (opcional)" />
               <Ta v={it.text} onChange={(v: any) => patchItem({ text: v })} />
               <In type="number" v={it.stars} onChange={(v: any) => patchItem({ stars: +v })} placeholder="estrelas" />
             </div>} />
@@ -780,7 +783,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
 
         {comp.type === "argumentos" && <ListEditor label="Argumentos (até 4)" items={p.items || []} onChange={(items) => set("items", items.slice(0, 4))}
           create={() => ({ title: "Vantagem", text: "Descrição" })}
-          render={(it, _u, patchItem) => <div className="space-y-1.5"><In v={it.title} onChange={(v: any) => patchItem({ title: v })} placeholder="Título" /><In v={it.text} onChange={(v: any) => patchItem({ text: v })} placeholder="Texto" /></div>} />}
+          render={(it, _u, patchItem) => <div className="space-y-1.5"><ImageUpload value={it.image} onChange={(u) => patchItem({ image: u })} compact folder="quiz-argumentos" /><In v={it.title} onChange={(v: any) => patchItem({ title: v })} placeholder="Título" /><In v={it.text} onChange={(v: any) => patchItem({ text: v })} placeholder="Texto" /></div>} />}
 
         {comp.type === "preco" && <>
           <Field l="Preço"><In v={p.price} onChange={(v: any) => set("price", v)} /></Field>
