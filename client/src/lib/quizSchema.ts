@@ -11,7 +11,7 @@ export type QComponentType =
   | "alerta" | "notificacao" | "depoimentos" | "argumentos"
   | "preco" | "galeria" | "espaco"
   | "faq" | "carrossel" | "antes_depois" | "graficos" | "script"
-  | "regua" | "cartesiano";
+  | "regua" | "cartesiano" | "garantia" | "resultado" | "beneficios";
 
 export interface QVisibility {
   mode?: "always" | "score" | "time";
@@ -134,9 +134,11 @@ export const PALETTE: PaletteItem[] = [
   { key: "audio", type: "audio", label: "Áudio", icon: "Volume2", category: "Mídia e conteúdo", defaults: () => ({ url: "" }) },
   { key: "galeria", type: "galeria", label: "Galeria", icon: "Images", category: "Mídia e conteúdo", defaults: () => ({ images: [], layout: "grid" }) },
   // Argumentação
+  { key: "beneficios", type: "beneficios", label: "Benefícios", icon: "Gift", category: "Argumentação", defaults: () => ({ title: "O que você vai receber?", icon: "CircleCheck", items: [{ text: "Acesso vitalício ao conteúdo" }, { text: "Suporte exclusivo" }, { text: "Garantia de 7 dias" }] }) },
   { key: "argumentos", type: "argumentos", label: "Argumentos", icon: "LayoutGrid", category: "Argumentação", defaults: () => ({ items: [{ title: "Durabilidade", text: "Feito para durar" }, { title: "Eficiência", text: "Resultados rápidos" }] }) },
-  { key: "depoimentos", type: "depoimentos", label: "Depoimentos", icon: "Quote", category: "Argumentação", defaults: () => ({ layout: "list", items: [{ name: "Maria Silva", handle: "@maria", text: "Esse produto mudou a minha vida!", stars: 5 }] }) },
-  { key: "faq", type: "faq", label: "FAQ", icon: "MessagesSquare", category: "Argumentação", defaults: () => ({ items: [{ q: "Como funciona?", a: "É simples e rápido." }, { q: "Tem garantia?", a: "Sim, 7 dias." }] }) },
+  { key: "depoimentos", type: "depoimentos", label: "Depoimentos", icon: "Quote", category: "Argumentação", defaults: () => ({ layout: "list", items: [{ name: "Maria Silva", handle: "São Paulo, SP", text: "Esse produto mudou a minha vida!", stars: 5 }] }) },
+  { key: "garantia", type: "garantia", label: "Garantia", icon: "ShieldCheck", category: "Argumentação", defaults: () => ({ title: "Seu risco é zero!", text: "Você tem 7 dias de garantia incondicional. Se não gostar, devolvemos 100% do seu dinheiro.", icon: "ShieldCheck" }) },
+  { key: "faq", type: "faq", label: "FAQ", icon: "MessagesSquare", category: "Argumentação", defaults: () => ({ mode: "single", items: [{ q: "Como funciona?", a: "É simples e rápido." }, { q: "Tem garantia?", a: "Sim, 7 dias." }] }) },
   { key: "preco", type: "preco", label: "Preço", icon: "Tag", category: "Argumentação", defaults: () => ({ title: "Plano PRO", prefix: "", price: "R$ 297", suffix: "à vista", installments: "ou 12x de R$ 29,70", highlightText: "MAIS POPULAR", ctaLabel: "Comprar agora", url: "", priceType: "redirect", highlight: true }) },
   { key: "antes_depois", type: "antes_depois", label: "Antes / Depois", icon: "GitCompareArrows", category: "Argumentação", defaults: () => ({ before: "", after: "", labelBefore: "Antes", labelAfter: "Depois" }) },
   { key: "carrossel", type: "carrossel", label: "Carrossel", icon: "GalleryHorizontalEnd", category: "Argumentação", defaults: () => ({ layout: "image_texto", autoplay: false, pagination: true, items: [{ image: "", title: "Item 1", desc: "Descrição do item." }, { image: "", title: "Item 2", desc: "Descrição do item." }] }) },
@@ -144,11 +146,13 @@ export const PALETTE: PaletteItem[] = [
   { key: "alerta", type: "alerta", label: "Alerta", icon: "AlertTriangle", category: "Atenção", defaults: () => ({ text: "Oferta por tempo limitado! Só hoje.", variant: "warning" }) },
   { key: "notificacao", type: "notificacao", label: "Notificação", icon: "BellRing", category: "Atenção", novo: true, defaults: () => ({ title: "Novo!", text: "Você desbloqueou um bônus exclusivo.", durationSec: 4, position: "top" }) },
   { key: "timer", type: "timer", label: "Timer", icon: "Clock", category: "Atenção", defaults: () => ({ minutes: 10, text: "A oferta termina em", expiredText: "Tempo esgotado!" }) },
-  { key: "loading", type: "loading", label: "Loading", icon: "Loader", category: "Atenção", defaults: () => ({ text: "Analisando suas respostas…", durationSec: 3, nextStepId: "", redirectUrl: "", showProgress: true }) },
+  { key: "loading", type: "loading", label: "Loading", icon: "Loader", category: "Atenção", defaults: () => ({ text: "Analisando…", subtitle: "Estamos analisando suas respostas…", durationSec: 4, nextStepId: "", redirectUrl: "", showProgress: true }) },
   { key: "nivel", type: "nivel", label: "Nível", icon: "BarChart3", category: "Atenção", defaults: () => ({ label: "Seu progresso", subtitle: "", percent: 75, fromScore: false, legends: "", indicator: "" }) },
   // Gráficos
   { key: "graficos", type: "graficos", label: "Gráficos", icon: "PieChart", category: "Gráficos", defaults: () => ({ layout: "list", items: [{ type: "circular", color: "tema", value: 70, label: "Engajamento" }, { type: "barra", color: "tema", value: 45, label: "Progresso" }] }) },
+  { key: "barras", type: "graficos", label: "Barras", icon: "BarChart3", category: "Gráficos", defaults: () => ({ layout: "bars", items: [{ type: "barra", color: "tema", value: 30, label: "7 DIAS", sub: "Início" }, { type: "barra", color: "tema", value: 65, label: "14 DIAS", sub: "Evoluindo" }, { type: "barra", color: "tema", value: 95, label: "21 DIAS", sub: "Resultado" }] }) },
   { key: "cartesiano", type: "cartesiano", label: "Cartesiano", icon: "ChartLine", category: "Gráficos", defaults: () => ({ title: "Seu progresso", showArea: true, showX: true, showY: false, items: [{ label: "Início", value: 20 }, { label: "Agora", value: 55, you: true }, { label: "Objetivo", value: 90 }] }) },
+  { key: "resultado", type: "resultado", label: "Resultado", icon: "Gauge", category: "Gráficos", defaults: () => ({ title: "Nível de preparação", result: "Saudável", scoreLabel: "Você está aqui", fromScore: true, percent: 70, levels: ["Baixo", "Médio", "Alto"] }) },
   // Personalização
   { key: "espaco", type: "espaco", label: "Espaço", icon: "Minus", category: "Personalização", defaults: () => ({ height: 24 }) },
   { key: "script", type: "script", label: "Script", icon: "Code", category: "Personalização", defaults: () => ({ code: "" }) },

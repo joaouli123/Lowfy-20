@@ -745,8 +745,10 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
         </>}
 
         {comp.type === "loading" && <>
-          <Field l="Texto"><In v={p.text} onChange={(v: any) => set("text", v)} /></Field>
+          <Field l="Título"><In v={p.text} onChange={(v: any) => set("text", v)} /></Field>
+          <Field l="Subtítulo"><In v={p.subtitle} onChange={(v: any) => set("subtitle", v)} /></Field>
           <Field l="Duração (s)"><In type="number" v={p.durationSec} onChange={(v: any) => set("durationSec", +v)} /></Field>
+          <Check l="Mostrar barra de progresso" v={p.showProgress !== false} onChange={(v) => set("showProgress", v)} />
           <Field l="Ir para"><Sel v={p.nextStepId || ""} onChange={(v) => set("nextStepId", v)} opts={stepOpts} /></Field>
           <Field l="Ou redirecionar p/ URL"><In v={p.redirectUrl} onChange={(v: any) => set("redirectUrl", v)} placeholder="https://…" /></Field>
         </>}
@@ -775,7 +777,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
             render={(it, _u, patchItem) => <div className="space-y-1.5">
               <ImageUpload value={it.avatar} onChange={(u) => patchItem({ avatar: u })} compact folder="quiz-avatares" />
               <In v={it.name} onChange={(v: any) => patchItem({ name: v })} placeholder="Nome" />
-              <In v={it.handle} onChange={(v: any) => patchItem({ handle: v })} placeholder="@usuário (opcional)" />
+              <In v={it.handle} onChange={(v: any) => patchItem({ handle: v })} placeholder="Localização (ex.: São Paulo, SP)" />
               <Ta v={it.text} onChange={(v: any) => patchItem({ text: v })} />
               <In type="number" v={it.stars} onChange={(v: any) => patchItem({ stars: +v })} placeholder="estrelas" />
             </div>} />
@@ -794,9 +796,12 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
 
         {comp.type === "espaco" && <Field l="Altura (px)"><In type="number" v={p.height} onChange={(v: any) => set("height", +v)} /></Field>}
 
-        {comp.type === "faq" && <ListEditor label="Perguntas e respostas" items={p.items || []} onChange={(items) => set("items", items)}
-          create={() => ({ q: "Nova pergunta?", a: "Resposta." })}
-          render={(it, _u, patchItem) => <div className="space-y-1.5"><In v={it.q} onChange={(v: any) => patchItem({ q: v })} placeholder="Pergunta" /><Ta v={it.a} onChange={(v: any) => patchItem({ a: v })} /></div>} />}
+        {comp.type === "faq" && <>
+          <Field l="Modo de abertura"><Sel v={p.mode} onChange={(v) => set("mode", v)} opts={[["single", "Único (fecha os outros)"], ["multiple", "Múltiplos abertos"]]} /></Field>
+          <ListEditor label="Perguntas e respostas" items={p.items || []} onChange={(items) => set("items", items)}
+            create={() => ({ q: "Nova pergunta?", a: "Resposta." })}
+            render={(it, _u, patchItem) => <div className="space-y-1.5"><In v={it.q} onChange={(v: any) => patchItem({ q: v })} placeholder="Pergunta" /><Ta v={it.a} onChange={(v: any) => patchItem({ a: v })} /></div>} />
+        </>}
 
         {comp.type === "carrossel" && <>
           <Field l="Disposição"><Sel v={p.layout} onChange={(v) => set("layout", v)} opts={[["image_texto", "Imagem e texto"], ["image", "Apenas imagem"]]} /></Field>
@@ -813,16 +818,39 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
         </>}
 
         {comp.type === "graficos" && <>
-          <Field l="Layout"><Sel v={p.layout} onChange={(v) => set("layout", v)} opts={[["list", "Itens em lista"], ["grid", "Grade 2 colunas"]]} /></Field>
+          <Field l="Layout"><Sel v={p.layout} onChange={(v) => set("layout", v)} opts={[["list", "Itens em lista"], ["grid", "Grade 2 colunas"], ["bars", "Barras verticais"]]} /></Field>
           <ListEditor label="Gráficos" items={p.items || []} onChange={(items) => set("items", items)}
-            create={() => ({ type: "circular", color: "tema", value: 50, label: "Métrica" })}
+            create={() => ({ type: "barra", color: "tema", value: 50, label: "Métrica" })}
             render={(it, _u, patchItem) => <div className="space-y-1.5">
               <div className="grid grid-cols-2 gap-1.5">
-                <Sel v={it.type} onChange={(v) => patchItem({ type: v })} opts={[["circular", "Circular"], ["barra", "Barra"]]} />
+                {p.layout !== "bars" && <Sel v={it.type} onChange={(v) => patchItem({ type: v })} opts={[["circular", "Circular"], ["barra", "Barra"]]} />}
                 <Sel v={it.color} onChange={(v) => patchItem({ color: v })} opts={[["tema", "Cor tema"], ["verde", "Verde"], ["vermelho", "Vermelho"]]} />
               </div>
-              <div className="flex gap-1.5"><In type="number" v={it.value} onChange={(v: any) => patchItem({ value: +v })} placeholder="%" /><In v={it.label} onChange={(v: any) => patchItem({ label: v })} placeholder="Legenda" /></div>
+              <div className="flex gap-1.5"><In type="number" v={it.value} onChange={(v: any) => patchItem({ value: +v })} placeholder="%" /><In v={it.label} onChange={(v: any) => patchItem({ label: v })} placeholder="Rótulo" /></div>
+              {p.layout === "bars" && <In v={it.sub} onChange={(v: any) => patchItem({ sub: v })} placeholder="Legenda secundária (opcional)" />}
             </div>} />
+        </>}
+
+        {comp.type === "garantia" && <>
+          <Field l="Título"><In v={p.title} onChange={(v: any) => set("title", v)} /></Field>
+          <Field l="Texto"><Ta v={p.text} onChange={(v: any) => set("text", v)} /></Field>
+        </>}
+
+        {comp.type === "beneficios" && <>
+          <Field l="Título"><In v={p.title} onChange={(v: any) => set("title", v)} /></Field>
+          <ListEditor label="Benefícios" items={p.items || []} onChange={(items) => set("items", items)}
+            create={() => ({ text: "Novo benefício" })}
+            render={(it, _u, patchItem) => <In v={it.text} onChange={(v: any) => patchItem({ text: v })} placeholder="Texto do benefício" />} />
+        </>}
+
+        {comp.type === "resultado" && <>
+          <Field l="Título"><In v={p.title} onChange={(v: any) => set("title", v)} /></Field>
+          <Field l="Resultado (texto)"><In v={p.result} onChange={(v: any) => set("result", v)} placeholder="Ex.: Saudável" /></Field>
+          <Field l="Rótulo do marcador"><In v={p.scoreLabel} onChange={(v: any) => set("scoreLabel", v)} placeholder="Você está aqui" /></Field>
+          <Check l="Posição pela pontuação (score)" v={p.fromScore} onChange={(v) => set("fromScore", v)} />
+          {!p.fromScore && <Field l="Posição (%)"><In type="number" v={p.percent} onChange={(v: any) => set("percent", +v)} /></Field>}
+          <ListEditor label="Níveis (rótulos da régua)" items={p.levels || []} onChange={(items) => set("levels", items)}
+            create={() => "Nível"} render={(it, upd) => <In v={it} onChange={upd} placeholder="ex.: Baixo" />} />
         </>}
 
         {comp.type === "script" && <Field l="Código de incorporação (HTML/JS)"><Ta v={p.code} onChange={(v: any) => set("code", v)} /></Field>}

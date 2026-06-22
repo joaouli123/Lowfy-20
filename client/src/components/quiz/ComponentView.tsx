@@ -148,13 +148,15 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
       return (
         <div style={{ display: "grid", gridTemplateColumns: grid ? "repeat(2,1fr)" : "1fr", gap: 10 }}>
           {items.map((it: any, i: number) => (
-            <div key={i} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
-              <div style={{ color: "#f59e0b", fontSize: 13, marginBottom: 4 }}>{"★".repeat(it.stars || 5)}</div>
-              <p style={{ fontSize: 14, margin: "0 0 8px", color: "#334155" }}>"{it.text}"</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {it.avatar && <img src={it.avatar} style={{ width: 28, height: 28, borderRadius: 999, objectFit: "cover" }} />}
-                <span style={{ fontSize: 13, fontWeight: 700 }}>{it.name}</span>
+            <div key={i} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                {it.avatar
+                  ? <img src={it.avatar} style={{ width: 38, height: 38, borderRadius: 999, objectFit: "cover" }} />
+                  : <div style={{ width: 38, height: 38, borderRadius: 999, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontWeight: 700 }}>{(it.name || "?")[0]}</div>}
+                <div><div style={{ fontSize: 14, fontWeight: 700, color: t.textColor }}>{it.name}</div>{it.handle && <div style={{ fontSize: 12, color: "#94a3b8" }}>{it.handle}</div>}</div>
               </div>
+              <p style={{ fontSize: 14, margin: "0 0 10px", color: "#475569", lineHeight: 1.5 }}>{txt(it.text)}</p>
+              <div style={{ color: "#f59e0b", fontSize: 15, letterSpacing: 1 }}>{"★".repeat(Math.max(1, Math.min(5, it.stars || 5)))}</div>
             </div>
           ))}
         </div>
@@ -208,6 +210,29 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
       const items = p.items || [];
       const grid = p.layout === "grid";
       const colorOf = (c: string) => c === "vermelho" ? "#ef4444" : c === "verde" ? "#22c55e" : primary;
+      if (p.layout === "bars") {
+        const maxV = Math.max(100, ...items.map((d: any) => d.value || 0));
+        return (
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-around", gap: 12, padding: "8px 4px" }}>
+            {items.map((d: any, i: number) => {
+              const col = colorOf(d.color), h = Math.max(8, ((d.value || 0) / maxV) * 130);
+              return (
+                <div key={i} style={{ flex: 1, textAlign: "center" }}>
+                  <div style={{ height: 140, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                    <div style={{ width: "70%", maxWidth: 46, height: h, background: "#eef2f7", borderRadius: "10px 10px 6px 6px", position: "relative", display: "flex", flexDirection: "column", justifyContent: "flex-end", overflow: "hidden" }}>
+                      <div style={{ height: "100%", background: `linear-gradient(180deg, ${col}, ${col}cc)`, borderRadius: "10px 10px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 5 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "#fff" }}>{d.value}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: t.textColor, marginTop: 6 }}>{txt(d.label)}</div>
+                  {d.sub && <div style={{ fontSize: 11, color: "#94a3b8" }}>{txt(d.sub)}</div>}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
       return (
         <div style={{ display: "grid", gridTemplateColumns: grid ? "repeat(2,1fr)" : "1fr", gap: 14 }}>
           {items.map((it: any, i: number) => {
@@ -235,6 +260,52 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
       return <ScriptView comp={comp} preview={!!ctx.preview} />;
     case "regua":
       return <ReguaView comp={comp} ctx={ctx} primary={primary} />;
+    case "garantia":
+      return (
+        <div style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: "22px 18px", textAlign: "center", background: "#fff" }}>
+          <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke={t.textColor || "#0f172a"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 10px", display: "block" }}>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" />
+          </svg>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: t.textColor, margin: "0 0 6px" }}>{txt(p.title)}</h3>
+          <p style={{ fontSize: 14, color: "#64748b", margin: 0, lineHeight: 1.55 }}>{txt(p.text)}</p>
+        </div>
+      );
+    case "beneficios": {
+      const items = p.items || [];
+      return (
+        <div style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: "18px", background: "#fff" }}>
+          {p.title && <h3 style={{ fontSize: 17, fontWeight: 800, color: t.textColor, textAlign: "center", margin: "0 0 14px" }}>{txt(p.title)}</h3>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+            {items.map((it: any, i: number) => (
+              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg>
+                <span style={{ fontSize: 14, color: t.textColor, lineHeight: 1.45 }}>{txt(it.text)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case "resultado": {
+      const pctR = Math.max(0, Math.min(100, p.fromScore ? ctx.score : (p.percent ?? 50)));
+      const levels: string[] = p.levels && p.levels.length ? p.levels : ["Baixo", "Médio", "Alto"];
+      return (
+        <div style={{ borderRadius: 16, padding: "18px 18px 22px", background: `linear-gradient(135deg, ${primary}, ${primary}cc)`, color: "#fff" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 18 }}>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>{txt(p.title)}</span>
+            {p.result && <span style={{ fontSize: 15, fontWeight: 800 }}>{txt(p.result)}</span>}
+          </div>
+          <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,.35)", borderRadius: 999, marginBottom: 8 }}>
+            <div style={{ width: `${pctR}%`, height: "100%", background: "#fff", borderRadius: 999 }} />
+            <div style={{ position: "absolute", top: "50%", left: `${pctR}%`, transform: "translate(-50%,-50%)", width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 0 0 4px rgba(255,255,255,.3)" }} />
+            <div style={{ position: "absolute", bottom: 18, left: `${pctR}%`, transform: "translateX(-50%)", whiteSpace: "nowrap", background: "#fff", color: ctx.theme.textColor, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6 }}>{txt(p.scoreLabel) || "Você está aqui"}</div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, opacity: 0.95 }}>
+            {levels.map((l, i) => <span key={i}>{l}</span>)}
+          </div>
+        </div>
+      );
+    }
     case "cartesiano": {
       const items: any[] = p.items || [];
       if (!items.length) return <Placeholder label="Cartesiano (adicione dados)" />;
@@ -250,13 +321,20 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
             {p.showY && [0, 0.5, 1].map((g, i) => <line key={i} x1={pad} x2={W - pad} y1={pad + g * (H - 2 * pad)} y2={pad + g * (H - 2 * pad)} stroke="#eef2f7" />)}
             {p.showArea && <path d={area} fill={primary} opacity={0.12} />}
             <path d={line} fill="none" stroke={primary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-            {items.map((d, i) => (
-              <g key={i}>
-                <circle cx={pts[i][0]} cy={pts[i][1]} r={d.you ? 6 : 4} fill={d.you ? primary : "#fff"} stroke={primary} strokeWidth={2} />
-                {p.showX && <text x={pts[i][0]} y={H - 8} textAnchor="middle" fontSize={9} fill="#64748b">{d.label}</text>}
-                {d.you && <text x={pts[i][0]} y={pts[i][1] - 12} textAnchor="middle" fontSize={9} fontWeight={700} fill={primary}>Você</text>}
-              </g>
-            ))}
+            {items.map((d, i) => {
+              const bx = Math.max(13, Math.min(W - 13, pts[i][0])), by = Math.max(11, pts[i][1] - 16);
+              return (
+                <g key={i}>
+                  <g transform={`translate(${bx - 13},${by - 9})`}>
+                    <rect width={26} height={17} rx={5} fill={primary} />
+                    <text x={13} y={12} textAnchor="middle" fontSize={9} fontWeight={700} fill="#fff">{d.value}</text>
+                  </g>
+                  <circle cx={pts[i][0]} cy={pts[i][1]} r={d.you ? 5.5 : 4} fill={d.you ? primary : "#fff"} stroke={primary} strokeWidth={2} />
+                  {p.showX && <text x={pts[i][0]} y={H - 8} textAnchor="middle" fontSize={9} fill="#64748b">{d.label}</text>}
+                  {d.you && <text x={pts[i][0]} y={pts[i][1] + 16} textAnchor="middle" fontSize={9} fontWeight={700} fill={primary}>Você</text>}
+                </g>
+              );
+            })}
           </svg>
         </div>
       );
@@ -331,28 +409,35 @@ function LoadingView({ comp, ctx, primary }: { comp: QComponent; ctx: RuntimeCtx
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <div style={{ textAlign: "center", padding: "20px 0" }}>
-      <div style={{ width: 48, height: 48, margin: "0 auto 14px", border: `4px solid ${primary}33`, borderTopColor: primary, borderRadius: "50%", animation: "qspin 1s linear infinite" }} />
-      <div style={{ fontSize: 15, color: ctx.theme.textColor, marginBottom: 12 }}>{resolveVars(p.text || "Carregando…", ctx.vars)}</div>
-      <div style={{ height: 8, background: "#eef2f7", borderRadius: 999, maxWidth: 260, margin: "0 auto" }}><div style={{ width: `${pct}%`, height: "100%", background: primary, borderRadius: 999, transition: "width .1s" }} /></div>
-      <style>{`@keyframes qspin{to{transform:rotate(360deg)}}`}</style>
+    <div style={{ textAlign: "center", padding: "8px 0" }}>
+      {p.showProgress !== false && (
+        <div style={{ position: "relative", height: 22, background: "#eef2f7", borderRadius: 999, overflow: "hidden", marginBottom: 14 }}>
+          <div style={{ width: `${pct}%`, height: "100%", background: `linear-gradient(90deg, ${primary}cc, ${primary})`, borderRadius: 999, transition: "width .12s" }} />
+          <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: pct > 52 ? "#fff" : "#475569" }}>{Math.round(pct)}%</span>
+        </div>
+      )}
+      <h3 style={{ fontSize: 18, fontWeight: 800, color: ctx.theme.textColor, margin: "0 0 4px" }}>{resolveVars(p.text || "Carregando…", ctx.vars)}</h3>
+      {p.subtitle && <p style={{ fontSize: 14, color: "#64748b", margin: 0 }}>{resolveVars(p.subtitle, ctx.vars)}</p>}
     </div>
   );
 }
 
-function FaqView({ comp, ctx, primary }: { comp: QComponent; ctx: RuntimeCtx; primary: string }) {
+function FaqView({ comp, ctx }: { comp: QComponent; ctx: RuntimeCtx; primary: string }) {
   const items = comp.props?.items || [];
-  const [open, setOpen] = useState<number>(-1);
+  const multiple = comp.props?.mode === "multiple";
+  const [openSet, setOpenSet] = useState<number[]>([0]);
+  const isOpen = (i: number) => openSet.includes(i);
+  const toggle = (i: number) => { if (ctx.preview) return; setOpenSet((s) => multiple ? (s.includes(i) ? s.filter((x) => x !== i) : [...s, i]) : (s.includes(i) ? [] : [i])); };
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", background: "#fff" }}>
       {items.map((it: any, i: number) => (
-        <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
-          <button type="button" onClick={() => !ctx.preview && setOpen(open === i ? -1 : i)}
-            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "13px 14px", background: "#fff", border: "none", cursor: ctx.preview ? "default" : "pointer", fontWeight: 600, fontSize: 14, textAlign: "left", color: ctx.theme.textColor }}>
-            {resolveVars(it.q, ctx.vars)}
-            <span style={{ color: primary, transform: open === i ? "rotate(45deg)" : "none", transition: "transform .15s", fontSize: 18 }}>+</span>
+        <div key={i} style={{ borderTop: i ? "1px solid #f1f5f9" : "none" }}>
+          <button type="button" onClick={() => toggle(i)}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "14px 16px", background: "transparent", border: "none", cursor: ctx.preview ? "default" : "pointer", fontWeight: 600, fontSize: 14, textAlign: "left", color: ctx.theme.textColor }}>
+            <span>{resolveVars(it.q, ctx.vars)}</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: isOpen(i) ? "rotate(180deg)" : "none", transition: "transform .2s" }}><path d="m6 9 6 6 6-6" /></svg>
           </button>
-          {(open === i || ctx.preview) && <div style={{ padding: "0 14px 13px", fontSize: 14, color: "#475569", lineHeight: 1.55 }}>{resolveVars(it.a, ctx.vars)}</div>}
+          {(isOpen(i) || ctx.preview) && <div style={{ padding: "0 16px 14px", fontSize: 14, color: "#475569", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: resolveVars(it.a || "", ctx.vars) }} />}
         </div>
       ))}
     </div>
@@ -418,28 +503,44 @@ function ReguaView({ comp, ctx, primary }: { comp: QComponent; ctx: RuntimeCtx; 
   const p = comp.props || {};
   const min = p.min ?? 0, max = p.max ?? 100;
   const [val, setVal] = useState<number>(p.value ?? Math.round((min + max) / 2));
-  const [imperial, setImperial] = useState(false);
-  const isHeight = p.unit === "cm";
+  const [alt, setAlt] = useState(false); // unidade alternativa (pol/lb)
+  const sec = p.unit === "cm" ? "pol" : p.unit === "kg" ? "lb" : "";
+  const pct = ((val - min) / Math.max(1, max - min)) * 100;
   const display = () => {
-    if (isHeight && imperial) { const inch = Math.round(val / 2.54); return `${Math.floor(inch / 12)}′ ${inch % 12}″`; }
-    return `${val} ${p.unit || ""}`;
+    if (alt && p.unit === "cm") { const inch = Math.round(val / 2.54); return [`${Math.floor(inch / 12)}′${inch % 12}″`, ""]; }
+    if (alt && p.unit === "kg") return [String(Math.round(val * 2.205)), "lb"];
+    return [String(val), p.unit || ""];
   };
+  const [num, un] = display();
   const setV = (v: number) => { setVal(v); ctx.onAnswer?.(comp, { [p.name || comp.type]: `${v} ${p.unit || ""}` }); };
+  const ticks = Array.from({ length: 41 }, (_, i) => i);
   return (
     <div style={{ textAlign: "center" }}>
-      {p.label && <h3 style={{ fontSize: 18, fontWeight: 700, color: ctx.theme.textColor, margin: "0 0 10px" }}>{resolveVars(p.label, ctx.vars)}</h3>}
-      {isHeight && (
-        <div style={{ display: "inline-flex", border: "1px solid #e2e8f0", borderRadius: 999, padding: 2, marginBottom: 10 }}>
-          {[["cm", false], ["pol", true]].map(([lab, imp]) => (
-            <button key={lab as string} type="button" disabled={ctx.preview} onClick={() => setImperial(imp as boolean)}
-              style={{ border: "none", background: imperial === imp ? primary : "transparent", color: imperial === imp ? "#fff" : "#64748b", borderRadius: 999, padding: "4px 14px", fontSize: 13, cursor: ctx.preview ? "default" : "pointer" }}>{lab}</button>
+      {p.label && <h3 style={{ fontSize: 18, fontWeight: 700, color: ctx.theme.textColor, margin: "0 0 12px" }}>{resolveVars(p.label, ctx.vars)}</h3>}
+      {sec && (
+        <div style={{ display: "inline-flex", background: "#eef2f7", borderRadius: 999, padding: 3, marginBottom: 12 }}>
+          {[[p.unit, false], [sec, true]].map(([lab, a]) => (
+            <button key={lab as string} type="button" disabled={ctx.preview} onClick={() => setAlt(a as boolean)}
+              style={{ border: "none", background: alt === a ? primary : "transparent", color: alt === a ? "#fff" : "#64748b", borderRadius: 999, padding: "5px 16px", fontSize: 13, fontWeight: 600, cursor: ctx.preview ? "default" : "pointer" }}>{lab}</button>
           ))}
         </div>
       )}
-      <div style={{ fontSize: 38, fontWeight: 800, color: primary, lineHeight: 1 }}>{display()}</div>
-      <input type="range" min={min} max={max} value={val} disabled={ctx.preview} onChange={(e) => setV(+e.target.value)}
-        style={{ width: "100%", maxWidth: 320, marginTop: 16, accentColor: primary }} />
-      <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>Arraste para ajustar</div>
+      <div style={{ marginBottom: 14 }}><span style={{ fontSize: 40, fontWeight: 800, color: ctx.theme.textColor }}>{num}</span><span style={{ fontSize: 20, fontWeight: 600, color: "#94a3b8", marginLeft: 2 }}>{un}</span></div>
+      {/* régua */}
+      <div style={{ position: "relative", height: 56, maxWidth: 340, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", height: 30, padding: "0 2px" }}>
+          {ticks.map((i) => <div key={i} style={{ width: 1, height: i % 5 === 0 ? 22 : 11, background: i % 5 === 0 ? "#94a3b8" : "#cbd5e1" }} />)}
+        </div>
+        {/* agulha */}
+        <div style={{ position: "absolute", top: 0, left: `${pct}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ width: 2, height: 30, background: primary }} />
+          <div style={{ width: 0, height: 0, borderLeft: "7px solid transparent", borderRight: "7px solid transparent", borderTop: `9px solid ${primary}` }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8", marginTop: 2 }}><span>{min}</span><span>{max}</span></div>
+        <input type="range" min={min} max={max} value={val} disabled={ctx.preview} onChange={(e) => setV(+e.target.value)}
+          style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 34, opacity: 0, cursor: ctx.preview ? "default" : "pointer", margin: 0 }} />
+      </div>
+      <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 8 }}>Arraste para selecionar</div>
     </div>
   );
 }
