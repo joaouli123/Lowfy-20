@@ -28,8 +28,8 @@ function CommunityManagement() {
   return (
     <Tabs defaultValue="forum" className="mt-6">
       <TabsList className="grid w-full grid-cols-2 bg-white">
-        <TabsTrigger value="forum" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Fórum</TabsTrigger>
-        <TabsTrigger value="tickets" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Tickets de Suporte</TabsTrigger>
+        <TabsTrigger value="forum" className="">Fórum</TabsTrigger>
+        <TabsTrigger value="tickets" className="">Tickets de Suporte</TabsTrigger>
       </TabsList>
       <TabsContent value="forum"><ForumManagement /></TabsContent>
       <TabsContent value="tickets"><TicketsManagement /></TabsContent>

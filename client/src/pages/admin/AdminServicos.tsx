@@ -46,10 +46,10 @@ function ServicesManagement() {
   return (
     <Tabs defaultValue="services" className="mt-6">
       <TabsList className="grid w-full grid-cols-4 bg-white">
-        <TabsTrigger value="services" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">White Label</TabsTrigger>
-        <TabsTrigger value="ai-tools" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">FERRAMENTAS IA</TabsTrigger>
-        <TabsTrigger value="global-access" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">ACESSOS GLOBAIS</TabsTrigger>
-        <TabsTrigger value="quiz-interativo" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">QUIZ INTERATIVO</TabsTrigger>
+        <TabsTrigger value="services" className="">White Label</TabsTrigger>
+        <TabsTrigger value="ai-tools" className="">FERRAMENTAS IA</TabsTrigger>
+        <TabsTrigger value="global-access" className="">ACESSOS GLOBAIS</TabsTrigger>
+        <TabsTrigger value="quiz-interativo" className="">QUIZ INTERATIVO</TabsTrigger>
       </TabsList>
       <TabsContent value="services"><ServicesTab /></TabsContent>
       <TabsContent value="ai-tools"><AIToolsTab /></TabsContent>

@@ -182,7 +182,7 @@ export function emptySpec(name: string, slug: string): QuizSpec {
   return {
     name, slug,
     steps: [newStep("Etapa 1")],
-    theme: { primaryColor: "#22c55e", bgColor: "#ffffff", textColor: "#0f172a", buttonTextColor: "#ffffff", showProgress: true },
+    theme: { primaryColor: "#0d9b6e", bgColor: "#ffffff", textColor: "#0f172a", buttonTextColor: "#ffffff", showProgress: true },
     isPublished: false,
   };
 }

@@ -28,6 +28,7 @@ export default function QuizBuilder() {
   const [editing, setEditing] = useState<QuizSpec | null>(null);
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"grid" | "list">("grid");
 
   const load = async () => {
     setLoading(true);
@@ -58,36 +59,69 @@ export default function QuizBuilder() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center"><Icons.LayoutTemplate className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold tracking-tight">Quiz Builder</h1><p className="text-sm text-muted-foreground">Crie funis de quiz interativos — arraste, solte e publique.</p></div>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center shadow-sm shadow-primary/25"><Icons.LayoutTemplate className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-xl font-semibold tracking-tight">Quiz Builder</h1><p className="text-sm text-muted-foreground">Crie funis de quiz interativos — arraste, solte e publique.</p></div>
         </div>
-        <button onClick={create} className="bg-black text-white dark:bg-white dark:text-black rounded-lg px-4 py-2.5 text-sm font-semibold flex items-center gap-2 hover:opacity-90"><Icons.Plus className="w-4 h-4" /> Criar Funil</button>
+        <div className="flex items-center gap-2">
+          {list.length > 0 && (
+            <div className="hidden sm:flex items-center rounded-lg border bg-muted/50 p-0.5" role="tablist" aria-label="Modo de exibição">
+              <button onClick={() => setView("grid")} title="Cards" aria-pressed={view === "grid"} className={`p-1.5 rounded-md transition ${view === "grid" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}><Icons.LayoutGrid className="w-4 h-4" /></button>
+              <button onClick={() => setView("list")} title="Lista" aria-pressed={view === "list"} className={`p-1.5 rounded-md transition ${view === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}><Icons.List className="w-4 h-4" /></button>
+            </div>
+          )}
+          <button onClick={create} className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 shadow-sm hover:bg-primary/90 active:scale-[0.98] transition"><Icons.Plus className="w-4 h-4" /> Criar Funil</button>
+        </div>
       </div>
 
-      <div className="mt-6">
+      <div>
         {loading ? <div className="text-center text-muted-foreground py-16"><Icons.Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>
           : list.length === 0 ? (
             <div className="border-2 border-dashed rounded-2xl py-16 text-center">
               <Icons.LayoutTemplate className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-muted-foreground mb-4">Crie seu primeiro funil</p>
-              <button onClick={create} className="bg-black text-white dark:bg-white dark:text-black rounded-lg px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2"><Icons.Plus className="w-4 h-4" /> Criar Funil</button>
+              <button onClick={create} className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 shadow-sm hover:bg-primary/90 active:scale-[0.98] transition"><Icons.Plus className="w-4 h-4" /> Criar Funil</button>
             </div>
-          ) : (
+          ) : view === "grid" ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {list.map((q) => (
-                <div key={q.slug} className="border rounded-xl p-4 hover:shadow-md transition group">
-                  <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center mb-3"><Icons.ListChecks className="w-5 h-5 text-primary" /></div>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full ${q.isPublished ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>{q.isPublished ? "Publicado" : "Rascunho"}</span>
+                <div key={q.slug} className="bg-card border rounded-xl p-4 hover:shadow-md hover:border-primary/20 transition group">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center"><Icons.ListChecks className="w-5 h-5 text-primary" /></div>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${q.isPublished ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>{q.isPublished ? "Publicado" : "Rascunho"}</span>
                   </div>
                   <h3 className="font-semibold truncate">{q.name}</h3>
-                  <div className="text-xs text-muted-foreground mt-1 flex gap-3"><span>👁 {q.meta?.views || 0}</span><span>✅ {q.meta?.leads || 0} leads</span></div>
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={() => open(q.slug)} className="flex-1 text-sm border rounded-lg py-1.5 hover:bg-accent">Editar</button>
-                    <a href={`/q/${q.slug}`} target="_blank" rel="noreferrer" className="text-sm border rounded-lg py-1.5 px-3 hover:bg-accent">↗</a>
-                    <button onClick={() => del(q.slug)} className="text-sm border rounded-lg py-1.5 px-3 hover:bg-red-50 hover:text-red-600 hover:border-red-200"><Icons.Trash2 className="w-4 h-4" /></button>
+                  <div className="text-xs text-muted-foreground mt-1.5 flex gap-4">
+                    <span className="inline-flex items-center gap-1"><Icons.Eye className="w-3.5 h-3.5" /> {q.meta?.views || 0}</span>
+                    <span className="inline-flex items-center gap-1"><Icons.Users className="w-3.5 h-3.5" /> {q.meta?.leads || 0} leads</span>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <button onClick={() => open(q.slug)} className="flex-1 text-sm font-medium border rounded-lg py-1.5 hover:bg-accent hover:text-accent-foreground hover:border-primary/30 transition">Editar</button>
+                    <a href={`/q/${q.slug}`} target="_blank" rel="noreferrer" title="Abrir funil" className="text-sm border rounded-lg py-1.5 px-2.5 hover:bg-accent transition inline-flex items-center"><Icons.ExternalLink className="w-4 h-4" /></a>
+                    <button onClick={() => del(q.slug)} title="Excluir" className="text-sm border rounded-lg py-1.5 px-2.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition"><Icons.Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card border rounded-xl overflow-hidden">
+              <div className="hidden sm:grid grid-cols-[1fr_120px_84px_84px_148px] gap-3 px-4 py-2.5 border-b bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span>Funil</span><span>Status</span><span className="text-center">Views</span><span className="text-center">Leads</span><span className="text-right">Ações</span>
+              </div>
+              {list.map((q) => (
+                <div key={q.slug} className="grid grid-cols-1 sm:grid-cols-[1fr_120px_84px_84px_148px] gap-3 px-4 py-3 border-b last:border-0 items-center hover:bg-muted/30 transition">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center flex-shrink-0"><Icons.ListChecks className="w-4 h-4 text-primary" /></div>
+                    <span className="font-medium truncate">{q.name}</span>
+                  </div>
+                  <span><span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${q.isPublished ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>{q.isPublished ? "Publicado" : "Rascunho"}</span></span>
+                  <span className="text-sm text-muted-foreground sm:text-center"><span className="sm:hidden text-muted-foreground/70">Views: </span>{q.meta?.views || 0}</span>
+                  <span className="text-sm text-muted-foreground sm:text-center"><span className="sm:hidden text-muted-foreground/70">Leads: </span>{q.meta?.leads || 0}</span>
+                  <div className="flex gap-1.5 sm:justify-end">
+                    <button onClick={() => open(q.slug)} className="text-sm font-medium border rounded-lg py-1.5 px-3 hover:bg-accent hover:text-accent-foreground hover:border-primary/30 transition">Editar</button>
+                    <a href={`/q/${q.slug}`} target="_blank" rel="noreferrer" title="Abrir funil" className="text-sm border rounded-lg py-1.5 px-2.5 hover:bg-accent transition inline-flex items-center"><Icons.ExternalLink className="w-4 h-4" /></a>
+                    <button onClick={() => del(q.slug)} title="Excluir" className="text-sm border rounded-lg py-1.5 px-2.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition"><Icons.Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               ))}

@@ -26,7 +26,7 @@ const ytId = (u: string) => (u.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{6,})/) ||
 export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: RuntimeCtx }) {
   const p = comp.props || {};
   const t = ctx.theme || {};
-  const primary = t.primaryColor || "#22c55e";
+  const primary = t.primaryColor || "#0d9b6e";
   const btnText = t.buttonTextColor || "#ffffff";
   const txt = (s?: string) => resolveVars(s || "", ctx.vars);
 
@@ -209,7 +209,7 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
     case "graficos": {
       const items = p.items || [];
       const grid = p.layout === "grid";
-      const colorOf = (c: string) => c === "vermelho" ? "#ef4444" : c === "verde" ? "#22c55e" : primary;
+      const colorOf = (c: string) => c === "vermelho" ? "#ef4444" : c === "verde" ? "#0d9b6e" : primary;
       if (p.layout === "bars") {
         const maxV = Math.max(100, ...items.map((d: any) => d.value || 0));
         return (

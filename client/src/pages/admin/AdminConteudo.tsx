@@ -57,9 +57,9 @@ function ContentManagement() {
   return (
     <Tabs defaultValue="plrs" className="mt-6">
       <TabsList className="grid w-full grid-cols-3 bg-white">
-        <TabsTrigger value="plrs" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">PLRs</TabsTrigger>
-        <TabsTrigger value="categories" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Categorias</TabsTrigger>
-        <TabsTrigger value="languages" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Idiomas</TabsTrigger>
+        <TabsTrigger value="plrs" className="">PLRs</TabsTrigger>
+        <TabsTrigger value="categories" className="">Categorias</TabsTrigger>
+        <TabsTrigger value="languages" className="">Idiomas</TabsTrigger>
       </TabsList>
       <TabsContent value="plrs"><PLRsManagement /></TabsContent>
       <TabsContent value="categories"><CategoriesManagement /></TabsContent>
@@ -517,11 +517,11 @@ function PLRsManagement() {
 
                   <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-5 mb-6 bg-white">
-                      <TabsTrigger value="basico" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Básico</TabsTrigger>
-                      <TabsTrigger value="conteudo" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Conteúdo</TabsTrigger>
-                      <TabsTrigger value="links" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Links</TabsTrigger>
-                      <TabsTrigger value="idiomas" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Idiomas</TabsTrigger>
-                      <TabsTrigger value="criativos" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Criativos</TabsTrigger>
+                      <TabsTrigger value="basico" className="">Básico</TabsTrigger>
+                      <TabsTrigger value="conteudo" className="">Conteúdo</TabsTrigger>
+                      <TabsTrigger value="links" className="">Links</TabsTrigger>
+                      <TabsTrigger value="idiomas" className="">Idiomas</TabsTrigger>
+                      <TabsTrigger value="criativos" className="">Criativos</TabsTrigger>
                     </TabsList>
 
                   <Form {...form}>

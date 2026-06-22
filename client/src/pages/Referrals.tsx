@@ -489,7 +489,7 @@ export default function Referrals() {
                   <CardContent>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xl sm:text-2xl font-bold text-green-600" data-testid="text-conversions">
+                        <p className="text-xl sm:text-2xl font-bold text-primary" data-testid="text-conversions">
                           {completeStats?.overview.totalConversions || 0}
                         </p>
                         <p className="text-xs text-muted-foreground">
@@ -528,7 +528,7 @@ export default function Referrals() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm sm:text-2xl font-bold text-green-600" data-testid="text-balance-available">
+                      <p className="text-sm sm:text-2xl font-bold text-primary" data-testid="text-balance-available">
                         {formatCurrency(completeStats?.financial.balanceAvailable || 0)}
                       </p>
                       <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" />
@@ -536,7 +536,7 @@ export default function Referrals() {
                     {(completeStats?.financial.balanceAvailable || 0) >= 1000 && balance?.pixKey ? (
                       <Button
                         onClick={() => setIsWithdrawDialogOpen(true)}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                         size="sm"
                         data-testid="button-quick-withdraw"
                       >
@@ -553,11 +553,11 @@ export default function Referrals() {
                   <CardContent className="pt-4 pb-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-full bg-green-100 dark:bg-green-900">
-                        <UserCheck className="w-5 h-5 text-green-600" />
+                        <UserCheck className="w-5 h-5 text-primary" />
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Assinaturas Ativas</p>
-                        <p className="text-xl font-bold text-green-600" data-testid="text-active-referrals">
+                        <p className="text-xl font-bold text-primary" data-testid="text-active-referrals">
                           {completeStats?.referrals.active || 0}
                         </p>
                       </div>
@@ -649,7 +649,7 @@ export default function Referrals() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs sm:text-sm text-muted-foreground">Saldo Atual</p>
-                      <p className="text-lg sm:text-xl font-bold text-green-600" data-testid="text-current-balance">
+                      <p className="text-lg sm:text-xl font-bold text-primary" data-testid="text-current-balance">
                         {formatCurrency((completeStats?.financial.balancePending || 0) + (completeStats?.financial.balanceAvailable || 0))}
                       </p>
                     </div>
@@ -709,7 +709,7 @@ export default function Referrals() {
 
               {balance?.pixKey ? (
                 <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 px-3 py-2 sm:px-4 sm:py-3 rounded-md" data-testid="pix-configured-indicator">
-                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
                   <span className="text-xs sm:text-sm text-green-700 dark:text-green-300">
                     PIX configurado: {balance.pixKeyType && `${PIX_KEY_TYPES.find(t => t.value === balance.pixKeyType)?.label} - `}
                     <span className="font-semibold break-all">{balance.pixKey}</span>
@@ -784,7 +784,7 @@ export default function Referrals() {
               {referredUsersData?.byStatus && (
                 <div className="grid grid-cols-4 gap-2 mb-4">
                   <div className="text-center p-2 rounded-md bg-green-50 dark:bg-green-950">
-                    <p className="text-xl font-bold text-green-600">{referredUsersData.byStatus.active}</p>
+                    <p className="text-xl font-bold text-primary">{referredUsersData.byStatus.active}</p>
                     <p className="text-xs text-muted-foreground">Ativos</p>
                   </div>
                   <div className="text-center p-2 rounded-md bg-yellow-50 dark:bg-yellow-950">
@@ -850,7 +850,7 @@ export default function Referrals() {
                                 {getStatusLabel(item.subscriptionStatus)}
                               </Badge>
                             </TableCell>
-                            <TableCell className="font-medium text-green-600 text-xs sm:text-sm">
+                            <TableCell className="font-medium text-primary text-xs sm:text-sm">
                               {formatCurrency(item.totalCommissions)}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
@@ -959,7 +959,7 @@ export default function Referrals() {
                             <TableCell className="font-medium text-yellow-600 text-xs sm:text-sm whitespace-nowrap">
                               {commission.status === 'pending' ? formatCurrency(commission.commissionAmountCents) : 'R$ 0,00'}
                             </TableCell>
-                            <TableCell className="font-bold text-green-600 text-xs sm:text-sm whitespace-nowrap">
+                            <TableCell className="font-bold text-primary text-xs sm:text-sm whitespace-nowrap">
                               {commission.status === 'completed' || commission.status === 'active' ? formatCurrency(commission.commissionAmountCents) : 'R$ 0,00'}
                             </TableCell>
                             <TableCell className="text-xs">
@@ -1048,7 +1048,7 @@ export default function Referrals() {
                       <TableBody>
                         {paginatedWithdrawals.map((withdrawal: any) => (
                           <TableRow key={withdrawal.id} data-testid={`row-withdrawal-${withdrawal.id}`}>
-                            <TableCell className="font-bold text-green-600 text-xs sm:text-sm">
+                            <TableCell className="font-bold text-primary text-xs sm:text-sm">
                               {formatCurrency(withdrawal.amountCents)}
                             </TableCell>
                             <TableCell className="text-xs sm:text-sm">

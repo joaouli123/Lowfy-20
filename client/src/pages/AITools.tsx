@@ -174,7 +174,7 @@ export default function AITools() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-white">
+    <div className="min-h-screen">
       <SEO 
         title={seoConfig.ferramentas.title}
         description={seoConfig.ferramentas.description}
@@ -444,7 +444,7 @@ export default function AITools() {
                     return (
                     <div 
                       key={tool.id}
-                      className={`relative border rounded-lg p-3 bg-[#ffffff] ${isFirstCard ? 'ai-tool-card-first' : ''}`}
+                      className={`relative border rounded-xl p-3 bg-card transition-shadow hover:shadow-md ${isFirstCard ? 'ai-tool-card-first' : ''}`}
                       data-testid={`tool-card-${tool.id}`}
                     >
                       {tool.isUnderMaintenance && (
@@ -483,9 +483,9 @@ export default function AITools() {
                             {tool.description}
                           </p>
                         )}
-                        <Button 
-                          size="sm" 
-                          className="w-full text-xs bg-green-600 hover:bg-green-700 text-white h-7"
+                        <Button
+                          size="sm"
+                          className="w-full text-xs h-7"
                           onClick={() => !tool.isUnderMaintenance && setSelectedTool(tool)}
                           disabled={tool.isUnderMaintenance}
                           data-testid={`button-access-${tool.id}`}
@@ -503,7 +503,7 @@ export default function AITools() {
                       data-testid={`tool-card-${item.id}`}
                     >
                       <div className="absolute -top-2 -right-2">
-                        <Badge className="bg-blue-500 text-white text-[9px] font-bold rounded-full">Em Breve</Badge>
+                        <Badge variant="secondary" className="text-[9px] font-semibold rounded-full border shadow-sm">Em Breve</Badge>
                       </div>
                       <div className="flex flex-col items-center text-center gap-2">
                         <div className="w-20 h-20 flex items-center justify-center bg-slate-300 dark:bg-slate-600 rounded-lg p-2">
@@ -515,9 +515,10 @@ export default function AITools() {
                         <div className="text-[10px] text-muted-foreground min-h-[2rem] flex items-center">
                           <p>Novidade em breve</p>
                         </div>
-                        <Button 
-                          size="sm" 
-                          className="w-full text-xs bg-gray-400 text-white h-7 cursor-not-allowed"
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="w-full text-xs h-7 cursor-not-allowed"
                           disabled
                           data-testid={`button-coming-soon-${item.id}`}
                         >

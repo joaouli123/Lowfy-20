@@ -168,10 +168,10 @@ export default function Admin() {
 
       <Tabs defaultValue="management" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-8 bg-white">
-          <TabsTrigger value="management" data-testid="tab-management" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
+          <TabsTrigger value="management" data-testid="tab-management" className="">
             Gestão
           </TabsTrigger>
-          <TabsTrigger value="analytics" data-testid="tab-analytics" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
+          <TabsTrigger value="analytics" data-testid="tab-analytics" className="">
             <BarChart3 className="w-4 h-4 mr-2" />
             Analytics
           </TabsTrigger>
@@ -180,23 +180,23 @@ export default function Admin() {
         <TabsContent value="management" className="space-y-6">
           <Tabs defaultValue="users" className="w-full">
             <TabsList className="grid w-full grid-cols-5 bg-white">
-              <TabsTrigger value="users" data-testid="tab-users" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
+              <TabsTrigger value="users" data-testid="tab-users" className="">
                 <Users className="w-4 h-4 mr-2" />
                 Usuários
               </TabsTrigger>
-              <TabsTrigger value="content" data-testid="tab-content" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
+              <TabsTrigger value="content" data-testid="tab-content" className="">
                 <BookOpen className="w-4 h-4 mr-2" />
                 Conteúdo
               </TabsTrigger>
-              <TabsTrigger value="education" data-testid="tab-education" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
+              <TabsTrigger value="education" data-testid="tab-education" className="">
                 <Briefcase className="w-4 h-4 mr-2" />
                 Cursos Online
               </TabsTrigger>
-              <TabsTrigger value="marketplace" data-testid="tab-marketplace" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
+              <TabsTrigger value="marketplace" data-testid="tab-marketplace" className="">
                 <ShoppingBag className="w-4 h-4 mr-2" />
                 Marketplace
               </TabsTrigger>
-              <TabsTrigger value="community" data-testid="tab-community" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
+              <TabsTrigger value="community" data-testid="tab-community" className="">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Comunidade
               </TabsTrigger>
@@ -465,9 +465,9 @@ function ContentManagement() {
   return (
     <Tabs defaultValue="plrs" className="mt-6">
       <TabsList className="grid w-full grid-cols-3 bg-white">
-        <TabsTrigger value="plrs" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">PLRs</TabsTrigger>
-        <TabsTrigger value="categories" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Categorias</TabsTrigger>
-        <TabsTrigger value="languages" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Idiomas</TabsTrigger>
+        <TabsTrigger value="plrs" className="">PLRs</TabsTrigger>
+        <TabsTrigger value="categories" className="">Categorias</TabsTrigger>
+        <TabsTrigger value="languages" className="">Idiomas</TabsTrigger>
       </TabsList>
       <TabsContent value="plrs"><PLRsManagement /></TabsContent>
       <TabsContent value="categories"><CategoriesManagement /></TabsContent>
@@ -1744,9 +1744,9 @@ function EducationManagement() {
   return (
     <Tabs defaultValue="courses" className="mt-6">
       <TabsList className="grid w-full grid-cols-3 bg-white">
-        <TabsTrigger value="courses" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Cursos</TabsTrigger>
-        <TabsTrigger value="services" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">White label</TabsTrigger>
-        <TabsTrigger value="ai-tools" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Ferramentas IA</TabsTrigger>
+        <TabsTrigger value="courses" className="">Cursos</TabsTrigger>
+        <TabsTrigger value="services" className="">White label</TabsTrigger>
+        <TabsTrigger value="ai-tools" className="">Ferramentas IA</TabsTrigger>
       </TabsList>
       <TabsContent value="courses"><CoursesManagement /></TabsContent>
       <TabsContent value="services"><ServicesManagement /></TabsContent>
@@ -2555,8 +2555,8 @@ function MarketplaceManagement() {
   return (
     <Tabs defaultValue="products" className="mt-6">
       <TabsList className="grid w-full grid-cols-2 bg-white">
-        <TabsTrigger value="products" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Produtos</TabsTrigger>
-        <TabsTrigger value="reviews" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Reviews</TabsTrigger>
+        <TabsTrigger value="products" className="">Produtos</TabsTrigger>
+        <TabsTrigger value="reviews" className="">Reviews</TabsTrigger>
       </TabsList>
       <TabsContent value="products"><ProductsManagement /></TabsContent>
       <TabsContent value="reviews"><ReviewsManagement /></TabsContent>
@@ -2734,8 +2734,8 @@ function CommunityManagement() {
   return (
     <Tabs defaultValue="forum" className="mt-6">
       <TabsList className="grid w-full grid-cols-2 bg-white">
-        <TabsTrigger value="forum" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Fórum</TabsTrigger>
-        <TabsTrigger value="tickets" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">Tickets de Suporte</TabsTrigger>
+        <TabsTrigger value="forum" className="">Fórum</TabsTrigger>
+        <TabsTrigger value="tickets" className="">Tickets de Suporte</TabsTrigger>
       </TabsList>
       <TabsContent value="forum"><ForumManagement /></TabsContent>
       <TabsContent value="tickets"><TicketsManagement /></TabsContent>
