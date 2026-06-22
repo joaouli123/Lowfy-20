@@ -6561,6 +6561,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ---- PÚBLICO (runtime do quiz) ----
+  // Resolve o domínio/subdomínio próprio do request para o slug do funil publicado.
+  app.get('/api/q/resolve', async (req, res) => {
+    const host = String(req.query.host || req.hostname || req.headers.host || '');
+    const slug = await quizStore.resolveDomain(host);
+    if (!slug) return res.json({ slug: null });
+    const spec = await quizStore.getQuiz(slug);
+    res.json({ slug: (spec && spec.isPublished) ? slug : null });
+  });
+
   app.get('/api/q/:slug', async (req, res) => {
     const slug = quizStore.sanitizeSlug(req.params.slug);
     const spec = await quizStore.getQuiz(slug);

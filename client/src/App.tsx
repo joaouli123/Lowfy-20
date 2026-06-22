@@ -27,6 +27,16 @@ const PLRs = lazy(() => import("@/pages/PLRs"));
 const AITools = lazy(() => import("@/pages/AITools"));
 const AIStudio = lazy(() => import("@/pages/AIStudio"));
 const QuizPlay = lazy(() => import("@/pages/QuizPlay"));
+const HostQuizPlay = lazy(() => import("@/pages/QuizPlay").then((m) => ({ default: m.HostQuizPlay })));
+
+// Hosts do app principal (tudo que NÃO for um destes é tratado como domínio próprio de um funil).
+function isCustomQuizHost(): boolean {
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname;
+  if (h === "lowfy.com.br" || h === "www.lowfy.com.br" || h === "localhost" || h === "127.0.0.1") return false;
+  if (h.endsWith(".railway.app") || h.endsWith(".replit.dev") || h.endsWith(".repl.co") || h.endsWith(".vercel.app")) return false;
+  return true;
+}
 const QuizBuilder = lazy(() => import("@/pages/QuizBuilder"));
 const QuizInterativo = lazy(() => import("./pages/QuizInterativo"));
 const Plugins = lazy(() => import("./pages/Plugins"));
@@ -173,7 +183,7 @@ function Router() {
     <Suspense fallback={<PageLoader />}>
       <Switch>
         {/* Quiz público (funil) — fullscreen, sempre acessível */}
-        <Route path="/q/:slug" component={QuizPlay} />
+        <Route path="/q/:slug" component={QuizPlay as any} />
         {!isAuthenticated ? (
           <>
             {/* Public routes without Layout */}
@@ -355,6 +365,16 @@ function GoogleAnalyticsInitializer() {
 }
 
 function App() {
+  // Domínio/subdomínio próprio do cliente → serve o funil direto na raiz (sem o app).
+  if (isCustomQuizHost()) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <HostQuizPlay />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

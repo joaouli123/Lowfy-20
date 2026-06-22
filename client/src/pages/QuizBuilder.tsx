@@ -438,10 +438,11 @@ function ConfigPanel({ spec, onPatch, publicUrl }: { spec: QuizSpec; onPatch: (p
             {publicUrl && <div><label className="text-xs text-muted-foreground block mb-1">URL pública</label><div className="flex gap-1.5"><input readOnly value={publicUrl} className="flex-1 border rounded-lg px-2.5 py-1.5 text-sm bg-muted" /><button onClick={() => navigator.clipboard.writeText(publicUrl)} className="border rounded-lg px-2.5 hover:bg-accent"><Icons.Copy className="w-4 h-4" /></button></div></div>}
             <div className="border-t pt-3"><p className="text-xs font-semibold text-muted-foreground mb-2">DOMÍNIO PRÓPRIO</p>
               <Field l="Domínio ou subdomínio"><In v={s.customDomain} onChange={(v: any) => onPatch({ customDomain: v } as any)} placeholder="ex: quiz.seusite.com.br" /></Field>
-              {s.customDomain && <div className="text-[11px] text-muted-foreground bg-muted/50 rounded-lg p-2.5 mt-1.5 space-y-1">
-                <p>Aponte seu DNS para ativar:</p>
-                <p className="font-mono">CNAME · {s.customDomain.split(".")[0] || "@"} → cname.lowfy.com.br</p>
-                <p className="text-amber-600">⏳ Propagação pode levar até 24h.</p>
+              {s.customDomain && <div className="text-[11px] text-muted-foreground bg-muted/50 rounded-lg p-2.5 mt-1.5 space-y-1.5">
+                <p className="font-medium text-foreground">Configure no DNS do seu provedor:</p>
+                <div className="flex items-center gap-1.5"><span className="font-mono bg-background border rounded px-1.5 py-0.5">CNAME</span><span className="font-mono">{(s.customDomain.split(".").length > 2 ? s.customDomain.split(".")[0] : "@")}</span><span>→</span><span className="font-mono">lowfy.com.br</span></div>
+                <p>Para <b>domínio raiz</b> (sem www/subdomínio), use um <b>ALIAS/ANAME</b> → <span className="font-mono">lowfy.com.br</span> (ou prefira um subdomínio).</p>
+                <p className="text-amber-600">⏳ Após apontar o DNS e <b>publicar</b> o funil, o domínio fica ativo (propagação até 24h). Domínio próprio precisa ser liberado pelo suporte para emitir o certificado SSL.</p>
               </div>}
             </div>
           </>}

@@ -3,8 +3,9 @@ import { useParams } from "wouter";
 import ComponentView, { type RuntimeCtx } from "@/components/quiz/ComponentView";
 import { ensureGoogleFont, isVisible, type QComponent, type QuizOption, type QuizSpec } from "@/lib/quizSchema";
 
-export default function QuizPlay() {
-  const { slug } = useParams<{ slug: string }>();
+export default function QuizPlay({ slugOverride }: { slugOverride?: string }) {
+  const params = useParams<{ slug: string }>();
+  const slug = slugOverride || params.slug;
   const [spec, setSpec] = useState<QuizSpec | null>(null);
   const [err, setErr] = useState(false);
   const [idx, setIdx] = useState(0);
@@ -160,6 +161,18 @@ export default function QuizPlay() {
       <div style={{ marginTop: "auto", paddingTop: 26, fontSize: 12, color: "#94a3b8" }}>Feito com Lowfy</div>
     </div>
   );
+}
+
+/** Renderiza o funil cujo domínio próprio corresponde ao host atual (raiz "/"). */
+export function HostQuizPlay() {
+  const [slug, setSlug] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    fetch(`/api/q/resolve?host=${encodeURIComponent(window.location.hostname)}`)
+      .then((r) => r.json()).then((d) => setSlug(d?.slug || null)).catch(() => setSlug(null));
+  }, []);
+  if (slug === undefined) return <Centered>Carregando…</Centered>;
+  if (!slug) return <Centered>Nenhum funil publicado neste domínio.</Centered>;
+  return <QuizPlay slugOverride={slug} />;
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

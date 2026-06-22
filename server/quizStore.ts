@@ -99,6 +99,29 @@ export interface QuizMeta {
 function specPath(slug: string) { return path.join(QUIZ_DIR, `${slug}.json`); }
 function metaPath(slug: string) { return path.join(QUIZ_DIR, `${slug}.meta.json`); }
 function leadsPath(slug: string) { return path.join(LEADS_DIR, `${slug}.jsonl`); }
+const domainsPath = () => path.join(QUIZ_DIR, "_domains.json");
+
+/** Normaliza um host: minúsculo, sem protocolo, sem caminho, sem 'www.'. */
+export function normalizeDomain(d: string): string {
+  return String(d || "").toLowerCase().trim().replace(/^https?:\/\//, "").replace(/[/:].*$/, "").replace(/^www\./, "");
+}
+async function readDomains(): Promise<Record<string, string>> {
+  try { return JSON.parse(await fs.promises.readFile(domainsPath(), "utf-8")); } catch { return {}; }
+}
+/** Mapeia um domínio/subdomínio próprio → slug do funil (1 domínio por funil). */
+export async function setDomain(domain: string | undefined | null, slug: string): Promise<void> {
+  await fs.promises.mkdir(QUIZ_DIR, { recursive: true });
+  const map = await readDomains();
+  for (const [d, s] of Object.entries(map)) if (s === slug) delete map[d]; // remove o domínio antigo deste funil
+  const norm = normalizeDomain(domain || "");
+  if (norm) map[norm] = slug;
+  await writeJsonAtomic(domainsPath(), map);
+}
+/** Resolve um host (domínio próprio) para o slug do funil publicado. */
+export async function resolveDomain(host: string): Promise<string | null> {
+  const map = await readDomains();
+  return map[normalizeDomain(host)] || null;
+}
 
 export function sanitizeSlug(raw: string): string {
   return String(raw || "")
@@ -123,6 +146,7 @@ export async function saveQuiz(slug: string, spec: QuizSpec, userId: string): Pr
   }
   await writeJsonAtomic(specPath(slug), { ...spec, slug });
   await writeJsonAtomic(metaPath(slug), meta);
+  await setDomain((spec as any).customDomain, slug).catch(() => {}); // sincroniza domínio próprio
   return meta;
 }
 
@@ -152,6 +176,7 @@ export async function deleteQuiz(slug: string, userId: string): Promise<void> {
   if (meta && meta.userId !== userId) throw Object.assign(new Error("forbidden"), { code: "FORBIDDEN" });
   await fs.promises.unlink(specPath(slug)).catch(() => {});
   await fs.promises.unlink(metaPath(slug)).catch(() => {});
+  await setDomain(null, slug).catch(() => {}); // libera o domínio próprio
 }
 
 export async function bumpMeta(slug: string, field: "views" | "starts" | "completions" | "leads"): Promise<void> {
