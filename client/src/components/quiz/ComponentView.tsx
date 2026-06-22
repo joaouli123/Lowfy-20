@@ -35,6 +35,7 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
       const align = (p.align || "center") as any;
       const color = p.color || t.textColor || "#0f172a";
       const titleColor = p.color || t.titleColor || t.textColor || "#0f172a";
+      if (p.html) return <div style={{ textAlign: align, color, lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: txt(p.html) }} />;
       if (p.variant === "subtitle") return <h2 style={{ fontSize: 18, fontWeight: 600, textAlign: align, color: titleColor, margin: "0 0 6px" }}>{txt(p.text)}</h2>;
       if (p.variant === "paragraph") return <p style={{ fontSize: 15, lineHeight: 1.6, textAlign: align, color, margin: "0 0 6px", whiteSpace: "pre-wrap" }}>{txt(p.text)}</p>;
       return <h1 style={{ fontSize: 24, fontWeight: 800, textAlign: align, color: titleColor, margin: "0 0 8px", lineHeight: 1.25 }}>{txt(p.text)}</h1>;

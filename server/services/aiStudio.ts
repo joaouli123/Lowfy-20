@@ -180,6 +180,38 @@ Devolva como JSON: {"variacoes": ["...", "..."]}. Cada variação deve ser ${tam
   return { variacoes: parseVariacoes(text, n), tokens: (res as any).usageMetadata?.totalTokenCount || 0 };
 }
 
+const QUIZ_GEN_SYSTEM = `Você é um especialista em funis de quiz interativos de alta conversão. Gere um funil COMPLETO a partir do tema do usuário.
+Responda SOMENTE com JSON válido neste formato exato:
+{"name":"Nome do funil","steps":[{"name":"Nome da etapa","components":[{"type":"<tipo>","props":{...}}]}]}
+Tipos de componente e suas props:
+- "texto": { "text": "...", "variant": "title"|"subtitle"|"paragraph" }
+- "opcoes": { "name": "id_curto", "question": "Pergunta?", "options": [{"label":"...","score":0}], "required": true, "autoAdvance": true }
+- "captura": { "title": "...", "fields": [{"type":"name"|"email"|"phone","name":"nome","label":"...","required":true}], "buttonText": "Continuar" }
+- "botao": { "label": "...", "action": "next"|"url", "url": "" }
+- "nivel": { "label": "Sua pontuação", "fromScore": true }
+- "imagem": { "url": "" }
+- "video": { "url": "" }
+- "alerta": { "text": "...", "variant": "warning" }
+- "depoimentos": { "items": [{"name":"...","text":"...","stars":5}] }
+- "preco": { "title":"...","price":"R$ 97","ctaLabel":"Comprar","url":"","highlight":true }
+Regras: 4 a 6 etapas (boas-vindas; 2-3 perguntas com pontuação relevante ao tema; captura de nome+email; resultado usando {{nome}}). Português do Brasil, persuasivo e específico ao tema. Use {{nome}} e {{score}} quando fizer sentido. NÃO inclua comentários, só o JSON.`;
+
+/** Gera a estrutura de um funil de quiz a partir de um tema (texto livre). */
+export async function generateQuizFunnel(prompt: string): Promise<any> {
+  if (!OPENAI_KEY) throw new Error("OPENAI_API_KEY não configurada");
+  const res = await openai().chat.completions.create({
+    model: process.env.OPENAI_COPY_MODEL || "gpt-4o",
+    messages: [
+      { role: "system", content: QUIZ_GEN_SYSTEM },
+      { role: "user", content: `Tema do funil: ${prompt}` },
+    ],
+    temperature: 0.8,
+    response_format: { type: "json_object" },
+  });
+  const raw = res.choices[0]?.message?.content || "{}";
+  return JSON.parse(raw.replace(/```json|```/g, "").trim());
+}
+
 function tipoLabel(t: CopyType): string {
   return { headline: "headlines (títulos)", anuncio: "textos de anúncio (primary text)", vsl: "roteiros de VSL (vídeo de vendas)", email: "e-mails de vendas", legenda: "legendas para redes sociais", cta: "chamadas para ação (CTA)" }[t];
 }

@@ -12,6 +12,7 @@ import {
   PALETTE, PALETTE_BY_KEY, CATEGORIES, newComponentFromPalette, newStep, emptySpec, ensureGoogleFont,
   type QComponent, type QuizSpec, type QuizStep,
 } from "@/lib/quizSchema";
+import { TEMPLATES } from "@/lib/quizTemplates";
 import * as Icons from "lucide-react";
 
 const Icon = ({ name, ...p }: { name: string; size?: number; className?: string }) => {
@@ -40,7 +41,13 @@ export default function QuizBuilder() {
     const { spec } = await r.json();
     setEditing(spec);
   };
-  const create = () => setEditing(emptySpec(`Funil ${list.length + 1}`, ""));
+  const [creating, setCreating] = useState(false);
+  const create = () => setCreating(true);
+  const startWith = (name: string, partial: Partial<QuizSpec>) => {
+    const base = emptySpec(name || `Funil ${list.length + 1}`, "");
+    setEditing({ ...base, ...partial, name: name || base.name, isPublished: false });
+    setCreating(false);
+  };
   const del = async (slug: string) => {
     if (!confirm("Excluir este funil?")) return;
     await apiRequest("DELETE", `/api/quiz/${slug}`);
@@ -86,6 +93,73 @@ export default function QuizBuilder() {
               ))}
             </div>
           )}
+      </div>
+      {creating && <CreateFunnelModal onClose={() => setCreating(false)} onCreate={startWith} />}
+    </div>
+  );
+}
+
+// =========================================================================
+// MODAL: criar funil (Modelos + IA)
+// =========================================================================
+function CreateFunnelModal({ onClose, onCreate }: { onClose: () => void; onCreate: (name: string, partial: Partial<QuizSpec>) => void }) {
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [tpl, setTpl] = useState("blank");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+
+  const createFromTemplate = () => {
+    const t = TEMPLATES.find((x) => x.id === tpl) || TEMPLATES[0];
+    onCreate(name || t.name, t.build());
+  };
+  const generateAi = async () => {
+    if (aiPrompt.trim().length < 3) { toast({ title: "Descreva o tema do funil" }); return; }
+    setGenerating(true);
+    try {
+      const r = await apiRequest("POST", "/api/quiz/generate", { prompt: aiPrompt });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.message || "Falha ao gerar");
+      onCreate(name || d.spec?.name || aiPrompt.slice(0, 40), d.spec);
+    } catch (e: any) {
+      toast({ title: "IA indisponível", description: `${e.message} Criando a partir de um modelo.`, variant: "destructive" });
+      const t = TEMPLATES.find((x) => x.id === "reco")!;
+      onCreate(name || aiPrompt.slice(0, 40), t.build());
+    } finally { setGenerating(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-semibold">Criar funil</h3><button onClick={onClose} className="text-muted-foreground hover:text-foreground"><Icons.X className="w-5 h-5" /></button></div>
+
+        <label className="text-xs text-muted-foreground block mb-1">Título do seu funil</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Quiz de bem-estar" className="w-full border rounded-lg px-3 py-2 text-sm mb-5 bg-white dark:bg-gray-800 outline-none focus:border-primary" />
+
+        <p className="text-xs font-semibold text-muted-foreground mb-2">COMECE POR UM MODELO</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-5">
+          {TEMPLATES.map((t) => (
+            <button key={t.id} onClick={() => setTpl(t.id)} className={`text-left border rounded-xl p-3 transition ${tpl === t.id ? "border-primary ring-2 ring-primary/20 bg-primary/5" : "hover:border-gray-300"}`}>
+              <Icon name={t.icon} size={18} className="text-primary mb-1.5" />
+              <div className="text-sm font-medium leading-tight">{t.name}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{t.description}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="border rounded-xl p-3.5 bg-gradient-to-br from-primary/5 to-transparent mb-5">
+          <div className="flex items-center gap-1.5 mb-2"><Icons.Sparkles className="w-4 h-4 text-primary" /><span className="text-sm font-medium">Gerar com IA</span></div>
+          <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value.slice(0, 280))} rows={2} placeholder="Descreva o tema do seu funil… (ex.: quiz para vender curso de inglês)" className="w-full border rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 outline-none focus:border-primary resize-none" />
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[11px] text-muted-foreground">{aiPrompt.length}/280</span>
+            <button onClick={generateAi} disabled={generating} className="text-sm bg-primary text-white rounded-lg px-4 py-1.5 font-medium flex items-center gap-1.5 disabled:opacity-50">{generating ? <Icons.Loader2 className="w-4 h-4 animate-spin" /> : <Icons.Wand2 className="w-4 h-4" />} Gerar funil</button>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="text-sm border rounded-lg px-4 py-2 hover:bg-accent">Cancelar</button>
+          <button onClick={createFromTemplate} className="text-sm bg-black text-white dark:bg-white dark:text-black rounded-lg px-5 py-2 font-semibold">Criar funil</button>
+        </div>
       </div>
     </div>
   );
@@ -228,32 +302,23 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
         </div>
       </div>
 
-      {/* STEP TABS (apenas no construtor/design) */}
-      {(tab === "construtor" || tab === "design") && (
-        <div className="h-11 border-b bg-white dark:bg-gray-900 flex items-center px-3 gap-1.5 overflow-x-auto shrink-0">
-          {spec.steps.map((s, i) => (
-            <button key={s.id} onClick={() => { setStepIdx(i); setSelId(null); }} className={`shrink-0 text-sm px-3 py-1.5 rounded-lg border flex items-center gap-1.5 ${i === stepIdx ? "border-primary bg-primary/10 text-primary font-medium" : "hover:bg-accent"}`}>
-              <span className="w-5 h-5 rounded bg-current/10 text-[11px] flex items-center justify-center opacity-70">{i + 1}</span>
-              {s.name || `Etapa ${i + 1}`}
-            </button>
-          ))}
-          <button onClick={addStep} data-add-step className="shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-accent"><Icons.Plus className="w-4 h-4" /></button>
-        </div>
-      )}
-
       {tab === "leads" ? (
         <LeadsDashboard slug={savedSlug} />
       ) : tab === "fluxo" ? (
         <FlowOverview spec={spec} onPick={(i) => { setStepIdx(i); setTab("construtor"); }} />
       ) : tab === "config" ? (
-        <div className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-950 p-6">
-          <div className="max-w-lg mx-auto bg-white dark:bg-gray-900 rounded-xl border">
-            <StepPanel spec={spec} stepIdx={stepIdx} onPatch={patch} onStepName={(n: string) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, name: n } : s))} onStepPatch={(pp: any) => setSteps(spec.steps.map((s, i) => i === stepIdx ? { ...s, ...pp } : s))} onMove={moveStep} onDel={delStep} publicUrl={publicUrl} only="config" />
-          </div>
-        </div>
+        <ConfigPanel spec={spec} onPatch={patch} publicUrl={publicUrl} />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <div className="flex-1 flex overflow-hidden">
+            {/* RAIL DE ETAPAS */}
+            {!preview && (
+              <StepsRail spec={spec} stepIdx={stepIdx}
+                onSelect={(i) => { setStepIdx(i); setSelId(null); }}
+                onAdd={addStep} onDel={delStep}
+                onReorder={(from, to) => { setSteps(arrayMove(spec.steps, from, to)); setStepIdx(to); }}
+              />
+            )}
             {/* PALETA */}
             {!preview && tab === "construtor" && (
               <div className="w-60 border-r bg-white dark:bg-gray-900 overflow-y-auto shrink-0 p-3">
@@ -346,6 +411,88 @@ function VarsModal({ spec, onClose }: { spec: QuizSpec; onClose: () => void }) {
         <div className="flex flex-wrap gap-1.5">
           {list.map((v) => <button key={v} onClick={() => navigator.clipboard.writeText(`{{${v}}}`)} className="text-xs font-mono bg-primary/10 text-primary rounded-lg px-2.5 py-1.5 hover:bg-primary/20" title="Copiar">{`{{${v}}}`}</button>)}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Configurações em sidebar (Geral / Pixel / SEO / Webhooks) ----
+function ConfigPanel({ spec, onPatch, publicUrl }: { spec: QuizSpec; onPatch: (p: Partial<QuizSpec>) => void; publicUrl: string }) {
+  const [sec, setSec] = useState("geral");
+  const s: any = spec;
+  const sections: [string, string, string][] = [["geral", "Geral", "Settings"], ["pixel", "Pixel & Scripts", "Code"], ["seo", "SEO & Favicon", "Globe"], ["webhooks", "Webhooks", "Webhook"]];
+  return (
+    <div className="flex-1 flex overflow-hidden">
+      <div className="w-56 border-r bg-white dark:bg-gray-900 p-2 space-y-1 shrink-0">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 px-2 pt-1 pb-2">Configurações</p>
+        {sections.map(([k, lab, ic]) => (
+          <button key={k} onClick={() => setSec(k)} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${sec === k ? "bg-primary/10 text-primary font-medium" : "hover:bg-accent"}`}><Icon name={ic} size={15} /> {lab}</button>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 bg-gray-100 dark:bg-gray-950">
+        <div className="max-w-lg mx-auto bg-white dark:bg-gray-900 rounded-xl border p-5 space-y-3">
+          {sec === "geral" && <>
+            <h3 className="font-semibold text-sm mb-1">Geral</h3>
+            <Field l="Título do funil"><In v={spec.name} onChange={(v: any) => onPatch({ name: v })} /></Field>
+            <Field l="Redirect final (URL)"><In v={spec.redirectUrl} onChange={(v: any) => onPatch({ redirectUrl: v })} placeholder="https://checkout…" /></Field>
+            {publicUrl && <div><label className="text-xs text-muted-foreground block mb-1">URL pública</label><div className="flex gap-1.5"><input readOnly value={publicUrl} className="flex-1 border rounded-lg px-2.5 py-1.5 text-sm bg-muted" /><button onClick={() => navigator.clipboard.writeText(publicUrl)} className="border rounded-lg px-2.5 hover:bg-accent"><Icons.Copy className="w-4 h-4" /></button></div></div>}
+            <div className="border-t pt-3"><p className="text-xs font-semibold text-muted-foreground mb-2">DOMÍNIO PRÓPRIO</p>
+              <Field l="Domínio ou subdomínio"><In v={s.customDomain} onChange={(v: any) => onPatch({ customDomain: v } as any)} placeholder="ex: quiz.seusite.com.br" /></Field>
+              {s.customDomain && <div className="text-[11px] text-muted-foreground bg-muted/50 rounded-lg p-2.5 mt-1.5 space-y-1">
+                <p>Aponte seu DNS para ativar:</p>
+                <p className="font-mono">CNAME · {s.customDomain.split(".")[0] || "@"} → cname.lowfy.com.br</p>
+                <p className="text-amber-600">⏳ Propagação pode levar até 24h.</p>
+              </div>}
+            </div>
+          </>}
+          {sec === "pixel" && <>
+            <h3 className="font-semibold text-sm mb-1">Pixel & Scripts de rastreamento</h3>
+            <Field l="Meta (Facebook) Pixel ID"><In v={spec.pixelId} onChange={(v: any) => onPatch({ pixelId: v })} placeholder="1234567890" /></Field>
+            <Field l="Google Analytics ID"><In v={s.gaId} onChange={(v: any) => onPatch({ gaId: v } as any)} placeholder="G-XXXXXXX" /></Field>
+            <Field l="Scripts personalizados (no <head>)"><Ta v={s.headScript} onChange={(v: any) => onPatch({ headScript: v } as any)} /></Field>
+            <p className="text-[11px] text-muted-foreground">O Pixel dispara PageView e Lead automaticamente.</p>
+          </>}
+          {sec === "seo" && <>
+            <h3 className="font-semibold text-sm mb-1">SEO & Favicon</h3>
+            <Field l="Título (SEO)"><In v={s.seoTitle} onChange={(v: any) => onPatch({ seoTitle: v } as any)} placeholder="Aparece na aba do navegador" /></Field>
+            <Field l="Descrição (SEO)"><Ta v={s.seoDescription} onChange={(v: any) => onPatch({ seoDescription: v } as any)} /></Field>
+            <Field l="Favicon (URL)"><In v={s.faviconUrl} onChange={(v: any) => onPatch({ faviconUrl: v } as any)} placeholder="https://…/favicon.png" /></Field>
+            <Field l="Imagem de compartilhamento (URL)"><In v={s.shareImage} onChange={(v: any) => onPatch({ shareImage: v } as any)} placeholder="https://…/og.jpg" /></Field>
+          </>}
+          {sec === "webhooks" && <>
+            <h3 className="font-semibold text-sm mb-1">Webhooks</h3>
+            <Field l="Webhook de lead (POST)"><In v={spec.webhookUrl} onChange={(v: any) => onPatch({ webhookUrl: v })} placeholder="https://…" /></Field>
+            <p className="text-[11px] text-muted-foreground">Enviamos um POST com os dados do lead (nome, e-mail, respostas, score) a cada captura.</p>
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Rail de etapas (lista lateral, estilo Inlead) ----
+function StepsRail({ spec, stepIdx, onSelect, onAdd, onDel, onReorder }: { spec: QuizSpec; stepIdx: number; onSelect: (i: number) => void; onAdd: () => void; onDel: (i: number) => void; onReorder: (from: number, to: number) => void }) {
+  const [q, setQ] = useState("");
+  const [drag, setDrag] = useState<number | null>(null);
+  return (
+    <div className="w-48 border-r bg-white dark:bg-gray-900 shrink-0 flex flex-col">
+      <div className="p-2 border-b">
+        <div className="relative"><Icons.Search className="w-3.5 h-3.5 absolute left-2 top-2 text-muted-foreground" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar…" className="w-full border rounded-lg pl-7 pr-2 py-1.5 text-xs bg-white dark:bg-gray-800 outline-none focus:border-primary" /></div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
+        {spec.steps.map((s, i) => (!q || (s.name || `Etapa ${i + 1}`).toLowerCase().includes(q.toLowerCase())) ? (
+          <div key={s.id} draggable onDragStart={() => setDrag(i)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (drag !== null && drag !== i) onReorder(drag, i); setDrag(null); }}
+            onClick={() => onSelect(i)} data-step-rail={i}
+            className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer text-sm ${i === stepIdx ? "bg-primary/10 text-primary font-medium" : "hover:bg-accent"} ${drag === i ? "opacity-50" : ""}`}>
+            <Icons.GripVertical className="w-3 h-3 opacity-40 shrink-0 cursor-grab" />
+            <span className="w-5 h-5 rounded bg-current/10 text-[11px] flex items-center justify-center shrink-0">{i + 1}</span>
+            <span className="flex-1 truncate">{s.name || `Etapa ${i + 1}`}</span>
+            {spec.steps.length > 1 && <button onClick={(e) => { e.stopPropagation(); onDel(i); }} className="opacity-0 group-hover:opacity-100 hover:text-red-600 shrink-0"><Icons.X className="w-3.5 h-3.5" /></button>}
+          </div>
+        ) : null)}
+      </div>
+      <div className="p-2 border-t">
+        <button onClick={onAdd} data-add-step className="w-full text-sm border rounded-lg py-1.5 hover:bg-accent flex items-center justify-center gap-1.5"><Icons.Plus className="w-4 h-4" /> Nova etapa</button>
       </div>
     </div>
   );
@@ -511,10 +658,8 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
 
       {ptab === "componente" && <div className="space-y-3">
         {comp.type === "texto" && <>
-          <Field l="Texto"><Ta v={p.text} onChange={(v: any) => set("text", v)} /></Field>
-          <Field l="Estilo"><Sel v={p.variant} onChange={(v) => set("variant", v)} opts={[["title", "Título"], ["subtitle", "Subtítulo"], ["paragraph", "Parágrafo"]]} /></Field>
-          <Field l="Alinhamento"><Sel v={p.align} onChange={(v) => set("align", v)} opts={[["left", "Esquerda"], ["center", "Centro"], ["right", "Direita"]]} /></Field>
-          <Field l="Cor (hex)"><In v={p.color} onChange={(v: any) => set("color", v)} placeholder="#0f172a" /></Field>
+          <Field l="Texto (formatação completa)"><RichTextEditor key={comp.id} value={p.html || wrapTexto(p.text, p.variant)} onChange={(html) => onChange({ html, text: html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() })} /></Field>
+          <Field l="Alinhamento geral"><Sel v={p.align} onChange={(v) => set("align", v)} opts={[["left", "Esquerda"], ["center", "Centro"], ["right", "Direita"]]} /></Field>
         </>}
 
         {comp.type === "imagem" && <>
@@ -981,6 +1126,39 @@ function FlowOverview({ spec, onPick }: { spec: QuizSpec; onPick: (i: number) =>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ---- Editor rich-text (WYSIWYG inline) ----
+function wrapTexto(text?: string, variant?: string) {
+  const tag = variant === "paragraph" ? "p" : variant === "subtitle" ? "h2" : "h1";
+  return text ? `<${tag}>${text}</${tag}>` : "";
+}
+function RichTextEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (ref.current && ref.current.innerHTML !== value) ref.current.innerHTML = value || ""; /* eslint-disable-next-line */ }, []);
+  const emit = () => onChange(ref.current?.innerHTML || "");
+  const exec = (cmd: string, val?: string) => { document.execCommand(cmd, false, val); ref.current?.focus(); emit(); };
+  const tb = "px-1.5 py-1 rounded hover:bg-accent text-sm leading-none";
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="flex flex-wrap items-center gap-0.5 border-b px-1 py-1 bg-muted/40">
+        <select onChange={(e) => { exec("formatBlock", e.target.value); e.target.value = ""; }} defaultValue="" className="text-xs border rounded px-1 py-0.5 bg-white dark:bg-gray-800 mr-1">
+          <option value="">Estilo</option><option value="h1">Título</option><option value="h2">Subtítulo</option><option value="p">Normal</option>
+        </select>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><b>B</b></button>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><i>I</i></button>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("underline")}><u>U</u></button>
+        <span className="inline-flex items-center" onMouseDown={(e) => e.preventDefault()} title="Cor do texto"><input type="color" onChange={(e) => exec("foreColor", e.target.value)} className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0" /></span>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("hiliteColor", "#fde68a")} title="Realçar"><span style={{ background: "#fde68a", padding: "0 3px", borderRadius: 3 }}>A</span></button>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyLeft")}><Icons.AlignLeft className="w-3.5 h-3.5" /></button>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyCenter")}><Icons.AlignCenter className="w-3.5 h-3.5" /></button>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyRight")}><Icons.AlignRight className="w-3.5 h-3.5" /></button>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")}><Icons.List className="w-3.5 h-3.5" /></button>
+        <button type="button" className={tb} onMouseDown={(e) => e.preventDefault()} onClick={() => { const u = prompt("URL do link:"); if (u) exec("createLink", u); }} title="Link"><Icons.Link className="w-3.5 h-3.5" /></button>
+      </div>
+      <div ref={ref} contentEditable suppressContentEditableWarning onInput={emit} onBlur={emit} className="px-3 py-2 text-sm min-h-[64px] outline-none" style={{ wordBreak: "break-word" }} />
     </div>
   );
 }

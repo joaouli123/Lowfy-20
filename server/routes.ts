@@ -6513,6 +6513,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Geração de funil por IA (a partir de um tema)
+  app.post('/api/quiz/generate', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const prompt = String(req.body?.prompt || '').trim();
+      if (prompt.length < 3) return res.status(400).json({ message: 'Descreva o tema do funil' });
+      const data = await aiStudio.generateQuizFunnel(prompt);
+
+      const uid = () => Math.random().toString(36).slice(2, 9);
+      const valid = new Set(['texto', 'imagem', 'video', 'audio', 'opcoes', 'captura', 'botao', 'timer', 'loading', 'nivel', 'alerta', 'notificacao', 'depoimentos', 'argumentos', 'preco', 'galeria', 'espaco', 'faq', 'carrossel', 'antes_depois', 'graficos', 'script', 'regua', 'cartesiano', 'video_resposta']);
+      const steps = (Array.isArray(data?.steps) ? data.steps : []).slice(0, 12).map((s: any, i: number) => ({
+        id: uid(), name: String(s?.name || `Etapa ${i + 1}`).slice(0, 60), header: { showLogo: true, showProgress: true, allowBack: true },
+        components: (Array.isArray(s?.components) ? s.components : []).slice(0, 14).filter((c: any) => valid.has(c?.type)).map((c: any) => {
+          const props: any = (c.props && typeof c.props === 'object') ? { ...c.props } : {};
+          if (c.type === 'opcoes' && Array.isArray(props.options)) props.options = props.options.slice(0, 8).map((o: any) => ({ id: o?.id || uid(), label: String(o?.label || 'Opção'), score: Number(o?.score) || 0 }));
+          props._pk = c.type;
+          return { id: uid(), type: c.type, props, visibility: { mode: 'always' } };
+        }),
+      })).filter((s: any) => s.components.length > 0);
+
+      if (!steps.length) return res.status(502).json({ message: 'A IA não retornou um funil válido' });
+      const spec = { name: String(data?.name || prompt).slice(0, 60), steps, theme: { primaryColor: '#22c55e', bgColor: '#ffffff', textColor: '#0f172a', buttonTextColor: '#ffffff', showProgress: true }, isPublished: false };
+      res.json({ spec });
+    } catch (error: any) {
+      logger.error('[Quiz IA] erro:', error?.message);
+      const msg = /OPENAI/.test(error?.message || '') ? 'Geração por IA requer a chave do GPT. Use um modelo pronto por enquanto.' : (error?.message || 'Erro ao gerar funil');
+      res.status(503).json({ message: msg });
+    }
+  });
+
   app.get('/api/quiz/get/:slug', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     const slug = quizStore.sanitizeSlug(req.params.slug);
     const meta = await quizStore.getQuizMeta(slug);

@@ -20,6 +20,7 @@ export default function QuizPlay() {
     fetch(`/api/q/${slug}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((s: QuizSpec) => {
       setSpec(s);
       ensureGoogleFont(s.theme?.font);
+      applyMeta(s);
       fetch(`/api/q/${slug}/start`, { method: "POST" }).catch(() => {});
       if (s.pixelId) injectPixel(s.pixelId);
     }).catch(() => setErr(true));
@@ -163,6 +164,23 @@ export default function QuizPlay() {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", color: "#64748b" }}>{children}</div>;
+}
+
+function applyMeta(s: any) {
+  if (typeof document === "undefined") return;
+  if (s.seoTitle || s.name) document.title = s.seoTitle || s.name;
+  if (s.seoDescription) { let m = document.querySelector('meta[name="description"]'); if (!m) { m = document.createElement("meta"); m.setAttribute("name", "description"); document.head.appendChild(m); } m.setAttribute("content", s.seoDescription); }
+  if (s.faviconUrl) { let l = document.querySelector('link[rel="icon"]') as HTMLLinkElement; if (!l) { l = document.createElement("link"); l.rel = "icon"; document.head.appendChild(l); } l.href = s.faviconUrl; }
+  if (s.gaId && !(window as any)._gaDone) {
+    (window as any)._gaDone = true;
+    const t = document.createElement("script"); t.async = true; t.src = `https://www.googletagmanager.com/gtag/js?id=${s.gaId}`; document.head.appendChild(t);
+    const i = document.createElement("script"); i.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${s.gaId}')`; document.head.appendChild(i);
+  }
+  if (s.headScript && !(window as any)._headDone) {
+    (window as any)._headDone = true;
+    const div = document.createElement("div"); div.innerHTML = s.headScript;
+    div.querySelectorAll("script").forEach((old) => { const sc = document.createElement("script"); for (const a of Array.from(old.attributes)) sc.setAttribute(a.name, a.value); sc.textContent = old.textContent; document.head.appendChild(sc); });
+  }
 }
 
 function injectPixel(id: string) {
