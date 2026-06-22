@@ -6619,6 +6619,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ domain: spec.customDomain, dnsRecords: st?.dnsRecords || genericDns(spec.customDomain), railway: !!st });
   });
 
+  // ---- Caddy on-demand TLS: autoriza emissão de certificado por domínio ----
+  // O Caddy chama GET /api/internal/tls-check?domain=X antes de emitir o cert.
+  // 200 = domínio conhecido (emite); 403 = desconhecido (recusa, evita abuso).
+  app.get('/api/internal/tls-check', async (req, res) => {
+    const domain = quizStore.normalizeDomain(String(req.query.domain || ''));
+    if (!domain) return res.status(400).send('no domain');
+    if (domain === 'lowfy.com.br' || domain === 'www.lowfy.com.br' || domain.endsWith('.lowfy.com.br')) return res.status(200).send('ok');
+    const slug = await quizStore.resolveDomain(domain);
+    return slug ? res.status(200).send('ok') : res.status(403).send('unknown domain');
+  });
+
   // ---- PÚBLICO (runtime do quiz) ----
   // Resolve o domínio/subdomínio próprio do request para o slug do funil publicado.
   app.get('/api/q/resolve', async (req, res) => {

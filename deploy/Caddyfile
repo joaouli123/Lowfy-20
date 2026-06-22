@@ -1,0 +1,35 @@
+# Caddy — TLS automático para o app + domínios próprios dos clientes (on-demand).
+# O Caddy fica na frente do app Node (porta 8080) e emite/renova certificados
+# automaticamente. Para domínios de clientes, ele só emite o cert se o app
+# autorizar (endpoint /api/internal/tls-check), evitando abuso.
+#
+# Substitua APP_UPSTREAM pelo host:porta do app:
+#   - Railway (Caddy como serviço separado): lowfy-20.railway.internal:8080
+#   - docker-compose:                         app:8080
+#   - mesma máquina:                          localhost:8080
+# E troque o e-mail do ACME.
+
+{
+	email ssl@lowfy.com.br
+	on_demand_tls {
+		ask http://APP_UPSTREAM/api/internal/tls-check
+		interval 2m
+		burst 10
+	}
+}
+
+# Domínio principal do app + qualquer subdomínio *.lowfy.com.br (cert automático)
+lowfy.com.br, www.lowfy.com.br, *.lowfy.com.br {
+	encode zstd gzip
+	reverse_proxy APP_UPSTREAM
+}
+
+# Domínios PRÓPRIOS dos clientes (qualquer outro host) — certificado sob demanda.
+# O Caddy pergunta ao app (ask) se o domínio é conhecido antes de emitir.
+https:// {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	reverse_proxy APP_UPSTREAM
+}
