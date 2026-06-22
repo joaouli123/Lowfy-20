@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -7,6 +7,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import ComponentView, { type RuntimeCtx } from "@/components/quiz/ComponentView";
+import ImageUpload from "@/components/quiz/ImageUpload";
 import {
   PALETTE, PALETTE_BY_KEY, CATEGORIES, newComponentFromPalette, newStep, emptySpec, ensureGoogleFont,
   type QComponent, type QuizSpec, type QuizStep,
@@ -103,9 +104,23 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
   const [savedSlug, setSavedSlug] = useState<string | null>(initial.slug || null);
   const [tab, setTab] = useState<"construtor" | "fluxo" | "design" | "leads" | "config">("construtor");
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  const [showShare, setShowShare] = useState(false);
+  const [showVars, setShowVars] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   useEffect(() => { ensureGoogleFont(spec.theme?.font); }, [spec.theme?.font]);
+
+  // ---- undo / redo ----
+  const [past, setPast] = useState<QuizSpec[]>([]);
+  const [future, setFuture] = useState<QuizSpec[]>([]);
+  const prevSpec = useRef(spec);
+  const skipHist = useRef(false);
+  useEffect(() => {
+    if (skipHist.current) { skipHist.current = false; prevSpec.current = spec; return; }
+    if (prevSpec.current !== spec) { const old = prevSpec.current; prevSpec.current = spec; setPast((p) => [...p.slice(-49), old]); setFuture([]); }
+  }, [spec]);
+  const undo = () => setPast((p) => { if (!p.length) return p; setFuture((f) => [spec, ...f]); skipHist.current = true; setSpec(p[p.length - 1]); return p.slice(0, -1); });
+  const redo = () => setFuture((f) => { if (!f.length) return f; setPast((pp) => [...pp, spec]); skipHist.current = true; setSpec(f[0]); return f.slice(1); });
   const step = spec.steps[stepIdx] || spec.steps[0];
   const comps = step?.components || [];
   const selected = comps.find((c) => c.id === selId) || null;
@@ -185,7 +200,12 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
       {/* HEADER */}
       <div className="h-14 border-b bg-white dark:bg-gray-900 flex items-center px-4 gap-3 shrink-0">
         <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg"><Icons.ArrowLeft className="w-4 h-4" /></button>
-        <input value={spec.name} onChange={(e) => patch({ name: e.target.value })} className="font-semibold bg-transparent outline-none border-b border-transparent focus:border-primary px-1 min-w-[100px] max-w-[180px]" placeholder="Nome do funil" />
+        <input value={spec.name} onChange={(e) => patch({ name: e.target.value })} className="font-semibold bg-transparent outline-none border-b border-transparent focus:border-primary px-1 min-w-[80px] max-w-[150px]" placeholder="Nome do funil" />
+        <div className="flex items-center gap-0.5 border-l pl-2">
+          <button onClick={undo} disabled={!past.length} className="p-1.5 rounded-md hover:bg-accent disabled:opacity-30" title="Desfazer"><Icons.Undo2 className="w-4 h-4" /></button>
+          <button onClick={redo} disabled={!future.length} className="p-1.5 rounded-md hover:bg-accent disabled:opacity-30" title="Refazer"><Icons.Redo2 className="w-4 h-4" /></button>
+          <button onClick={() => setShowVars(true)} className="px-2 py-1 rounded-md hover:bg-accent text-xs font-mono italic" title="Variáveis">f(x)</button>
+        </div>
         <div className="flex items-center gap-0.5 mx-auto bg-muted/50 rounded-lg p-0.5">
           {([["construtor", "Construtor", "LayoutGrid"], ["fluxo", "Fluxo", "GitBranch"], ["design", "Design", "Palette"], ["leads", "Leads", "Users"], ["config", "Configurações", "Settings"]] as const).map(([k, label, ic]) => (
             <button key={k} onClick={() => setTab(k as any)} className={`text-sm px-3 py-1.5 rounded-md flex items-center gap-1.5 ${tab === k ? "bg-white dark:bg-gray-800 shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}>
@@ -202,6 +222,7 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
             <button onClick={() => setDevice("mobile")} className={`p-1.5 rounded-md ${device === "mobile" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`} title="Celular"><Icons.Smartphone className="w-4 h-4" /></button>
             <button onClick={() => setDevice("desktop")} className={`p-1.5 rounded-md ${device === "desktop" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`} title="Computador"><Icons.Monitor className="w-4 h-4" /></button>
           </div>
+          <button onClick={() => savedSlug ? setShowShare(true) : toast({ title: "Salve o funil primeiro" })} className="text-sm border rounded-lg px-2.5 py-1.5 hover:bg-accent" title="Compartilhar"><Icons.Share2 className="w-4 h-4" /></button>
           <button onClick={() => setPreview((v) => !v)} className={`text-sm border rounded-lg px-3 py-1.5 flex items-center gap-1.5 ${preview ? "bg-primary text-white border-primary" : "hover:bg-accent"}`}><Icons.Eye className="w-4 h-4" /> Preview</button>
           <button onClick={save} disabled={saving} className="text-sm bg-black text-white dark:bg-white dark:text-black rounded-lg px-4 py-1.5 font-semibold flex items-center gap-1.5 disabled:opacity-50">{saving ? <Icons.Loader2 className="w-4 h-4 animate-spin" /> : <Icons.Save className="w-4 h-4" />} Salvar</button>
         </div>
@@ -271,6 +292,61 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
           </div>
         </DndContext>
       )}
+
+      {showShare && <ShareModal url={publicUrl} published={!!spec.isPublished} onClose={() => setShowShare(false)} />}
+      {showVars && <VarsModal spec={spec} onClose={() => setShowVars(false)} />}
+    </div>
+  );
+}
+
+// ---- Modal Compartilhar ----
+function ShareModal({ url, published, onClose }: { url: string; published: boolean; onClose: () => void }) {
+  const enc = encodeURIComponent(url);
+  const socials: [string, string, string][] = [
+    ["Facebook", "BrandFacebook", `https://www.facebook.com/sharer/sharer.php?u=${enc}`],
+    ["Twitter", "BrandX", `https://twitter.com/intent/tweet?url=${enc}`],
+    ["LinkedIn", "BrandLinkedin", `https://www.linkedin.com/sharing/share-offsite/?url=${enc}`],
+    ["WhatsApp", "BrandWhatsapp", `https://wa.me/?text=${enc}`],
+    ["Telegram", "BrandTelegram", `https://t.me/share/url?url=${enc}`],
+    ["E-mail", "Mail", `mailto:?body=${enc}`],
+  ];
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3"><h3 className="font-semibold">Compartilhar funil</h3><button onClick={onClose} className="text-muted-foreground hover:text-foreground"><Icons.X className="w-4 h-4" /></button></div>
+        {!published && <p className="text-xs bg-amber-50 text-amber-700 rounded-lg px-3 py-2 mb-3">⚠️ Marque "Publicado" e salve para o link funcionar.</p>}
+        <p className="text-xs text-muted-foreground mb-1">Link do funil:</p>
+        <div className="flex gap-1.5 mb-4"><input readOnly value={url} className="flex-1 border rounded-lg px-3 py-2 text-sm bg-muted" /><button onClick={() => navigator.clipboard.writeText(url)} className="border rounded-lg px-3 hover:bg-accent"><Icons.Copy className="w-4 h-4" /></button></div>
+        <p className="text-xs text-muted-foreground mb-2">Redes sociais:</p>
+        <div className="grid grid-cols-3 gap-2">
+          {socials.map(([name, icon, href]) => (
+            <a key={name} href={href} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-1 border rounded-lg py-3 hover:border-primary hover:bg-primary/5 text-xs">
+              <Icon name={icon} size={20} /> {name}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Modal Variáveis f(x) ----
+function VarsModal({ spec, onClose }: { spec: QuizSpec; onClose: () => void }) {
+  const vars = new Set<string>(["score"]);
+  for (const st of spec.steps) for (const c of st.components) {
+    if (c.props?.name) vars.add(c.props.name);
+    if (c.type === "captura") for (const f of (c.props?.fields || [])) if (f.name) vars.add(f.name);
+  }
+  const list = Array.from(vars);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-2"><h3 className="font-semibold flex items-center gap-2"><span className="font-mono italic">f(x)</span> Variáveis disponíveis</h3><button onClick={onClose} className="text-muted-foreground hover:text-foreground"><Icons.X className="w-4 h-4" /></button></div>
+        <p className="text-xs text-muted-foreground mb-3">Use estas variáveis em qualquer texto (ex.: <code className="bg-muted px-1 rounded">Olá, {"{{nome}}"}!</code>). O <code className="bg-muted px-1 rounded">{"{{score}}"}</code> é a pontuação acumulada.</p>
+        <div className="flex flex-wrap gap-1.5">
+          {list.map((v) => <button key={v} onClick={() => navigator.clipboard.writeText(`{{${v}}}`)} className="text-xs font-mono bg-primary/10 text-primary rounded-lg px-2.5 py-1.5 hover:bg-primary/20" title="Copiar">{`{{${v}}}`}</button>)}
+        </div>
+      </div>
     </div>
   );
 }
@@ -442,7 +518,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
         </>}
 
         {comp.type === "imagem" && <>
-          <Field l="URL da imagem"><In v={p.url} onChange={(v: any) => set("url", v)} placeholder="https://…" /></Field>
+          <Field l="Imagem"><ImageUpload value={p.url} onChange={(u) => set("url", u)} folder="quiz-imagens" /></Field>
           <Field l="Arredondamento"><In type="number" v={p.radius} onChange={(v: any) => set("radius", +v)} /></Field>
           <Field l="Largura (%)"><In type="number" v={p.maxWidth} onChange={(v: any) => set("maxWidth", +v)} /></Field>
         </>}
@@ -451,7 +527,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
 
         {comp.type === "galeria" && <>
           <Field l="Layout"><Sel v={p.layout} onChange={(v) => set("layout", v)} opts={[["grid", "Grade"], ["slide", "Lista"]]} /></Field>
-          <ListEditor label="Imagens (URLs)" items={p.images || []} onChange={(items) => set("images", items)} render={(it, upd) => <In v={it} onChange={upd} placeholder="https://…" />} create={() => ""} />
+          <ListEditor label="Imagens" items={p.images || []} onChange={(items) => set("images", items)} render={(it, upd) => <ImageUpload value={it} onChange={(u) => upd(u)} compact folder="quiz-galeria" />} create={() => ""} />
         </>}
 
         {comp.type === "opcoes" && <>
@@ -472,7 +548,7 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
                 <In type="number" v={o.score} onChange={(v: any) => patchItem({ score: +v })} placeholder="pts" />
                 <In v={o.valor} onChange={(v: any) => patchItem({ valor: v })} placeholder="valor (A/B)" />
               </div>
-              <In v={o.image} onChange={(v: any) => patchItem({ image: v })} placeholder="URL da imagem (opcional)" />
+              <ImageUpload value={o.image} onChange={(u) => patchItem({ image: u })} compact folder="quiz-opcoes" />
               <Sel v={o.nextStepId || ""} onChange={(v) => patchItem({ nextStepId: v })} opts={stepOpts} />
             </div>} />
           <div className="border-t pt-3 space-y-2.5">
@@ -579,12 +655,12 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
           <div className="flex gap-3"><Check l="Autoplay" v={p.autoplay} onChange={(v) => set("autoplay", v)} /><Check l="Paginação" v={p.pagination !== false} onChange={(v) => set("pagination", v)} /></div>
           <ListEditor label="Itens" items={p.items || []} onChange={(items) => set("items", items)}
             create={() => ({ image: "", title: "Novo item", desc: "" })}
-            render={(it, _u, patchItem) => <div className="space-y-1.5"><In v={it.image} onChange={(v: any) => patchItem({ image: v })} placeholder="URL da imagem" /><In v={it.title} onChange={(v: any) => patchItem({ title: v })} placeholder="Título" /><In v={it.desc} onChange={(v: any) => patchItem({ desc: v })} placeholder="Descrição" /></div>} />
+            render={(it, _u, patchItem) => <div className="space-y-1.5"><ImageUpload value={it.image} onChange={(u) => patchItem({ image: u })} compact folder="quiz-carrossel" /><In v={it.title} onChange={(v: any) => patchItem({ title: v })} placeholder="Título" /><In v={it.desc} onChange={(v: any) => patchItem({ desc: v })} placeholder="Descrição" /></div>} />
         </>}
 
         {comp.type === "antes_depois" && <>
-          <Field l="Imagem 'Antes' (URL)"><In v={p.before} onChange={(v: any) => set("before", v)} placeholder="https://…" /></Field>
-          <Field l="Imagem 'Depois' (URL)"><In v={p.after} onChange={(v: any) => set("after", v)} placeholder="https://…" /></Field>
+          <Field l="Imagem 'Antes'"><ImageUpload value={p.before} onChange={(u) => set("before", u)} folder="quiz-antes" /></Field>
+          <Field l="Imagem 'Depois'"><ImageUpload value={p.after} onChange={(u) => set("after", u)} folder="quiz-depois" /></Field>
           <div className="grid grid-cols-2 gap-2"><Field l="Rótulo antes"><In v={p.labelBefore} onChange={(v: any) => set("labelBefore", v)} /></Field><Field l="Rótulo depois"><In v={p.labelAfter} onChange={(v: any) => set("labelAfter", v)} /></Field></div>
         </>}
 
@@ -602,6 +678,28 @@ function PropsPanel({ comp, steps, onChange, onClose }: { comp: QComponent; step
         </>}
 
         {comp.type === "script" && <Field l="Código de incorporação (HTML/JS)"><Ta v={p.code} onChange={(v: any) => set("code", v)} /></Field>}
+
+        {comp.type === "regua" && <>
+          <Field l="Pergunta / rótulo"><In v={p.label} onChange={(v: any) => set("label", v)} /></Field>
+          <Field l="Unidade"><Sel v={p.unit} onChange={(v) => set("unit", v)} opts={[["cm", "cm (altura)"], ["kg", "kg (peso)"], ["anos", "anos (idade)"], ["", "sem unidade"]]} /></Field>
+          <div className="grid grid-cols-3 gap-2">
+            <Field l="Mín"><In type="number" v={p.min} onChange={(v: any) => set("min", +v)} /></Field>
+            <Field l="Máx"><In type="number" v={p.max} onChange={(v: any) => set("max", +v)} /></Field>
+            <Field l="Inicial"><In type="number" v={p.value} onChange={(v: any) => set("value", +v)} /></Field>
+          </div>
+          <Check l="Campo obrigatório" v={p.required} onChange={(v) => set("required", v)} />
+        </>}
+
+        {comp.type === "cartesiano" && <>
+          <Field l="Título"><In v={p.title} onChange={(v: any) => set("title", v)} /></Field>
+          <div className="flex gap-3 flex-wrap"><Check l="Área" v={p.showArea} onChange={(v) => set("showArea", v)} /><Check l="Eixo X" v={p.showX} onChange={(v) => set("showX", v)} /><Check l="Eixo Y" v={p.showY} onChange={(v) => set("showY", v)} /></div>
+          <ListEditor label="Pontos (rótulo · valor · 'Você')" items={p.items || []} onChange={(items) => set("items", items)}
+            create={() => ({ label: "Ponto", value: 50 })}
+            render={(it, _u, patchItem) => <div className="space-y-1.5">
+              <div className="flex gap-1.5"><In v={it.label} onChange={(v: any) => patchItem({ label: v })} placeholder="Rótulo" /><In type="number" v={it.value} onChange={(v: any) => patchItem({ value: +v })} placeholder="valor" /></div>
+              <Check l="Marcar como 'Você'" v={it.you} onChange={(v) => patchItem({ you: v })} />
+            </div>} />
+        </>}
 
         <div className="border-t pt-2 mt-1">
           <details>
@@ -681,7 +779,7 @@ function StepPanel({ spec, stepIdx, onPatch, onStepName, onStepPatch, onMove, on
 
         <div>
           <p className="text-xs font-semibold text-muted-foreground mb-2">GERAL</p>
-          <Field l="Logo no topo (URL)"><In v={th.logoUrl} onChange={(v: any) => setTheme("logoUrl", v)} placeholder="https://…" /></Field>
+          <Field l="Logo no topo"><ImageUpload value={th.logoUrl} onChange={(u) => setTheme("logoUrl", u)} folder="quiz-logos" /></Field>
         </div>
 
         <div className="border-t pt-3">
@@ -726,6 +824,7 @@ function LeadsDashboard({ slug }: { slug: string | null }) {
   const [leads, setLeads] = useState<any[]>([]);
   const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [lsub, setLsub] = useState<"performance" | "respostas" | "resultados">("performance");
 
   useEffect(() => {
     if (!slug) { setLoading(false); return; }
@@ -759,47 +858,91 @@ function LeadsDashboard({ slug }: { slug: string | null }) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `${slug}-leads.csv`; a.click();
   };
 
+  // RESULTADOS: agrega as respostas por pergunta (distribuição de % por valor)
+  const aggregate: { name: string; total: number; opts: { label: string; n: number; pct: number }[] }[] = (() => {
+    const byQ: Record<string, Record<string, number>> = {};
+    for (const l of leads) for (const [k, v] of Object.entries(l.respostas || {})) {
+      const vals = Array.isArray(v) ? v : [v];
+      byQ[k] = byQ[k] || {};
+      for (const val of vals) { const s = String(val); byQ[k][s] = (byQ[k][s] || 0) + 1; }
+    }
+    return Object.entries(byQ).map(([name, counts]) => {
+      const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+      const opts = Object.entries(counts).map(([label, n]) => ({ label, n, pct: Math.round((n / total) * 100) })).sort((a, b) => b.n - a.n);
+      return { name, total, opts };
+    });
+  })();
+
   return (
     <div className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-950 p-6">
       <div className="max-w-5xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-          {cards.map((c) => (
-            <div key={c.label} className="bg-white dark:bg-gray-900 rounded-xl border p-4">
-              <div className="flex items-center justify-between mb-1"><span className="text-xs text-muted-foreground">{c.label}</span><Icon name={c.icon} size={15} className="text-primary" /></div>
-              <div className="text-2xl font-bold">{c.value}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">{c.sub}</div>
-            </div>
+        <div className="flex items-center gap-1 mb-5 bg-white dark:bg-gray-900 border rounded-xl p-1 w-fit">
+          {([["performance", "Performance"], ["resultados", "Resultados"], ["respostas", "Respostas"]] as const).map(([k, lab]) => (
+            <button key={k} onClick={() => setLsub(k as any)} className={`text-sm px-4 py-1.5 rounded-lg ${lsub === k ? "bg-primary text-white" : "hover:bg-accent text-muted-foreground"}`}>{lab}</button>
           ))}
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-xl border overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
-            <h3 className="font-semibold text-sm">Leads ({leads.length})</h3>
-            {leads.length > 0 && <button onClick={exportCsv} className="text-xs border rounded-lg px-3 py-1.5 hover:bg-accent flex items-center gap-1.5"><Icons.Download className="w-3.5 h-3.5" /> Exportar CSV</button>}
+        {lsub === "performance" && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {cards.map((c) => (
+              <div key={c.label} className="bg-white dark:bg-gray-900 rounded-xl border p-4">
+                <div className="flex items-center justify-between mb-1"><span className="text-xs text-muted-foreground">{c.label}</span><Icon name={c.icon} size={15} className="text-primary" /></div>
+                <div className="text-2xl font-bold">{c.value}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{c.sub}</div>
+              </div>
+            ))}
           </div>
-          {leads.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">Nenhum lead ainda. Compartilhe a URL pública do funil.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-xs text-muted-foreground border-b">
-                  <th className="px-4 py-2 font-medium">Data</th><th className="px-4 py-2 font-medium">Nome</th><th className="px-4 py-2 font-medium">Contato</th><th className="px-4 py-2 font-medium">Score</th><th className="px-4 py-2 font-medium">Respostas</th>
-                </tr></thead>
-                <tbody>
-                  {leads.map((l, i) => (
-                    <tr key={i} className="border-b last:border-0 hover:bg-accent/40">
-                      <td className="px-4 py-2 text-xs whitespace-nowrap">{l.at ? new Date(l.at).toLocaleString("pt-BR") : "—"}</td>
-                      <td className="px-4 py-2">{nomeOf(l) || "—"}</td>
-                      <td className="px-4 py-2 text-xs">{contatoOf(l) || "—"}</td>
-                      <td className="px-4 py-2"><span className="bg-primary/10 text-primary rounded px-2 py-0.5 text-xs font-medium">{l.score ?? 0}</span></td>
-                      <td className="px-4 py-2 text-xs text-muted-foreground max-w-[280px] truncate">{Object.entries(l.respostas || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join("/") : v}`).join(" · ") || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        )}
+
+        {lsub === "resultados" && (
+          <div className="space-y-4">
+            {aggregate.length === 0 ? <div className="bg-white dark:bg-gray-900 rounded-xl border py-16 text-center text-muted-foreground text-sm">Sem respostas ainda.</div>
+              : aggregate.map((q) => (
+                <div key={q.name} className="bg-white dark:bg-gray-900 rounded-xl border p-4">
+                  <div className="flex justify-between items-center mb-3"><h4 className="font-medium text-sm">{q.name}</h4><span className="text-xs text-muted-foreground">{q.total} resposta(s)</span></div>
+                  <div className="space-y-2">
+                    {q.opts.map((o) => (
+                      <div key={o.label}>
+                        <div className="flex justify-between text-xs mb-0.5"><span>{o.label}</span><span className="text-muted-foreground">{o.pct}% ({o.n})</span></div>
+                        <div className="h-2.5 bg-muted rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${o.pct}%` }} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {lsub === "respostas" && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="font-semibold text-sm">Leads ({leads.length})</h3>
+              {leads.length > 0 && <button onClick={exportCsv} className="text-xs border rounded-lg px-3 py-1.5 hover:bg-accent flex items-center gap-1.5"><Icons.Download className="w-3.5 h-3.5" /> Exportar CSV</button>}
             </div>
-          )}
-        </div>
+            {leads.length === 0 ? (
+              <div className="py-16 text-center text-muted-foreground text-sm">Nenhum lead ainda. Compartilhe a URL pública do funil.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs text-muted-foreground border-b">
+                    <th className="px-4 py-2 font-medium">Data</th><th className="px-4 py-2 font-medium">Nome</th><th className="px-4 py-2 font-medium">Contato</th><th className="px-4 py-2 font-medium">Score</th><th className="px-4 py-2 font-medium">Respostas</th>
+                  </tr></thead>
+                  <tbody>
+                    {leads.map((l, i) => (
+                      <tr key={i} className="border-b last:border-0 hover:bg-accent/40">
+                        <td className="px-4 py-2 text-xs whitespace-nowrap">{l.at ? new Date(l.at).toLocaleString("pt-BR") : "—"}</td>
+                        <td className="px-4 py-2">{nomeOf(l) || "—"}</td>
+                        <td className="px-4 py-2 text-xs">{contatoOf(l) || "—"}</td>
+                        <td className="px-4 py-2"><span className="bg-primary/10 text-primary rounded px-2 py-0.5 text-xs font-medium">{l.score ?? 0}</span></td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground max-w-[280px] truncate">{Object.entries(l.respostas || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join("/") : v}`).join(" · ") || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

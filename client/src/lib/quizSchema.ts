@@ -10,7 +10,8 @@ export type QComponentType =
   | "timer" | "loading" | "nivel"
   | "alerta" | "notificacao" | "depoimentos" | "argumentos"
   | "preco" | "galeria" | "espaco"
-  | "faq" | "carrossel" | "antes_depois" | "graficos" | "script";
+  | "faq" | "carrossel" | "antes_depois" | "graficos" | "script"
+  | "regua" | "cartesiano";
 
 export interface QVisibility {
   mode?: "always" | "score" | "time";
@@ -124,6 +125,8 @@ export const PALETTE: PaletteItem[] = [
   // Formulário
   { key: "captura", type: "captura", label: "Captura", icon: "UserPlus", category: "Formulário", defaults: () => ({ title: "Falta pouco!", description: "", fields: [{ type: "name", name: "nome", label: "Seu nome", required: true }, { type: "email", name: "email", label: "Seu melhor e-mail", required: true }], buttonText: "Continuar", nextStepId: "" }) },
   { key: "botao", type: "botao", label: "Botão", icon: "MousePointerClick", category: "Formulário", defaults: () => ({ label: "Continuar", action: "next", url: "", stepId: "", style: "solid", full: true, newTab: false, fixedBottom: false, animated: false }) },
+  { key: "altura", type: "regua", label: "Altura", icon: "Ruler", category: "Formulário", novo: true, defaults: () => ({ name: "altura", label: "Qual a sua altura?", unit: "cm", min: 120, max: 220, value: 170, required: false }) },
+  { key: "peso", type: "regua", label: "Peso", icon: "Scale", category: "Formulário", novo: true, defaults: () => ({ name: "peso", label: "Qual o seu peso?", unit: "kg", min: 40, max: 160, value: 70, required: false }) },
   // Mídia e conteúdo
   { key: "texto", type: "texto", label: "Texto", icon: "Type", category: "Mídia e conteúdo", defaults: () => ({ text: "Escreva seu título aqui", variant: "title", align: "center", color: "" }) },
   { key: "imagem", type: "imagem", label: "Imagem", icon: "Image", category: "Mídia e conteúdo", defaults: () => ({ url: "", alt: "", radius: 14, maxWidth: 100 }) },
@@ -145,6 +148,7 @@ export const PALETTE: PaletteItem[] = [
   { key: "nivel", type: "nivel", label: "Nível", icon: "BarChart3", category: "Atenção", defaults: () => ({ label: "Seu progresso", subtitle: "", percent: 75, fromScore: false, legends: "", indicator: "" }) },
   // Gráficos
   { key: "graficos", type: "graficos", label: "Gráficos", icon: "PieChart", category: "Gráficos", defaults: () => ({ layout: "list", items: [{ type: "circular", color: "tema", value: 70, label: "Engajamento" }, { type: "barra", color: "tema", value: 45, label: "Progresso" }] }) },
+  { key: "cartesiano", type: "cartesiano", label: "Cartesiano", icon: "ChartLine", category: "Gráficos", defaults: () => ({ title: "Seu progresso", showArea: true, showX: true, showY: false, items: [{ label: "Início", value: 20 }, { label: "Agora", value: 55, you: true }, { label: "Objetivo", value: 90 }] }) },
   // Personalização
   { key: "espaco", type: "espaco", label: "Espaço", icon: "Minus", category: "Personalização", defaults: () => ({ height: 24 }) },
   { key: "script", type: "script", label: "Script", icon: "Code", category: "Personalização", defaults: () => ({ code: "" }) },

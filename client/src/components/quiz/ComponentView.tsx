@@ -230,6 +230,34 @@ export default function ComponentView({ comp, ctx }: { comp: QComponent; ctx: Ru
     }
     case "script":
       return <ScriptView comp={comp} preview={!!ctx.preview} />;
+    case "regua":
+      return <ReguaView comp={comp} ctx={ctx} primary={primary} />;
+    case "cartesiano": {
+      const items: any[] = p.items || [];
+      if (!items.length) return <Placeholder label="Cartesiano (adicione dados)" />;
+      const W = 320, H = 160, pad = 28;
+      const max = Math.max(100, ...items.map((d) => d.value || 0));
+      const pts = items.map((d, i) => [pad + (i * (W - 2 * pad)) / Math.max(1, items.length - 1), H - pad - ((d.value || 0) / max) * (H - 2 * pad)]);
+      const line = pts.map((pt, i) => `${i === 0 ? "M" : "L"}${pt[0].toFixed(1)} ${pt[1].toFixed(1)}`).join(" ");
+      const area = `${line} L${pts[pts.length - 1][0].toFixed(1)} ${H - pad} L${pts[0][0].toFixed(1)} ${H - pad} Z`;
+      return (
+        <div>
+          {p.title && <h3 style={{ fontSize: 16, fontWeight: 700, textAlign: "center", color: t.textColor, margin: "0 0 8px" }}>{txt(p.title)}</h3>}
+          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%" }}>
+            {p.showY && [0, 0.5, 1].map((g, i) => <line key={i} x1={pad} x2={W - pad} y1={pad + g * (H - 2 * pad)} y2={pad + g * (H - 2 * pad)} stroke="#eef2f7" />)}
+            {p.showArea && <path d={area} fill={primary} opacity={0.12} />}
+            <path d={line} fill="none" stroke={primary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+            {items.map((d, i) => (
+              <g key={i}>
+                <circle cx={pts[i][0]} cy={pts[i][1]} r={d.you ? 6 : 4} fill={d.you ? primary : "#fff"} stroke={primary} strokeWidth={2} />
+                {p.showX && <text x={pts[i][0]} y={H - 8} textAnchor="middle" fontSize={9} fill="#64748b">{d.label}</text>}
+                {d.you && <text x={pts[i][0]} y={pts[i][1] - 12} textAnchor="middle" fontSize={9} fontWeight={700} fill={primary}>Você</text>}
+              </g>
+            ))}
+          </svg>
+        </div>
+      );
+    }
     default:
       return <Placeholder label={comp.type} />;
   }
@@ -381,6 +409,36 @@ function ScriptView({ comp, preview }: { comp: QComponent; preview: boolean }) {
   }, [code, preview]);
   if (preview) return <Placeholder label={code ? "Script embutido (executa no quiz publicado)" : "Script (cole o código)"} />;
   return <div ref={ref} />;
+}
+
+function ReguaView({ comp, ctx, primary }: { comp: QComponent; ctx: RuntimeCtx; primary: string }) {
+  const p = comp.props || {};
+  const min = p.min ?? 0, max = p.max ?? 100;
+  const [val, setVal] = useState<number>(p.value ?? Math.round((min + max) / 2));
+  const [imperial, setImperial] = useState(false);
+  const isHeight = p.unit === "cm";
+  const display = () => {
+    if (isHeight && imperial) { const inch = Math.round(val / 2.54); return `${Math.floor(inch / 12)}′ ${inch % 12}″`; }
+    return `${val} ${p.unit || ""}`;
+  };
+  const setV = (v: number) => { setVal(v); ctx.onAnswer?.(comp, { [p.name || comp.type]: `${v} ${p.unit || ""}` }); };
+  return (
+    <div style={{ textAlign: "center" }}>
+      {p.label && <h3 style={{ fontSize: 18, fontWeight: 700, color: ctx.theme.textColor, margin: "0 0 10px" }}>{resolveVars(p.label, ctx.vars)}</h3>}
+      {isHeight && (
+        <div style={{ display: "inline-flex", border: "1px solid #e2e8f0", borderRadius: 999, padding: 2, marginBottom: 10 }}>
+          {[["cm", false], ["pol", true]].map(([lab, imp]) => (
+            <button key={lab as string} type="button" disabled={ctx.preview} onClick={() => setImperial(imp as boolean)}
+              style={{ border: "none", background: imperial === imp ? primary : "transparent", color: imperial === imp ? "#fff" : "#64748b", borderRadius: 999, padding: "4px 14px", fontSize: 13, cursor: ctx.preview ? "default" : "pointer" }}>{lab}</button>
+          ))}
+        </div>
+      )}
+      <div style={{ fontSize: 38, fontWeight: 800, color: primary, lineHeight: 1 }}>{display()}</div>
+      <input type="range" min={min} max={max} value={val} disabled={ctx.preview} onChange={(e) => setV(+e.target.value)}
+        style={{ width: "100%", maxWidth: 320, marginTop: 16, accentColor: primary }} />
+      <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>Arraste para ajustar</div>
+    </div>
+  );
 }
 
 function TimerView({ comp, primary }: { comp: QComponent; primary: string }) {

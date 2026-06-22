@@ -6455,6 +6455,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== UPLOAD DE IMAGEM OTIMIZADO (compressão + WebP) ====================
+  // Reutilizável por todo o app: comprime, redimensiona e converte para WebP
+  // (qualidade alta + arquivos pequenos). SVG é mantido; GIF animado preserva animação.
+  app.post('/api/upload/image', authMiddleware, upload.single('file'), async (req: any, res) => {
+    try {
+      const file = req.file;
+      if (!file) return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+      if (!file.mimetype?.startsWith('image/')) return res.status(400).json({ message: 'Envie um arquivo de imagem' });
+
+      const folder = String(req.body?.folder || 'quiz-uploads').replace(/[^a-zA-Z0-9_-]/g, '') || 'quiz-uploads';
+      const maxSize = Math.min(parseInt(req.body?.maxSize) || 1920, 4096);
+      const quality = Math.min(Math.max(parseInt(req.body?.quality) || 85, 50), 95);
+
+      let buffer = file.buffer, mime = 'image/webp', ext = 'webp';
+      if (file.mimetype === 'image/svg+xml') {
+        // SVG: vetorial — mantém como está (já é otimizado/escalável)
+        buffer = file.buffer; mime = 'image/svg+xml'; ext = 'svg';
+      } else {
+        const meta = await sharp(file.buffer).metadata().catch(() => ({} as any));
+        const animated = file.mimetype === 'image/gif' && (meta.pages || 1) > 1;
+        buffer = await sharp(file.buffer, animated ? { animated: true } : {})
+          .rotate() // auto-orienta pelo EXIF
+          .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
+          .webp({ quality, effort: 4 })
+          .toBuffer();
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const url = await objectStorageService.uploadBuffer(buffer, folder, mime, ext);
+      const savedPct = file.size ? Math.max(0, Math.round((1 - buffer.length / file.size) * 100)) : 0;
+      res.json({ url, bytes: buffer.length, original: file.size, savedPct });
+    } catch (error: any) {
+      logger.error('[Upload] erro ao otimizar imagem:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao enviar imagem' });
+    }
+  });
+
   // ==================== QUIZ BUILDER (funil de quiz estilo inlead) ====================
 
   app.get('/api/quiz/list', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
