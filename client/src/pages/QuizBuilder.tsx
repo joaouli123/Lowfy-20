@@ -307,7 +307,7 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
       ) : tab === "fluxo" ? (
         <FlowOverview spec={spec} onPick={(i) => { setStepIdx(i); setTab("construtor"); }} />
       ) : tab === "config" ? (
-        <ConfigPanel spec={spec} onPatch={patch} publicUrl={publicUrl} />
+        <ConfigPanel spec={spec} onPatch={patch} publicUrl={publicUrl} slug={savedSlug} />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <div className="flex-1 flex overflow-hidden">
@@ -416,8 +416,56 @@ function VarsModal({ spec, onClose }: { spec: QuizSpec; onClose: () => void }) {
   );
 }
 
+// ---- Conectar domínio próprio (automação Railway) ----
+function DomainConnect({ slug, current, onChange }: { slug: string | null; current?: string; onChange: (d: string) => void }) {
+  const { toast } = useToast();
+  const [domain, setDomain] = useState(current || "");
+  const [dns, setDns] = useState<any[]>([]);
+  const [railway, setRailway] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(false);
+  const connect = async () => {
+    if (!slug) { toast({ title: "Salve o funil primeiro" }); return; }
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain.trim())) { toast({ title: "Domínio inválido", variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const r = await apiRequest("POST", `/api/quiz/${slug}/connect-domain`, { domain: domain.trim() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.message || "Falha ao conectar");
+      setDns(d.dnsRecords || []); setRailway(d.railway); onChange(d.domain);
+      toast({ title: "Domínio conectado!", description: d.railway ? "Configure os registros DNS abaixo." : "Registrado. Aponte o DNS e o SSL será liberado." });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+    finally { setLoading(false); }
+  };
+  const disconnect = async () => {
+    if (!slug) return;
+    await apiRequest("POST", `/api/quiz/${slug}/disconnect-domain`).catch(() => {});
+    setDns([]); setDomain(""); setRailway(null); onChange(""); toast({ title: "Domínio desconectado" });
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1.5">
+        <In v={domain} onChange={setDomain} placeholder="ex: quiz.seusite.com.br" />
+        <button onClick={connect} disabled={loading} className="text-xs bg-primary text-white rounded-lg px-3 whitespace-nowrap disabled:opacity-50 flex items-center gap-1">{loading ? <Icons.Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Icons.Plug className="w-3.5 h-3.5" />} Conectar</button>
+      </div>
+      {current && <button onClick={disconnect} className="text-[11px] text-red-600 hover:underline">Desconectar domínio</button>}
+      {dns.length > 0 && <div className="bg-muted/50 rounded-lg p-2.5 text-[11px] space-y-1.5">
+        <p className="font-medium text-foreground">Configure estes registros no DNS do seu provedor:</p>
+        {dns.map((r, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <span className="font-mono bg-background border rounded px-1.5 py-0.5">{r.recordType}</span>
+            <span className="font-mono">{r.hostlabel || "@"}</span><span>→</span>
+            <span className="font-mono flex-1 break-all">{r.requiredValue}</span>
+            <button onClick={() => navigator.clipboard.writeText(r.requiredValue || "")} title="Copiar"><Icons.Copy className="w-3 h-3" /></button>
+          </div>
+        ))}
+        <p className="text-amber-600">⏳ Propagação até 24h. {railway ? "O certificado SSL é emitido automaticamente assim que o DNS apontar." : "O SSL será emitido pelo suporte após o apontamento."}</p>
+      </div>}
+    </div>
+  );
+}
+
 // ---- Configurações em sidebar (Geral / Pixel / SEO / Webhooks) ----
-function ConfigPanel({ spec, onPatch, publicUrl }: { spec: QuizSpec; onPatch: (p: Partial<QuizSpec>) => void; publicUrl: string }) {
+function ConfigPanel({ spec, onPatch, publicUrl, slug }: { spec: QuizSpec; onPatch: (p: Partial<QuizSpec>) => void; publicUrl: string; slug: string | null }) {
   const [sec, setSec] = useState("geral");
   const s: any = spec;
   const sections: [string, string, string][] = [["geral", "Geral", "Settings"], ["pixel", "Pixel & Scripts", "Code"], ["seo", "SEO & Favicon", "Globe"], ["webhooks", "Webhooks", "Webhook"]];
@@ -437,13 +485,7 @@ function ConfigPanel({ spec, onPatch, publicUrl }: { spec: QuizSpec; onPatch: (p
             <Field l="Redirect final (URL)"><In v={spec.redirectUrl} onChange={(v: any) => onPatch({ redirectUrl: v })} placeholder="https://checkout…" /></Field>
             {publicUrl && <div><label className="text-xs text-muted-foreground block mb-1">URL pública</label><div className="flex gap-1.5"><input readOnly value={publicUrl} className="flex-1 border rounded-lg px-2.5 py-1.5 text-sm bg-muted" /><button onClick={() => navigator.clipboard.writeText(publicUrl)} className="border rounded-lg px-2.5 hover:bg-accent"><Icons.Copy className="w-4 h-4" /></button></div></div>}
             <div className="border-t pt-3"><p className="text-xs font-semibold text-muted-foreground mb-2">DOMÍNIO PRÓPRIO</p>
-              <Field l="Domínio ou subdomínio"><In v={s.customDomain} onChange={(v: any) => onPatch({ customDomain: v } as any)} placeholder="ex: quiz.seusite.com.br" /></Field>
-              {s.customDomain && <div className="text-[11px] text-muted-foreground bg-muted/50 rounded-lg p-2.5 mt-1.5 space-y-1.5">
-                <p className="font-medium text-foreground">Configure no DNS do seu provedor:</p>
-                <div className="flex items-center gap-1.5"><span className="font-mono bg-background border rounded px-1.5 py-0.5">CNAME</span><span className="font-mono">{(s.customDomain.split(".").length > 2 ? s.customDomain.split(".")[0] : "@")}</span><span>→</span><span className="font-mono">lowfy.com.br</span></div>
-                <p>Para <b>domínio raiz</b> (sem www/subdomínio), use um <b>ALIAS/ANAME</b> → <span className="font-mono">lowfy.com.br</span> (ou prefira um subdomínio).</p>
-                <p className="text-amber-600">⏳ Após apontar o DNS e <b>publicar</b> o funil, o domínio fica ativo (propagação até 24h). Domínio próprio precisa ser liberado pelo suporte para emitir o certificado SSL.</p>
-              </div>}
+              <DomainConnect slug={slug} current={s.customDomain} onChange={(d) => onPatch({ customDomain: d } as any)} />
             </div>
           </>}
           {sec === "pixel" && <>

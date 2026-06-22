@@ -73,6 +73,7 @@ import axios from "axios";
 import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
 import * as aiStudio from "./services/aiStudio";
 import * as quizStore from "./quizStore";
+import * as railwayDomains from "./services/railwayDomains";
 import { sanitizePageName } from "./utils/slug-utils";
 import { writeJsonAtomic } from "./utils/safe-fs";
 import cookieParser from "cookie-parser";
@@ -6560,6 +6561,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(await quizStore.getLeads(quizStore.sanitizeSlug(req.params.slug), req.user.id));
   });
 
+  // ---- DOMÍNIO PRÓPRIO (automação via API do Railway) ----
+  const genericDns = (domain: string) => {
+    const sub = domain.split(".").length > 2 ? domain.split(".")[0] : "@";
+    return [{ hostlabel: sub, recordType: "CNAME", requiredValue: "lowfy.com.br", purpose: "Aponte seu DNS para cá", status: "pendente" }];
+  };
+
+  app.post('/api/quiz/:slug/connect-domain', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const slug = quizStore.sanitizeSlug(req.params.slug);
+      const meta = await quizStore.getQuizMeta(slug);
+      if (!meta) return res.status(404).json({ message: 'Funil não encontrado' });
+      if (meta.userId !== req.user.id) return res.status(403).json({ message: 'Acesso negado' });
+      const spec: any = await quizStore.getQuiz(slug);
+      if (!spec) return res.status(404).json({ message: 'Funil não encontrado' });
+
+      const domain = quizStore.normalizeDomain(String(req.body?.domain || ''));
+      if (!domain || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) return res.status(400).json({ message: 'Domínio inválido' });
+
+      // remove o domínio anterior no Railway, se mudou
+      if (spec._railwayDomainId && spec.customDomain !== domain) await railwayDomains.deleteCustomDomain(spec._railwayDomainId);
+
+      let dnsRecords: any[] = genericDns(domain), railwayId: string | null = null, railway = false;
+      if (railwayDomains.railwayConfigured()) {
+        try { const r = await railwayDomains.addCustomDomain(domain); railwayId = r.id; dnsRecords = r.dnsRecords?.length ? r.dnsRecords : dnsRecords; railway = true; }
+        catch (e: any) { logger.warn('[Railway] addCustomDomain falhou:', e?.message); }
+      }
+
+      spec.customDomain = domain; spec._railwayDomainId = railwayId;
+      await quizStore.saveQuiz(slug, spec, req.user.id); // sincroniza o mapa domínio→slug
+      res.json({ domain, dnsRecords, railway, published: !!spec.isPublished });
+    } catch (e: any) {
+      logger.error('[Quiz domínio] erro:', e?.message);
+      res.status(500).json({ message: e?.message || 'Erro ao conectar domínio' });
+    }
+  });
+
+  app.post('/api/quiz/:slug/disconnect-domain', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const slug = quizStore.sanitizeSlug(req.params.slug);
+      const meta = await quizStore.getQuizMeta(slug);
+      if (!meta || meta.userId !== req.user.id) return res.status(403).json({ message: 'Acesso negado' });
+      const spec: any = await quizStore.getQuiz(slug);
+      if (spec?._railwayDomainId) await railwayDomains.deleteCustomDomain(spec._railwayDomainId);
+      if (spec) { spec.customDomain = ''; spec._railwayDomainId = null; await quizStore.saveQuiz(slug, spec, req.user.id); }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ message: e?.message || 'Erro' }); }
+  });
+
+  app.get('/api/quiz/:slug/domain-status', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    const slug = quizStore.sanitizeSlug(req.params.slug);
+    const meta = await quizStore.getQuizMeta(slug);
+    if (!meta || meta.userId !== req.user.id) return res.status(403).json({ message: 'Acesso negado' });
+    const spec: any = await quizStore.getQuiz(slug);
+    if (!spec?.customDomain) return res.json({ domain: null });
+    const st = railwayDomains.railwayConfigured() ? await railwayDomains.getDomainStatus(spec.customDomain) : null;
+    res.json({ domain: spec.customDomain, dnsRecords: st?.dnsRecords || genericDns(spec.customDomain), railway: !!st });
+  });
+
   // ---- PÚBLICO (runtime do quiz) ----
   // Resolve o domínio/subdomínio próprio do request para o slug do funil publicado.
   app.get('/api/q/resolve', async (req, res) => {
@@ -6575,8 +6634,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const spec = await quizStore.getQuiz(slug);
     if (!spec || !spec.isPublished) return res.status(404).json({ message: 'Quiz não encontrado' });
     void quizStore.bumpMeta(slug, 'views');
-    // não expor webhookUrl ao público
-    const { webhookUrl, ...publicSpec } = spec as any;
+    // não expor webhookUrl nem IDs internos ao público
+    const { webhookUrl, _railwayDomainId, ...publicSpec } = spec as any;
     res.set('Cache-Control', 'public, max-age=60');
     res.json(publicSpec);
   });
