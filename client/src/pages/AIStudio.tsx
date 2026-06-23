@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Sparkles, Image as ImageIcon, Type, Mic, Video, UserSquare2,
   Loader2, Copy, Download, Wand2, RefreshCw, Check, Upload, History, Volume2,
+  AudioWaveform, Trash2, X,
 } from "lucide-react";
 
 const COPY_TYPES = [
@@ -130,17 +131,29 @@ function Loading({ label }: { label: string }) {
   );
 }
 
+function Slider({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (n: number) => void }) {
+  return (
+    <div>
+      <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
+        <span>{label}</span><span className="font-medium text-foreground">{value.toFixed(2)}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} className="w-full accent-primary h-1.5 cursor-pointer" />
+    </div>
+  );
+}
+
 export default function AIStudio() {
   const { toast } = useToast();
   const [history, setHistory] = useState<Hist[]>([]);
   const pushHist = (h: Hist) => setHistory((p) => [h, ...p].slice(0, 12));
 
   // ---- Criativo (imagem) ----
-  const [img, setImg] = useState({ produto: "", estilo: "", headline: "", publico: "", ratio: "1:1" });
+  const [img, setImg] = useState({ produto: "", estilo: "", headline: "", publico: "", ratio: "1:1", quality: "high", format: "png", background: "auto" });
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const imageMut = useMutation({
     mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/image", img);
+      const size = img.ratio === "16:9" ? "1536x1024" : (img.ratio === "9:16" || img.ratio === "4:5") ? "1024x1536" : "1024x1024";
+      const r = await apiRequest("POST", "/api/ai-studio/image", { ...img, size });
       return (await r.json()) as { url: string };
     },
     onSuccess: (d) => { setImgUrl(d.url); pushHist({ type: "image", url: d.url, label: img.produto || "Criativo" }); },
@@ -160,7 +173,7 @@ export default function AIStudio() {
   });
 
   // ---- Narração (TTS) ----
-  const [tts, setTts] = useState({ text: "", voice: "nova", instructions: "" });
+  const [tts, setTts] = useState({ text: "", voice: "nova", instructions: "", modelId: "eleven_multilingual_v2", stability: 0.5, similarityBoost: 0.75, style: 0, speed: 1 });
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
   const ttsMut = useMutation({
     mutationFn: async () => {
@@ -183,8 +196,8 @@ export default function AIStudio() {
     onError: (e: any) => toast({ title: "Erro ao gerar avatar", description: e.message, variant: "destructive" }),
   });
 
-  // ---- Vídeo (descrição + roteiro → vídeo) ----
-  const [vid, setVid] = useState({ prompt: "", script: "", voice: "nova", size: "1080x1080" });
+  // ---- Vídeo (Seedance 2.0) ----
+  const [vid, setVid] = useState({ prompt: "", script: "", voice: "nova", size: "1080x1080", resolution: "720p", duration: "auto", imageUrl: "" });
   const [vidUrl, setVidUrl] = useState<string | null>(null);
   const videoMut = useMutation({
     mutationFn: async () => {
@@ -194,6 +207,36 @@ export default function AIStudio() {
     onSuccess: (d) => { setVidUrl(d.url); pushHist({ type: "video", url: d.url, label: vid.prompt || "Vídeo" }); },
     onError: (e: any) => toast({ title: "Erro ao gerar vídeo", description: e.message, variant: "destructive" }),
   });
+
+  // ---- Clonagem de voz (ElevenLabs) ----
+  const { data: voicesData, refetch: refetchVoices } = useQuery({
+    queryKey: ["/api/ai-studio/voices"],
+    queryFn: async () => {
+      const r = await apiRequest("GET", "/api/ai-studio/voices");
+      return (await r.json()) as { voices: { voiceId: string; name: string; category?: string }[] };
+    },
+  });
+  const clonedVoices = (voicesData?.voices || []).filter((v) => v.category === "cloned" || v.category === "professional" || v.category === "generated");
+  const [cloneName, setCloneName] = useState("");
+  const [cloneSamples, setCloneSamples] = useState<{ data: string; type: string; name: string }[]>([]);
+  const [clonedVoiceId, setClonedVoiceId] = useState<string | null>(null);
+  const cloneMut = useMutation({
+    mutationFn: async () => {
+      const r = await apiRequest("POST", "/api/ai-studio/clone-voice", { name: cloneName, samples: cloneSamples });
+      return (await r.json()) as { voiceId: string; requiresVerification?: boolean };
+    },
+    onSuccess: (d) => { setClonedVoiceId(d.voiceId); refetchVoices(); toast({ title: "Voz clonada com sucesso!", description: `Já disponível na narração.` }); },
+    onError: (e: any) => toast({ title: "Erro ao clonar voz", description: e.message, variant: "destructive" }),
+  });
+  const onSamplePick = (files?: FileList | null) => {
+    if (!files) return;
+    Array.from(files).slice(0, 5).forEach((f) => {
+      if (f.size > 12 * 1024 * 1024) { toast({ title: "Áudio muito grande", description: "Use até 12MB por amostra.", variant: "destructive" }); return; }
+      const reader = new FileReader();
+      reader.onload = () => setCloneSamples((s) => [...s, { data: String(reader.result), type: f.type || "audio/mpeg", name: f.name }].slice(0, 5));
+      reader.readAsDataURL(f);
+    });
+  };
 
   const onPhotoPick = (file?: File) => {
     if (!file) return;
@@ -239,6 +282,7 @@ export default function AIStudio() {
           <TabsTrigger value="narracao" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Mic className="w-4 h-4" /> Narração</TabsTrigger>
           <TabsTrigger value="avatar" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><UserSquare2 className="w-4 h-4" /> Avatar</TabsTrigger>
           <TabsTrigger value="video" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Video className="w-4 h-4" /> Vídeo</TabsTrigger>
+          <TabsTrigger value="clonar" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><AudioWaveform className="w-4 h-4" /> Clonar Voz</TabsTrigger>
         </TabsList>
 
         {/* ---------- CRIATIVO ---------- */}
@@ -270,6 +314,29 @@ export default function AIStudio() {
                 </Field>
                 <Field label="Público-alvo">
                   <Input value={img.publico} onChange={(e) => setImg({ ...img, publico: e.target.value })} placeholder="Ex.: corredores iniciantes" />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Qualidade">
+                    <div className="flex flex-wrap gap-1.5">
+                      {[["high", "Alta"], ["medium", "Média"], ["low", "Baixa"]].map(([v, l]) => (
+                        <Chip key={v} active={img.quality === v} onClick={() => setImg({ ...img, quality: v })}>{l}</Chip>
+                      ))}
+                    </div>
+                  </Field>
+                  <Field label="Formato">
+                    <div className="flex flex-wrap gap-1.5">
+                      {["png", "jpeg", "webp"].map((f) => (
+                        <Chip key={f} active={img.format === f} onClick={() => setImg({ ...img, format: f })}>{f.toUpperCase()}</Chip>
+                      ))}
+                    </div>
+                  </Field>
+                </div>
+                <Field label="Fundo" hint="Transparente exige PNG/WebP (ideal p/ logos e recortes).">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[["auto", "Automático"], ["opaque", "Opaco"], ["transparent", "Transparente"]].map(([v, l]) => (
+                      <Chip key={v} active={img.background === v} onClick={() => setImg({ ...img, background: v, format: v === "transparent" && img.format === "jpeg" ? "png" : img.format })}>{l}</Chip>
+                    ))}
+                  </div>
                 </Field>
                 <Button className="w-full shadow-sm" disabled={imageMut.isPending || !img.produto} onClick={() => imageMut.mutate()}>
                   {imageMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
@@ -388,11 +455,29 @@ export default function AIStudio() {
                 <Field label="Texto para narrar *">
                   <Textarea rows={5} value={tts.text} onChange={(e) => setTts({ ...tts, text: e.target.value })} placeholder="Cole o roteiro/texto da narração…" />
                 </Field>
-                <Field label="Voz">
+                <Field label="Voz" hint={clonedVoices.length ? "Inclui suas vozes clonadas." : undefined}>
                   <div className="flex flex-wrap gap-1.5">
+                    {clonedVoices.map((v) => (
+                      <Chip key={v.voiceId} active={tts.voice === v.voiceId} onClick={() => setTts({ ...tts, voice: v.voiceId })}><AudioWaveform className="w-3.5 h-3.5" />{v.name}</Chip>
+                    ))}
                     {TTS_VOICES.map((v) => (
                       <Chip key={v.v} active={tts.voice === v.v} onClick={() => setTts({ ...tts, voice: v.v })}><Volume2 className="w-3.5 h-3.5" />{v.label}</Chip>
                     ))}
+                  </div>
+                </Field>
+                <Field label="Modelo (ElevenLabs)">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[["eleven_v3", "v3 · expressivo"], ["eleven_multilingual_v2", "Multilingual v2"], ["eleven_flash_v2_5", "Flash · rápido"]].map(([v, l]) => (
+                      <Chip key={v} active={tts.modelId === v} onClick={() => setTts({ ...tts, modelId: v })}>{l}</Chip>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Ajustes de voz">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                    <Slider label="Estabilidade" value={tts.stability} min={0} max={1} step={0.05} onChange={(n) => setTts({ ...tts, stability: n })} />
+                    <Slider label="Similaridade" value={tts.similarityBoost} min={0} max={1} step={0.05} onChange={(n) => setTts({ ...tts, similarityBoost: n })} />
+                    <Slider label="Estilo" value={tts.style} min={0} max={1} step={0.05} onChange={(n) => setTts({ ...tts, style: n })} />
+                    <Slider label="Velocidade" value={tts.speed} min={0.7} max={1.2} step={0.05} onChange={(n) => setTts({ ...tts, speed: n })} />
                   </div>
                 </Field>
                 <Field label="Tom (emoção)">
@@ -493,7 +578,7 @@ export default function AIStudio() {
           <div className="grid lg:grid-cols-2 gap-4">
             <Card className="shadow-sm">
               <CardContent className="p-5 space-y-4">
-                <ProviderBadge free="Imagem + narração → MP4" premium="Seedance 2.0 / Kling" />
+                <ProviderBadge free="Imagem + narração → MP4" premium="Seedance 2.0 (vídeo + áudio nativo)" />
                 <Field label="Descrição do vídeo / produto *">
                   <Textarea rows={3} value={vid.prompt} onChange={(e) => setVid({ ...vid, prompt: e.target.value })} placeholder="Ex.: tênis esportivo premium em fundo escuro com luz de estúdio, foco no produto" />
                 </Field>
@@ -514,7 +599,26 @@ export default function AIStudio() {
                     ))}
                   </div>
                 </Field>
-                <Button className="w-full shadow-sm" disabled={videoMut.isPending || !vid.prompt} onClick={() => videoMut.mutate()}>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Resolução">
+                    <div className="flex flex-wrap gap-1.5">
+                      {["480p", "720p", "1080p"].map((r) => (
+                        <Chip key={r} active={vid.resolution === r} onClick={() => setVid({ ...vid, resolution: r })}>{r}</Chip>
+                      ))}
+                    </div>
+                  </Field>
+                  <Field label="Duração">
+                    <div className="flex flex-wrap gap-1.5">
+                      {[["auto", "Auto"], ["5", "5s"], ["8", "8s"], ["10", "10s"], ["12", "12s"]].map(([v, l]) => (
+                        <Chip key={v} active={vid.duration === v} onClick={() => setVid({ ...vid, duration: v })}>{l}</Chip>
+                      ))}
+                    </div>
+                  </Field>
+                </div>
+                <Field label="Imagem base (opcional)" hint="Cole uma URL pública para animar a imagem (image-to-video do Seedance).">
+                  <Input value={vid.imageUrl} onChange={(e) => setVid({ ...vid, imageUrl: e.target.value })} placeholder="https://…  (vazio = gera do texto)" />
+                </Field>
+                <Button className="w-full shadow-sm" disabled={videoMut.isPending || (!vid.prompt && !vid.imageUrl)} onClick={() => videoMut.mutate()}>
                   {videoMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
                   Gerar vídeo
                 </Button>
@@ -531,6 +635,71 @@ export default function AIStudio() {
                   </div>
                 ) : (
                   <EmptyState icon={Video} title="Seu vídeo aparecerá aqui" sub="Descreva o produto e gere" />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ---------- CLONAR VOZ ---------- */}
+        <TabsContent value="clonar" className="flex-1 min-w-0 w-full mt-0">
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Card className="shadow-sm">
+              <CardContent className="p-5 space-y-4">
+                <ProviderBadge free="—" premium="ElevenLabs Instant Voice Cloning" />
+                <p className="text-xs text-muted-foreground -mt-1">Envie 1–5 amostras de áudio limpas da voz (total ~1 min). A voz clonada aparece automaticamente na aba Narração.</p>
+                <Field label="Nome da voz *">
+                  <Input value={cloneName} onChange={(e) => setCloneName(e.target.value)} placeholder="Ex.: Minha voz, Locutor João…" />
+                </Field>
+                <Field label="Amostras de áudio *" hint="MP3/WAV/M4A, até 5 arquivos, 12MB cada.">
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition">
+                    <div className="w-12 h-12 rounded-xl bg-card border flex items-center justify-center mb-2"><Upload className="w-5 h-5 text-muted-foreground/50" /></div>
+                    <span className="text-sm text-muted-foreground">Clique para enviar amostras</span>
+                    <input type="file" accept="audio/*" multiple className="hidden" onChange={(e) => onSamplePick(e.target.files)} />
+                  </label>
+                </Field>
+                {cloneSamples.length > 0 && (
+                  <div className="space-y-1.5">
+                    {cloneSamples.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+                        <Volume2 className="w-4 h-4 text-primary flex-shrink-0" />
+                        <span className="truncate flex-1">{s.name}</span>
+                        <button onClick={() => setCloneSamples((arr) => arr.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-red-600"><X className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Button className="w-full shadow-sm" disabled={cloneMut.isPending || !cloneName || !cloneSamples.length} onClick={() => cloneMut.mutate()}>
+                  {cloneMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <AudioWaveform className="w-4 h-4 mr-2" />}
+                  Clonar voz
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="p-5 min-h-[340px]">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Minhas vozes</h3>
+                  <Button variant="ghost" size="sm" onClick={() => refetchVoices()} className="h-7 gap-1.5 text-xs"><RefreshCw className="w-3.5 h-3.5" /> Atualizar</Button>
+                </div>
+                {clonedVoiceId && (
+                  <div className="rounded-lg border border-primary/30 bg-accent px-3 py-2.5 text-sm text-accent-foreground mb-3 flex items-center gap-2">
+                    <Check className="w-4 h-4" /> Voz clonada criada! Já dá pra usar na Narração.
+                  </div>
+                )}
+                {clonedVoices.length ? (
+                  <div className="space-y-1.5">
+                    {clonedVoices.map((v) => (
+                      <div key={v.voiceId} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+                        <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center flex-shrink-0"><AudioWaveform className="w-3.5 h-3.5 text-primary" /></div>
+                        <span className="truncate flex-1 font-medium">{v.name}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase">{v.category}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full min-h-[260px] flex items-center justify-center">
+                    <EmptyState icon={AudioWaveform} title="Nenhuma voz clonada ainda" sub="Clone uma voz à esquerda — requer a chave ElevenLabs" />
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -6374,13 +6374,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gerar imagem de criativo
   app.post('/api/ai-studio/image', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
-      const { produto, estilo, headline, formato, publico, prompt, size, quality, provider } = req.body || {};
+      const { produto, estilo, headline, formato, publico, prompt, size, quality, provider, background, format, compression } = req.body || {};
       const finalPrompt = prompt || aiStudio.buildAdImagePrompt({ produto, estilo, headline, formato, publico });
       if (!finalPrompt || finalPrompt.trim().length < 3) {
         return res.status(400).json({ message: 'Descreva o produto/criativo' });
       }
-      const { buffer, mime } = await aiStudio.generateAdImage({ prompt: finalPrompt, size, quality, provider });
-      const ext = mime.includes('webp') ? 'webp' : 'png';
+      const { buffer, mime } = await aiStudio.generateAdImage({ prompt: finalPrompt, size, quality, provider, background, format, compression });
+      const ext = mime.includes('webp') ? 'webp' : mime.includes('jpeg') ? 'jpg' : 'png';
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-criativos', mime, ext);
       res.json({ url, prompt: finalPrompt });
@@ -6408,14 +6408,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gerar narração (TTS)
   app.post('/api/ai-studio/tts', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
-      const { text, voice, provider, instructions } = req.body || {};
+      const { text, voice, provider, instructions, modelId, stability, similarityBoost, style, speed } = req.body || {};
       if (!text || String(text).trim().length < 2) {
         return res.status(400).json({ message: 'Informe o texto para narração' });
       }
       if (String(text).length > 5000) {
         return res.status(400).json({ message: 'Texto muito longo (máx. 5000 caracteres)' });
       }
-      const { buffer, mime } = await aiStudio.generateNarration({ text, voice, provider, instructions });
+      const { buffer, mime } = await aiStudio.generateNarration({ text, voice, provider, instructions, modelId, stability, similarityBoost, style, speed });
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-audio', mime, 'mp3');
       res.json({ url });
@@ -6444,15 +6444,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Vídeo de anúncio (imagem + narração → MP4; Seedance/Kling com FAL_KEY)
   app.post('/api/ai-studio/video', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
-      const { prompt, imageUrl, script, size, voice } = req.body || {};
+      const { prompt, imageUrl, script, size, voice, resolution, duration } = req.body || {};
       if (!prompt && !imageUrl) return res.status(400).json({ message: 'Descreva o vídeo ou envie uma imagem base' });
-      const { buffer, mime } = await aiStudio.generateAdVideo({ prompt, imageUrl, script, size, voice });
+      const { buffer, mime } = await aiStudio.generateAdVideo({ prompt, imageUrl, script, size, voice, resolution, duration });
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-videos', mime, 'mp4');
       res.json({ url });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar vídeo:', error?.message);
       res.status(500).json({ message: error?.message || 'Erro ao gerar vídeo' });
+    }
+  });
+
+  // Listar vozes (incluindo clonadas) — ElevenLabs
+  app.get('/api/ai-studio/voices', authMiddleware, fullAccessMiddleware, async (_req, res) => {
+    try { res.json(await aiStudio.listVoices()); }
+    catch { res.json({ voices: [] }); }
+  });
+
+  // Clonagem de voz (ElevenLabs IVC) — recebe amostras de áudio em base64
+  app.post('/api/ai-studio/clone-voice', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const { name, description, samples } = req.body || {};
+      if (!Array.isArray(samples) || !samples.length) {
+        return res.status(400).json({ message: 'Envie ao menos uma amostra de áudio' });
+      }
+      const files = samples.slice(0, 5).map((s: any, i: number) => {
+        const raw = typeof s === 'string' ? s : s?.data || '';
+        const type = (typeof s === 'object' && s?.type) || 'audio/mpeg';
+        const fname = (typeof s === 'object' && s?.name) || `amostra-${i + 1}.mp3`;
+        const b64 = String(raw).includes(',') ? String(raw).split(',')[1] : String(raw);
+        return { buffer: Buffer.from(b64, 'base64'), filename: fname, type };
+      });
+      const result = await aiStudio.cloneVoice({ name: String(name || 'Minha voz').slice(0, 60), description, files });
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[AI Studio] Erro na clonagem de voz:', error?.message);
+      const msg = /ElevenLabs|chave/i.test(error?.message || '') ? error.message : (error?.message || 'Erro ao clonar voz');
+      res.status(503).json({ message: msg });
     }
   });
 

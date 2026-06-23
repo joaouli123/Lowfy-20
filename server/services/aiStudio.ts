@@ -39,8 +39,9 @@ export function aiStudioCapabilities() {
     image: { ready: true, premium: !!OPENAI_KEY, providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY, free: true } },
     copy: { ready: !!(GEMINI_KEY || OPENAI_KEY), providers: { gemini: !!GEMINI_KEY, openai: !!OPENAI_KEY } },
     tts: { ready: true, premium: !!(OPENAI_KEY || ELEVENLABS_KEY), providers: { openai: !!OPENAI_KEY, elevenlabs: !!ELEVENLABS_KEY, free: true } },
+    voiceClone: { ready: !!ELEVENLABS_KEY, provider: "elevenlabs" },
     avatar: { ready: true, premium: !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY, free: true } },
-    video: { ready: true, premium: !!process.env.FAL_KEY, providers: { fal: !!process.env.FAL_KEY, free: true } },
+    video: { ready: true, premium: !!process.env.FAL_KEY, providers: { fal: !!process.env.FAL_KEY, seedance: "2.0", free: true } },
     canva: { ready: !!(process.env.CANVA_CLIENT_ID && process.env.CANVA_CLIENT_SECRET) },
   };
 }
@@ -51,8 +52,11 @@ export function aiStudioCapabilities() {
 
 export interface GenerateImageParams {
   prompt: string;
-  size?: "1024x1024" | "1024x1536" | "1536x1024";
-  quality?: "low" | "medium" | "high";
+  size?: "1024x1024" | "1024x1536" | "1536x1024" | "auto";
+  quality?: "low" | "medium" | "high" | "auto";
+  background?: "transparent" | "opaque" | "auto";
+  format?: "png" | "jpeg" | "webp";
+  compression?: number; // 0-100 (jpeg/webp)
   provider?: "openai" | "gemini";
 }
 
@@ -72,15 +76,25 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
   // sem chave — o gpt-image assume automaticamente quando a chave válida é configurada.
   if (OPENAI_KEY) {
     try {
-      const res = await openai().images.generate({
+      const fmt = params.format || "png";
+      const body: any = {
         model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
         prompt: params.prompt,
         size: params.size || "1024x1024",
         quality: params.quality || "high",
+        background: params.background || "auto",
+        output_format: fmt,
         n: 1,
-      } as any);
+      };
+      if ((fmt === "jpeg" || fmt === "webp") && typeof params.compression === "number") {
+        body.output_compression = Math.max(0, Math.min(100, params.compression));
+      }
+      const res = await openai().images.generate(body);
       const b64 = (res as any).data?.[0]?.b64_json;
-      if (b64) return { buffer: Buffer.from(b64, "base64"), mime: "image/png" };
+      if (b64) {
+        const mime = fmt === "jpeg" ? "image/jpeg" : fmt === "webp" ? "image/webp" : "image/png";
+        return { buffer: Buffer.from(b64, "base64"), mime };
+      }
     } catch (e: any) {
       logger.warn(`[AI Studio] gpt-image indisponível (${e?.message?.slice(0, 60)}), usando gerador gratuito.`);
     }
@@ -334,7 +348,12 @@ export interface GenerateTTSParams {
   text: string;
   voice?: string;
   provider?: "openai" | "elevenlabs";
-  instructions?: string; // tom/emoção (OpenAI steerable)
+  instructions?: string;     // tom/emoção (OpenAI steerable)
+  modelId?: string;          // ElevenLabs: eleven_v3 | eleven_multilingual_v2 | eleven_flash_v2_5 | eleven_turbo_v2_5
+  stability?: number;        // 0..1
+  similarityBoost?: number;  // 0..1
+  style?: number;            // 0..1
+  speed?: number;            // 0.7..1.2
 }
 
 export async function generateNarration(params: GenerateTTSParams): Promise<{ buffer: Buffer; mime: string }> {
@@ -342,10 +361,21 @@ export async function generateNarration(params: GenerateTTSParams): Promise<{ bu
   if (ELEVENLABS_KEY && params.provider !== "openai") {
     try {
       const voiceId = params.voice || process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
-      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      const vs: any = {};
+      if (params.stability != null) vs.stability = params.stability;
+      if (params.similarityBoost != null) vs.similarity_boost = params.similarityBoost;
+      if (params.style != null) vs.style = params.style;
+      if (params.speed != null) vs.speed = params.speed;
+      vs.use_speaker_boost = true;
+      const body: any = {
+        text: params.text,
+        model_id: params.modelId || process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
+        voice_settings: vs,
+      };
+      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
         method: "POST",
         headers: { "xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json", Accept: "audio/mpeg" },
-        body: JSON.stringify({ text: params.text, model_id: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2" }),
+        body: JSON.stringify(body),
       });
       if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), mime: "audio/mpeg" };
       logger.warn(`[AI Studio] ElevenLabs indisponível (${r.status}), tentando próximo provedor.`);
@@ -372,6 +402,53 @@ export async function generateNarration(params: GenerateTTSParams): Promise<{ bu
   // Fallback GRATUITO (pt-BR, sem chave) — para o recurso funcionar imediatamente.
   // ElevenLabs/OpenAI assumem automaticamente quando a chave é configurada.
   return { buffer: await googleTtsFree(params.text, "pt-BR"), mime: "audio/mpeg" };
+}
+
+// ---------- Clonagem de voz (ElevenLabs Instant Voice Cloning) ----------
+
+export interface CloneVoiceInput {
+  name: string;
+  files: { buffer: Buffer; filename: string; type?: string }[];
+  description?: string;
+  removeNoise?: boolean;
+}
+
+/** Clona uma voz a partir de amostras de áudio (ElevenLabs IVC — ~1 min de áudio). */
+export async function cloneVoice(input: CloneVoiceInput): Promise<{ voiceId: string; requiresVerification?: boolean }> {
+  if (!ELEVENLABS_KEY) throw new Error("Clonagem de voz requer a chave ElevenLabs (ELEVENLABS_API_KEY).");
+  if (!input.files?.length) throw new Error("Envie ao menos uma amostra de áudio.");
+  const form = new FormData();
+  form.append("name", input.name || "Voz clonada");
+  if (input.description) form.append("description", input.description);
+  if (input.removeNoise) form.append("remove_background_noise", "true");
+  for (const f of input.files) {
+    form.append("files", new Blob([new Uint8Array(f.buffer)], { type: f.type || "audio/mpeg" }), f.filename || "amostra.mp3");
+  }
+  const r = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+    method: "POST",
+    headers: { "xi-api-key": ELEVENLABS_KEY },
+    body: form as any,
+  });
+  if (!r.ok) throw new Error(`ElevenLabs clonagem ${r.status}: ${(await r.text().catch(() => "")).slice(0, 200)}`);
+  const j: any = await r.json();
+  return { voiceId: j.voice_id, requiresVerification: j.requires_verification };
+}
+
+/** Lista as vozes disponíveis na conta ElevenLabs (incluindo clonadas). */
+export async function listVoices(): Promise<{ voices: { voiceId: string; name: string; category?: string }[] }> {
+  if (!ELEVENLABS_KEY) return { voices: [] };
+  try {
+    const r = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": ELEVENLABS_KEY } });
+    if (!r.ok) return { voices: [] };
+    const j: any = await r.json();
+    return { voices: (j.voices || []).map((v: any) => ({ voiceId: v.voice_id, name: v.name, category: v.category })) };
+  } catch { return { voices: [] }; }
+}
+
+/** Remove uma voz clonada da conta. */
+export async function deleteVoice(voiceId: string): Promise<void> {
+  if (!ELEVENLABS_KEY) return;
+  await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, { method: "DELETE", headers: { "xi-api-key": ELEVENLABS_KEY } }).catch(() => {});
 }
 
 /** Narração gratuita pt-BR via Google translate_tts. Divide o texto em blocos
@@ -501,10 +578,13 @@ async function imageAudioToMp4(opts: {
 
 export interface GenerateVideoParams {
   prompt: string;
-  imageUrl?: string;     // imagem base (se ausente, gera via free Flux / gpt-image)
-  script?: string;       // texto de narração (voiceover). Se ausente, vídeo sem áudio.
+  imageUrl?: string;     // imagem base. Se for URL pública → Seedance image-to-video.
+  script?: string;       // texto de narração (voiceover) no fallback gratuito.
   size?: "1080x1080" | "1080x1920" | "1920x1080";
   voice?: string;
+  resolution?: "480p" | "720p" | "1080p";  // Seedance 2.0
+  duration?: string;     // "auto" ou "4".."15" (Seedance 2.0)
+  generateAudio?: boolean; // Seedance 2.0 gera áudio nativo (default true)
 }
 
 /**
@@ -572,14 +652,28 @@ export async function generateTalkingAvatar(params: GenerateAvatarParams): Promi
 
 // ---------- Provedores premium (ativam com a respectiva chave) ----------
 
-/** Seedance 2.0 (texto→vídeo) via fal.ai — submete o job e aguarda (polling). */
+/**
+ * Seedance 2.0 (ByteDance) via fal.ai — submete o job e aguarda (polling).
+ * Usa image-to-video quando há uma imagem base por URL pública; senão text-to-video.
+ * Seedance 2.0 gera ÁUDIO nativo (generate_audio).
+ */
 async function falTextToVideo(params: GenerateVideoParams): Promise<{ buffer: Buffer; mime: string }> {
-  const model = process.env.FAL_VIDEO_MODEL || "fal-ai/bytedance/seedance/v1/pro/text-to-video";
+  const isI2V = !!params.imageUrl && /^https?:\/\//i.test(params.imageUrl);
+  const model = process.env.FAL_VIDEO_MODEL || (isI2V ? "bytedance/seedance-2.0/image-to-video" : "bytedance/seedance-2.0/text-to-video");
   const aspect = params.size === "1080x1920" ? "9:16" : params.size === "1920x1080" ? "16:9" : "1:1";
+  const input: any = {
+    prompt: params.prompt,
+    aspect_ratio: aspect,
+    resolution: params.resolution || "720p",
+    duration: params.duration || "auto",
+    generate_audio: params.generateAudio !== false,
+  };
+  if (isI2V) input.image_url = params.imageUrl;
+
   const submit = await fetch(`https://queue.fal.run/${model}`, {
     method: "POST",
     headers: { Authorization: `Key ${FAL_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: params.prompt, aspect_ratio: aspect, resolution: "1080p" }),
+    body: JSON.stringify(input),
   });
   if (!submit.ok) throw new Error(`fal.ai submit ${submit.status}: ${await submit.text().catch(() => "")}`);
   const job = await submit.json();
