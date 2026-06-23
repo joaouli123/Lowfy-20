@@ -6543,6 +6543,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Criador de página por IA (Pre-Sell) =====
+  // Modo BLOCOS: prompt -> elementos editáveis do Pre-Sell
+  app.post('/api/landing/generate', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const prompt = String(req.body?.prompt || '').trim();
+      if (prompt.length < 3) return res.status(400).json({ message: 'Descreva a página que você quer criar' });
+      const data = await aiStudio.generateLandingPage(prompt);
+      const allowed = new Set(['headline', 'subheadline', 'text', 'button', 'video', 'image', 'divider', 'countdown', 'container']);
+      const elements = (Array.isArray(data?.elements) ? data.elements : [])
+        .filter((el: any) => allowed.has(el?.type))
+        .slice(0, 24)
+        .map((el: any, i: number) => ({
+          id: `ai-${Date.now()}-${i}`,
+          type: el.type,
+          content: typeof el.content === 'string' ? el.content : '',
+          styles: (el.styles && typeof el.styles === 'object') ? el.styles : {},
+        }));
+      if (!elements.length) return res.status(502).json({ message: 'A IA não retornou uma página válida' });
+      res.json({ name: String(data?.name || prompt).slice(0, 80), elements });
+    } catch (error: any) {
+      logger.error('[Landing IA blocos] erro:', error?.message);
+      const msg = /chave de IA|OPENAI|GEMINI/i.test(error?.message || '') ? 'Geração por IA requer a chave do GPT/Gemini. Use um template por enquanto.' : (error?.message || 'Erro ao gerar página');
+      res.status(503).json({ message: msg });
+    }
+  });
+
+  // Modo VIBE CODE: prompt -> HTML/Tailwind completo (com iteração opcional)
+  app.post('/api/landing/vibe', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const prompt = String(req.body?.prompt || '').trim();
+      const currentHtml = typeof req.body?.currentHtml === 'string' ? req.body.currentHtml.slice(0, 60000) : undefined;
+      if (prompt.length < 3) return res.status(400).json({ message: 'Descreva a página que você quer criar' });
+      const { html } = await aiStudio.generateLandingHtml(prompt, currentHtml);
+      if (!html || html.length < 40) return res.status(502).json({ message: 'A IA não retornou HTML válido' });
+      res.json({ html });
+    } catch (error: any) {
+      logger.error('[Landing IA vibe] erro:', error?.message);
+      const msg = /chave de IA|OPENAI|GEMINI/i.test(error?.message || '') ? 'O modo Vibe Code requer a chave do GPT/Gemini configurada.' : (error?.message || 'Erro ao gerar página');
+      res.status(503).json({ message: msg });
+    }
+  });
+
   app.get('/api/quiz/get/:slug', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     const slug = quizStore.sanitizeSlug(req.params.slug);
     const meta = await quizStore.getQuizMeta(slug);

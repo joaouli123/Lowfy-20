@@ -211,7 +211,7 @@ export default function AIStudio() {
   const ratioCls = IMG_RATIOS.find((r) => r.v === img.ratio)?.cls || "aspect-square";
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {/* Hero Header */}
       <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-primary/[0.07] via-primary/[0.03] to-transparent border border-primary/10 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_0%_0%,hsl(161,84%,33%,0.10),transparent)]" />
@@ -231,17 +231,18 @@ export default function AIStudio() {
         </div>
       </div>
 
-      <Tabs defaultValue="criativo">
-        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/60 p-1">
-          <TabsTrigger value="criativo" className="gap-1.5 text-xs"><ImageIcon className="w-3.5 h-3.5" /> Criativo</TabsTrigger>
-          <TabsTrigger value="copy" className="gap-1.5 text-xs"><Type className="w-3.5 h-3.5" /> Copy</TabsTrigger>
-          <TabsTrigger value="narracao" className="gap-1.5 text-xs"><Mic className="w-3.5 h-3.5" /> Narração</TabsTrigger>
-          <TabsTrigger value="avatar" className="gap-1.5 text-xs"><UserSquare2 className="w-3.5 h-3.5" /> Avatar</TabsTrigger>
-          <TabsTrigger value="video" className="gap-1.5 text-xs"><Video className="w-3.5 h-3.5" /> Vídeo</TabsTrigger>
+      <Tabs defaultValue="criativo" orientation="vertical" className="flex flex-col lg:flex-row gap-5 items-stretch lg:items-start">
+        <TabsList className="flex lg:flex-col h-auto w-full lg:w-52 shrink-0 gap-1 bg-card border rounded-xl p-2 lg:sticky lg:top-20 overflow-x-auto">
+          <p className="hidden lg:block px-2 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Ferramentas</p>
+          <TabsTrigger value="criativo" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><ImageIcon className="w-4 h-4" /> Criativo</TabsTrigger>
+          <TabsTrigger value="copy" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Type className="w-4 h-4" /> Copy</TabsTrigger>
+          <TabsTrigger value="narracao" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Mic className="w-4 h-4" /> Narração</TabsTrigger>
+          <TabsTrigger value="avatar" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><UserSquare2 className="w-4 h-4" /> Avatar</TabsTrigger>
+          <TabsTrigger value="video" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Video className="w-4 h-4" /> Vídeo</TabsTrigger>
         </TabsList>
 
         {/* ---------- CRIATIVO ---------- */}
-        <TabsContent value="criativo" className="mt-4">
+        <TabsContent value="criativo" className="flex-1 min-w-0 w-full mt-0">
           <div className="grid lg:grid-cols-2 gap-4">
             <Card className="shadow-sm">
               <CardContent className="p-5 space-y-4">
@@ -302,7 +303,7 @@ export default function AIStudio() {
         </TabsContent>
 
         {/* ---------- COPY ---------- */}
-        <TabsContent value="copy" className="mt-4">
+        <TabsContent value="copy" className="flex-1 min-w-0 w-full mt-0">
           <div className="grid lg:grid-cols-2 gap-4">
             <Card className="shadow-sm">
               <CardContent className="p-5 space-y-4">
@@ -379,7 +380,7 @@ export default function AIStudio() {
         </TabsContent>
 
         {/* ---------- NARRAÇÃO ---------- */}
-        <TabsContent value="narracao" className="mt-4">
+        <TabsContent value="narracao" className="flex-1 min-w-0 w-full mt-0">
           <div className="grid lg:grid-cols-2 gap-4">
             <Card className="shadow-sm">
               <CardContent className="p-5 space-y-4">
@@ -429,7 +430,7 @@ export default function AIStudio() {
         </TabsContent>
 
         {/* ---------- AVATAR ---------- */}
-        <TabsContent value="avatar" className="mt-4">
+        <TabsContent value="avatar" className="flex-1 min-w-0 w-full mt-0">
           <div className="grid lg:grid-cols-2 gap-4">
             <Card className="shadow-sm">
               <CardContent className="p-5 space-y-4">
@@ -488,7 +489,7 @@ export default function AIStudio() {
         </TabsContent>
 
         {/* ---------- VÍDEO ---------- */}
-        <TabsContent value="video" className="mt-4">
+        <TabsContent value="video" className="flex-1 min-w-0 w-full mt-0">
           <div className="grid lg:grid-cols-2 gap-4">
             <Card className="shadow-sm">
               <CardContent className="p-5 space-y-4">

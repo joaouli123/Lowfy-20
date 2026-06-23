@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +9,8 @@ import {
   Plus, Save, Eye, Trash2, Type, Video, MousePointer, Image as ImageIcon,
   Layout, FileText, ChevronDown, ChevronUp, ArrowLeft, Monitor, Tablet, Smartphone,
   Settings, Minus, Clock, Sparkles, AlignLeft, AlignCenter, AlignRight, Globe, Code, LinkIcon, FileCode, Info,
-  Bold, Italic, Underline, Columns, GripVertical, Check, X, Search, Copy, RefreshCw, ExternalLink, CheckCircle, AlertCircle
+  Bold, Italic, Underline, Columns, GripVertical, Check, X, Search, Copy, RefreshCw, ExternalLink, CheckCircle, AlertCircle,
+  Undo2, Redo2, LayoutTemplate, Mail, ShoppingBag
 } from "lucide-react";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { FeatureLockedOverlay } from "@/components/FeatureLockedOverlay";
@@ -134,6 +135,69 @@ const viewportSizes: Record<ViewportSize, string> = {
   mobile: 'max-w-md'
 };
 
+// ===== Galeria de templates (páginas prontas) =====
+let _tplSeq = 0;
+const E = (type: string, content: string, styles: any): any => ({
+  id: `tpl-${Date.now()}-${_tplSeq++}`,
+  type,
+  content,
+  styles,
+});
+const txt = (over: any = {}) => ({
+  textAlign: 'center', paddingTop: '14px', paddingRight: '20px', paddingBottom: '14px', paddingLeft: '20px',
+  marginTop: '0px', marginRight: '0px', marginBottom: '0px', marginLeft: '0px',
+  fontStyle: 'normal', textDecoration: 'none', ...over,
+});
+const cta = (over: any = {}) => txt({ fontSize: '20px', color: '#ffffff', fontWeight: 'bold', backgroundColor: '#0d9b6e', buttonUrl: '#', buttonOpenNewTab: true, buttonDelay: 0, buttonEffect: 'pulse', paddingTop: '18px', paddingBottom: '18px', marginTop: '12px', marginBottom: '8px', ...over });
+
+interface PreSellTemplate { id: string; name: string; description: string; icon: string; build: () => any[]; }
+
+const PRESELL_TEMPLATES: PreSellTemplate[] = [
+  {
+    id: 'blank', name: 'Em branco', description: 'Comece do zero', icon: 'Plus',
+    build: () => [],
+  },
+  {
+    id: 'vsl', name: 'VSL + Oferta', description: 'Vídeo de vendas, CTA e escassez', icon: 'Video',
+    build: () => [
+      E('headline', 'Descubra o método que está transformando resultados', txt({ fontSize: '40px', color: '#0f172a', fontWeight: 'bold', paddingTop: '36px', paddingBottom: '8px' })),
+      E('subheadline', 'O passo a passo que já ajudou milhares de pessoas a conquistarem o que queriam', txt({ fontSize: '20px', color: '#475569', fontWeight: 'normal', paddingTop: '0px', paddingBottom: '18px' })),
+      E('video', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', txt({ videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoWidth: '100%', paddingTop: '8px', paddingBottom: '8px' })),
+      E('button', 'QUERO COMEÇAR AGORA', cta()),
+      E('countdown', '', txt({ countdownMinutes: 15, countdownTime: 15, countdownTextColor: '#ffffff', countdownBgColor: '#0d9b6e', countdownPrefix: 'A oferta termina em: ', paddingTop: '8px', paddingBottom: '24px' })),
+    ],
+  },
+  {
+    id: 'advertorial', name: 'Advertorial', description: 'Estilo notícia/artigo que vende', icon: 'FileText',
+    build: () => [
+      E('headline', 'A descoberta que está chamando a atenção em todo o Brasil', txt({ textAlign: 'left', fontSize: '34px', color: '#0f172a', fontWeight: 'bold', paddingTop: '32px', paddingBottom: '6px' })),
+      E('subheadline', 'Especialistas explicam por que esse método tem ganhado tanta popularidade', txt({ textAlign: 'left', fontSize: '18px', color: '#64748b', fontWeight: 'normal', paddingTop: '0px', paddingBottom: '14px' })),
+      E('image', '', txt({ imageUrl: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=900', imageWidth: '100%', paddingTop: '8px', paddingBottom: '14px' })),
+      E('text', 'Escreva aqui o corpo do seu advertorial. Conte uma história, apresente o problema e construa a solução de forma natural antes de revelar a oferta.', txt({ textAlign: 'left', fontSize: '17px', color: '#334155', paddingTop: '0px', paddingBottom: '16px' })),
+      E('button', 'VER A SOLUÇÃO COMPLETA', cta({ buttonEffect: 'none' })),
+    ],
+  },
+  {
+    id: 'lead', name: 'Captura de Lead', description: 'Isca digital + CTA direto', icon: 'Mail',
+    build: () => [
+      E('headline', 'Receba seu material gratuito agora mesmo', txt({ fontSize: '38px', color: '#0f172a', fontWeight: 'bold', paddingTop: '48px', paddingBottom: '8px' })),
+      E('subheadline', 'Insira seus dados e libere o acesso imediato — 100% grátis', txt({ fontSize: '19px', color: '#475569', fontWeight: 'normal', paddingTop: '0px', paddingBottom: '20px' })),
+      E('button', 'QUERO RECEBER GRÁTIS', cta()),
+      E('text', 'Seus dados estão seguros. Não enviamos spam.', txt({ fontSize: '13px', color: '#94a3b8', paddingTop: '4px', paddingBottom: '40px' })),
+    ],
+  },
+  {
+    id: 'oferta', name: 'Oferta de Produto', description: 'Produto, benefícios e escassez', icon: 'ShoppingBag',
+    build: () => [
+      E('headline', 'A oferta que você esperava chegou', txt({ fontSize: '40px', color: '#0f172a', fontWeight: 'bold', paddingTop: '36px', paddingBottom: '8px' })),
+      E('image', '', txt({ imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700', imageWidth: '60%', paddingTop: '8px', paddingBottom: '8px' })),
+      E('subheadline', 'Tudo o que você precisa, com condição especial por tempo limitado', txt({ fontSize: '20px', color: '#475569', fontWeight: 'normal', paddingTop: '0px', paddingBottom: '14px' })),
+      E('button', 'GARANTIR COM DESCONTO', cta()),
+      E('countdown', '', txt({ countdownMinutes: 10, countdownTime: 10, countdownTextColor: '#ffffff', countdownBgColor: '#0d9b6e', countdownPrefix: 'Desconto expira em: ', paddingTop: '8px', paddingBottom: '24px' })),
+    ],
+  },
+];
+
 // Algoritmo de detecção de colisão melhorado para feedback visual correto
 function customCollisionDetection(args: any) {
   const { droppableContainers, active } = args;
@@ -240,13 +304,13 @@ function MainDroppableArea({
     <div
       ref={setNodeRef}
       className={`space-y-4 p-4 relative min-h-[400px] transition-all ${
-        isOver && isDraggingFromContainer ? 'bg-green-50 ring-2 ring-green-400' : ''
+        isOver && isDraggingFromContainer ? 'bg-accent ring-2 ring-primary/40' : ''
       }`}
     >
       {/* Indicador de drop na área principal */}
       {isOver && isDraggingFromContainer && (
         <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-2xl animate-bounce flex items-center gap-2">
+          <div className="bg-primary text-primary-foreground px-6 py-3 rounded-lg shadow-2xl animate-bounce flex items-center gap-2">
             <Check className="h-5 w-5" />
             <span className="font-semibold">Solte aqui para mover para fora do container</span>
           </div>
@@ -256,7 +320,7 @@ function MainDroppableArea({
       {/* Indicador visual quando arrastar de dentro do container */}
       {activeId && isDraggingFromContainer && !isOver && (
         <div className="fixed inset-0 pointer-events-none z-50 flex items-start justify-center pt-4">
-          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-2xl animate-bounce flex items-center gap-2">
+          <div className="bg-primary text-primary-foreground px-6 py-3 rounded-lg shadow-2xl animate-bounce flex items-center gap-2">
             <Layout className="h-5 w-5" />
             <span className="font-semibold">↓ Solte fora do container para mover ↓</span>
           </div>
@@ -276,7 +340,7 @@ function MainDroppableArea({
                 className={`group relative p-4 rounded-lg border-2 transition-all ${
                   selectedElementId === element.id
                     ? 'border-primary bg-primary/5'
-                    : 'border-transparent hover:border-gray-300'
+                    : 'border-transparent hover:border-border'
                 }`}
                 onClick={() => setSelectedElementId(element.id)}
               >
@@ -378,7 +442,7 @@ function DroppableColumn({
       className={`relative border-2 border-dashed rounded-lg transition-all ${
         isDraggingOver
           ? 'border-green-500 bg-green-100/70 shadow-xl ring-4 ring-green-300 scale-[1.02]'
-          : 'border-gray-300 bg-gray-50/50 hover:border-green-400 hover:bg-green-50/30'
+          : 'border-border bg-muted/30 hover:border-primary/50 hover:bg-accent'
       }`}
       style={{
         minHeight: '200px',
@@ -587,8 +651,131 @@ export default function PreSellBuilderSimple() {
   const [txtRecords, setTxtRecords] = useState<Array<{name: string; value: string; type: string}>>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [lastOverColumn, setLastOverColumn] = useState<{overId: string, columnIndex: number} | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showAI, setShowAI] = useState(false);
+  const [aiMode, setAiMode] = useState<'blocks' | 'vibe'>('blocks');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [vibeHtml, setVibeHtml] = useState('');
+  const [past, setPast] = useState<PreSellElement[][]>([]);
+  const [future, setFuture] = useState<PreSellElement[][]>([]);
+  const prevElements = useRef<PreSellElement[] | null>(null);
+  const skipHist = useRef(false);
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
+
+  // Histórico (undo/redo) — observa mudanças em elements
+  useEffect(() => {
+    const cur = currentPage.elements || [];
+    if (prevElements.current === null) { prevElements.current = cur; return; }
+    if (prevElements.current === cur) return;
+    if (skipHist.current) { skipHist.current = false; prevElements.current = cur; return; }
+    const old = prevElements.current;
+    prevElements.current = cur;
+    setPast((p) => [...p.slice(-49), old]);
+    setFuture([]);
+  }, [currentPage.elements]);
+
+  const undo = () => {
+    if (past.length === 0) return;
+    const prev = past[past.length - 1];
+    skipHist.current = true;
+    prevElements.current = prev;
+    setFuture((f) => [currentPage.elements || [], ...f]);
+    setPast((p) => p.slice(0, -1));
+    setCurrentPage((cp) => ({ ...cp, elements: prev }));
+    setSelectedElementId(null);
+  };
+  const redo = () => {
+    if (future.length === 0) return;
+    const next = future[0];
+    skipHist.current = true;
+    prevElements.current = next;
+    setPast((p) => [...p, currentPage.elements || []]);
+    setFuture((f) => f.slice(1));
+    setCurrentPage((cp) => ({ ...cp, elements: next }));
+    setSelectedElementId(null);
+  };
+  const resetHistory = () => { skipHist.current = true; setPast([]); setFuture([]); };
+
+  const applyTemplate = (tpl: PreSellTemplate) => {
+    const els = tpl.build();
+    setCurrentPage((cp) => ({ ...cp, elements: els }));
+    resetHistory();
+    setSelectedElementId(null);
+    setShowTemplates(false);
+    toast({ title: tpl.id === 'blank' ? 'Página limpa' : `Template "${tpl.name}" aplicado` });
+  };
+
+  const duplicateElement = (id: string) => {
+    const clone = (el: PreSellElement): PreSellElement => ({
+      ...el,
+      id: `el-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+      children: el.children ? el.children.map(clone) : el.children,
+    });
+    const insert = (els: PreSellElement[]): PreSellElement[] => {
+      const out: PreSellElement[] = [];
+      for (const el of els) {
+        if (el.id === id) { out.push(el, clone(el)); }
+        else if (el.children && el.children.length) out.push({ ...el, children: insert(el.children) });
+        else out.push(el);
+      }
+      return out;
+    };
+    setCurrentPage((cp) => ({ ...cp, elements: insert(cp.elements || []) }));
+  };
+
+  // ===== Criador de página por IA =====
+  const generateBlocks = async () => {
+    if (aiPrompt.trim().length < 3) { toast({ title: 'Descreva a página que você quer criar' }); return; }
+    setAiLoading(true);
+    try {
+      const r = await fetch('/api/landing/generate', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.message || 'Falha ao gerar');
+      setCurrentPage((cp) => ({ ...cp, name: cp.name || d.name, elements: d.elements || [] }));
+      resetHistory();
+      setSelectedElementId(null);
+      setShowAI(false);
+      toast({ title: 'Página gerada pela IA!', description: 'Edite os blocos como quiser.' });
+    } catch (e: any) {
+      toast({ title: 'IA indisponível', description: `${e.message} Use um Template por enquanto.`, variant: 'destructive' });
+    } finally { setAiLoading(false); }
+  };
+
+  const generateVibe = async (iterate = false) => {
+    if (aiPrompt.trim().length < 3) { toast({ title: 'Descreva a página que você quer criar' }); return; }
+    setAiLoading(true);
+    try {
+      const r = await fetch('/api/landing/vibe', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ prompt: aiPrompt, currentHtml: iterate ? vibeHtml : undefined }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.message || 'Falha ao gerar');
+      setVibeHtml(d.html);
+      if (iterate) setAiPrompt('');
+      toast({ title: iterate ? 'Página atualizada!' : 'Página gerada!' });
+    } catch (e: any) {
+      toast({ title: 'Vibe Code indisponível', description: e.message, variant: 'destructive' });
+    } finally { setAiLoading(false); }
+  };
+
+  const downloadVibe = () => {
+    const blob = new Blob([vibeHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(currentPage.name || 'pagina').toLowerCase().replace(/\s+/g, '-')}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const openVibe = () => { const w = window.open(); if (w) { w.document.write(vibeHtml); w.document.close(); } };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -641,6 +828,7 @@ export default function PreSellBuilderSimple() {
           name: data.name || name
         });
         setOriginalCustomDomain(data.customDomain || '');
+        resetHistory();
       }
     } catch (error) {
     }
@@ -1812,9 +2000,9 @@ export default function PreSellBuilderSimple() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-muted/30">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
+      <div className="bg-card border-b px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => setLocation('/presell-dashboard')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -1829,7 +2017,7 @@ export default function PreSellBuilderSimple() {
 
         <div className="flex items-center gap-2">
           {/* Viewport Controls */}
-          <div className="flex gap-1 mr-4 bg-gray-100 p-1 rounded-lg">
+          <div className="flex gap-1 mr-4 bg-muted p-1 rounded-lg">
             <Button
               variant={viewport === 'desktop' ? 'default' : 'ghost'}
               size="sm"
@@ -1856,6 +2044,18 @@ export default function PreSellBuilderSimple() {
             </Button>
           </div>
 
+          <div className="flex items-center gap-0.5 mr-1">
+            <Button variant="ghost" size="icon" onClick={undo} disabled={past.length === 0} title="Desfazer" className="h-8 w-8"><Undo2 className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={redo} disabled={future.length === 0} title="Refazer" className="h-8 w-8"><Redo2 className="h-4 w-4" /></Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowTemplates(true)}>
+            <LayoutTemplate className="mr-2 h-4 w-4" />
+            Templates
+          </Button>
+          <Button size="sm" onClick={() => setShowAI(true)} className="bg-gradient-to-r from-primary to-emerald-400 text-white border-0 shadow-sm">
+            <Sparkles className="mr-2 h-4 w-4" />
+            Criar com IA
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowSettingsDialog(true)}>
             <Settings className="mr-2 h-4 w-4" />
             Configurações
@@ -2001,15 +2201,27 @@ export default function PreSellBuilderSimple() {
                      'Divisor'}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedElementId(null)}
-                  className="gap-1.5 ml-2 shrink-0 hover:bg-muted"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  <span className="text-xs">Voltar</span>
-                </Button>
+                <div className="flex items-center gap-1 ml-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => selectedElementId && duplicateElement(selectedElementId)}
+                    className="gap-1.5 hover:bg-muted"
+                    title="Duplicar elemento"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    <span className="text-xs">Duplicar</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedElementId(null)}
+                    className="gap-1.5 hover:bg-muted"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span className="text-xs">Voltar</span>
+                  </Button>
+                </div>
               </div>
 
               <Accordion type="multiple" defaultValue={["content", "style"]} className="px-5 py-2">
@@ -2777,6 +2989,109 @@ export default function PreSellBuilderSimple() {
         </DialogContent>
       </Dialog>
 
+      {/* Templates Dialog */}
+      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Escolha um template</DialogTitle>
+            <p className="text-sm text-muted-foreground">Comece de uma estrutura pronta — você edita tudo depois.</p>
+          </DialogHeader>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+            {PRESELL_TEMPLATES.map((tpl) => {
+              const TIcon = ({ Plus, Video, FileText, Mail, ShoppingBag } as any)[tpl.icon] || LayoutTemplate;
+              return (
+                <button
+                  key={tpl.id}
+                  onClick={() => applyTemplate(tpl)}
+                  className="text-left border rounded-xl p-4 bg-card hover:border-primary/40 hover:shadow-md transition group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <TIcon className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="font-semibold text-sm">{tpl.name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-snug">{tpl.description}</div>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Dialog — Criar com IA (Blocos + Vibe Code) */}
+      <Dialog open={showAI} onOpenChange={setShowAI}>
+        <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" /> Criar página com IA
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">Descreva o que você quer e a IA monta a página pra você.</p>
+          </DialogHeader>
+
+          {/* Toggle de modo */}
+          <div className="inline-flex items-center gap-1 bg-muted p-1 rounded-lg w-fit">
+            <button
+              onClick={() => setAiMode('blocks')}
+              className={`text-xs font-medium px-3 h-8 rounded-md transition ${aiMode === 'blocks' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <LayoutTemplate className="w-3.5 h-3.5 inline mr-1.5" />Blocos editáveis
+            </button>
+            <button
+              onClick={() => setAiMode('vibe')}
+              className={`text-xs font-medium px-3 h-8 rounded-md transition ${aiMode === 'vibe' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Code className="w-3.5 h-3.5 inline mr-1.5" />Vibe Code (HTML)
+            </button>
+          </div>
+
+          <p className="text-xs text-muted-foreground -mt-1">
+            {aiMode === 'blocks'
+              ? 'A IA monta a página com os blocos do construtor — você refina tudo aqui no editor.'
+              : 'A IA gera o código HTML completo da página. Itere por chat, baixe ou abra em nova aba.'}
+          </p>
+
+          <Textarea
+            rows={3}
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder={aiMode === 'blocks'
+              ? 'Ex.: pré-venda de um curso de emagrecimento, com vídeo, 3 benefícios, depoimento e CTA com escassez'
+              : 'Ex.: landing moderna pra um app de finanças, dark com detalhes em verde, hero, features, planos e CTA'}
+          />
+
+          {aiMode === 'blocks' ? (
+            <div className="flex justify-end">
+              <Button onClick={generateBlocks} disabled={aiLoading} className="gap-2">
+                {aiLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Gerar página
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-end gap-2">
+                {vibeHtml && (
+                  <Button variant="outline" onClick={() => generateVibe(true)} disabled={aiLoading} className="gap-2">
+                    <RefreshCw className={`w-4 h-4 ${aiLoading ? 'animate-spin' : ''}`} /> Iterar
+                  </Button>
+                )}
+                <Button onClick={() => generateVibe(false)} disabled={aiLoading} className="gap-2">
+                  {aiLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {vibeHtml ? 'Gerar nova' : 'Gerar página'}
+                </Button>
+              </div>
+              {vibeHtml && (
+                <div className="space-y-2">
+                  <iframe srcDoc={vibeHtml} title="Pré-visualização" className="w-full h-[420px] border rounded-lg bg-white" />
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={downloadVibe} className="gap-1.5"><Save className="w-3.5 h-3.5" /> Baixar HTML</Button>
+                    <Button variant="outline" size="sm" onClick={openVibe} className="gap-1.5"><ExternalLink className="w-3.5 h-3.5" /> Abrir em nova aba</Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Settings Dialog */}
       <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -2902,7 +3217,7 @@ export default function PreSellBuilderSimple() {
                 <Label className="text-foreground">Favicon (Ícone da Aba)</Label>
                 <div className="mt-2 space-y-2">
                   {currentPage.seo?.favicon && (
-                    <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                    <div className="flex items-center gap-2 p-2 bg-muted rounded">
                       <img src={currentPage.seo.favicon} alt="Favicon" className="w-8 h-8 object-contain" />
                       <span className="text-xs text-muted-foreground flex-1 truncate">{currentPage.seo.favicon}</span>
                       <Button
@@ -2963,7 +3278,7 @@ export default function PreSellBuilderSimple() {
                 <Label className="text-foreground">Imagem de Compartilhamento (OG Image)</Label>
                 <div className="mt-2 space-y-2">
                   {currentPage.seo?.ogImage && (
-                    <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                    <div className="flex items-center gap-2 p-2 bg-muted rounded">
                       <img src={currentPage.seo.ogImage} alt="OG Image" className="w-16 h-10 object-cover rounded" />
                       <span className="text-xs text-muted-foreground flex-1 truncate">{currentPage.seo.ogImage}</span>
                       <Button
@@ -3022,6 +3337,10 @@ export default function PreSellBuilderSimple() {
             </TabsContent>
 
             <TabsContent value="dominio" className="space-y-4 mt-4">
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 px-3 py-2.5 text-xs">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>Páginas publicadas sem domínio próprio ficam ativas por <strong>24 horas</strong>. Conecte um domínio para manter a página no ar permanentemente — o SSL é emitido automaticamente via Cloudflare assim que o DNS propagar.</span>
+              </div>
               <div className="flex gap-2">
                 <Input
                   type="text"

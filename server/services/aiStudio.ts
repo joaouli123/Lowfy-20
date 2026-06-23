@@ -212,6 +212,104 @@ export async function generateQuizFunnel(prompt: string): Promise<any> {
   return JSON.parse(raw.replace(/```json|```/g, "").trim());
 }
 
+// ============================================================
+// Geração de PÁGINA (pre-sell / landing) — 2 modos: blocos e HTML (vibe code)
+// Fallback OpenAI → Gemini para maximizar disponibilidade.
+// ============================================================
+
+async function llmJson(system: string, user: string, temperature = 0.8): Promise<any> {
+  if (OPENAI_KEY) {
+    const res = await openai().chat.completions.create({
+      model: process.env.OPENAI_COPY_MODEL || "gpt-4o",
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      temperature,
+      response_format: { type: "json_object" },
+    });
+    return JSON.parse((res.choices[0]?.message?.content || "{}").replace(/```json|```/g, "").trim());
+  }
+  if (GEMINI_KEY) {
+    const res = await gemini().models.generateContent({
+      model: process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash",
+      contents: `${system}\n\n${user}`,
+      config: { responseMimeType: "application/json", temperature } as any,
+    });
+    return JSON.parse(((res as any).text || "{}").replace(/```json|```/g, "").trim());
+  }
+  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY ou GEMINI_API_KEY)");
+}
+
+async function llmText(system: string, user: string, temperature = 0.7): Promise<string> {
+  if (OPENAI_KEY) {
+    const res = await openai().chat.completions.create({
+      model: process.env.OPENAI_COPY_MODEL || "gpt-4o",
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      temperature,
+    });
+    return res.choices[0]?.message?.content || "";
+  }
+  if (GEMINI_KEY) {
+    const res = await gemini().models.generateContent({
+      model: process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash",
+      contents: `${system}\n\n${user}`,
+      config: { temperature } as any,
+    });
+    return (res as any).text || "";
+  }
+  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY ou GEMINI_API_KEY)");
+}
+
+const LANDING_BLOCKS_SYSTEM = `Você é um web designer de páginas de pré-venda (advertorial/landing) de alta conversão. Gere uma página COMPLETA a partir da descrição do usuário.
+Responda SOMENTE com JSON válido neste formato:
+{"name":"Nome curto da página","elements":[{"type":"<tipo>","content":"<texto/url>","styles":{...}}]}
+Tipos e conteúdo:
+- "headline": content = título forte. styles: fontSize "40px", color "#0f172a", fontWeight "bold", textAlign "center".
+- "subheadline": content = subtítulo. styles: fontSize "20px", color "#475569".
+- "text": content = parágrafo persuasivo. styles: fontSize "17px", color "#334155".
+- "image": content "". styles: imageUrl (URL pública REAL do Unsplash relacionada ao tema, ex "https://images.unsplash.com/photo-1551434678-e076c223a692?w=900"), imageWidth "100%".
+- "video": content "". styles: videoUrl (link do YouTube), videoWidth "100%".
+- "button": content = texto do CTA em CAIXA ALTA. styles: fontSize "20px", color "#ffffff", fontWeight "bold", backgroundColor "#0d9b6e", buttonUrl "#", buttonEffect "pulse".
+- "countdown": content "". styles: countdownMinutes 15, countdownTime 15, countdownTextColor "#ffffff", countdownBgColor "#0d9b6e", countdownPrefix "A oferta termina em: ".
+- "divider": content "".
+Em TODOS os styles inclua também: textAlign ("center" ou "left"), paddingTop, paddingRight, paddingBottom, paddingLeft, marginTop, marginRight, marginBottom, marginLeft (valores em px como "16px"/"0px"); para textos inclua fontStyle "normal" e textDecoration "none".
+Regras: 6 a 10 elementos numa ordem persuasiva (headline → subheadline → mídia → benefícios em parágrafos → CTA → escassez). Português do Brasil, específico ao tema. Use URLs de imagem REAIS do Unsplash. Só o JSON.`;
+
+/** Modo BLOCOS: prompt → elementos editáveis do Pre-Sell. */
+export async function generateLandingPage(prompt: string): Promise<{ name: string; elements: any[] }> {
+  const data = await llmJson(LANDING_BLOCKS_SYSTEM, `Descrição da página: ${prompt}`, 0.85);
+  const arr = Array.isArray(data?.elements) ? data.elements : [];
+  const elements = arr.map((el: any, i: number) => ({
+    id: `ai-${Date.now()}-${i}`,
+    type: el.type,
+    content: el.content ?? "",
+    styles: el.styles || {},
+  }));
+  return { name: data?.name || "Página IA", elements };
+}
+
+const LANDING_HTML_SYSTEM = `Você é um engenheiro front-end sênior especializado em páginas de pré-venda/landing de altíssima conversão. Gere uma página HTML COMPLETA e autossuficiente a partir da descrição.
+Requisitos OBRIGATÓRIOS:
+- Documento completo começando em <!doctype html><html lang="pt-BR"> com <head> e <body>.
+- Use Tailwind via CDN: <script src="https://cdn.tailwindcss.com"></script> no <head>. Pode adicionar <style> se precisar.
+- Responsivo mobile-first, moderno e bonito, com forte hierarquia tipográfica e bom espaçamento.
+- Cor de destaque/marca: verde esmeralda #0d9b6e (botões e destaques). Fundo claro.
+- Conteúdo persuasivo em Português do Brasil e específico ao tema: headline, subheadline, seções de benefícios, prova social/depoimentos, CTA destacado e gatilho de escassez.
+- Imagens: use https://images.unsplash.com/... (URLs reais relacionadas) ou https://placehold.co/ como fallback.
+- Inclua ao menos um botão CTA bem visível. NÃO use JS além do Tailwind CDN.
+Responda SOMENTE com o código HTML (começando em <!doctype html>), sem comentários e sem cercas de código markdown.`;
+
+/** Modo VIBE CODE: prompt → HTML/Tailwind completo. */
+export async function generateLandingHtml(prompt: string, currentHtml?: string): Promise<{ html: string }> {
+  const user = currentHtml
+    ? `Página atual (HTML):\n${currentHtml}\n\nAjuste/itere conforme o pedido: ${prompt}`
+    : `Descrição da página: ${prompt}`;
+  let html = await llmText(LANDING_HTML_SYSTEM, user, 0.7);
+  html = html.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
+  if (!/<html/i.test(html)) {
+    html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="https://cdn.tailwindcss.com"></script></head><body>${html}</body></html>`;
+  }
+  return { html };
+}
+
 function tipoLabel(t: CopyType): string {
   return { headline: "headlines (títulos)", anuncio: "textos de anúncio (primary text)", vsl: "roteiros de VSL (vídeo de vendas)", email: "e-mails de vendas", legenda: "legendas para redes sociais", cta: "chamadas para ação (CTA)" }[t];
 }
