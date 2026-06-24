@@ -231,7 +231,7 @@ export async function generateQuizFunnel(prompt: string): Promise<any> {
 // Fallback OpenAI → Gemini para maximizar disponibilidade.
 // ============================================================
 
-async function llmJson(system: string, user: string, temperature = 0.8): Promise<any> {
+export async function llmJson(system: string, user: string, temperature = 0.8): Promise<any> {
   if (OPENAI_KEY) {
     const res = await openai().chat.completions.create({
       model: process.env.OPENAI_COPY_MODEL || "gpt-4o",
@@ -252,7 +252,7 @@ async function llmJson(system: string, user: string, temperature = 0.8): Promise
   throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY ou GEMINI_API_KEY)");
 }
 
-async function llmText(system: string, user: string, temperature = 0.7): Promise<string> {
+export async function llmText(system: string, user: string, temperature = 0.7): Promise<string> {
   if (OPENAI_KEY) {
     const res = await openai().chat.completions.create({
       model: process.env.OPENAI_COPY_MODEL || "gpt-4o",

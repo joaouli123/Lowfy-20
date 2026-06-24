@@ -72,6 +72,8 @@ import fs from "fs";
 import axios from "axios";
 import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
 import * as aiStudio from "./services/aiStudio";
+import { generateEbook } from "./services/ebookStudio";
+import * as ebookStore from "./ebookStore";
 import * as quizStore from "./quizStore";
 import * as railwayDomains from "./services/railwayDomains";
 import { sanitizePageName } from "./utils/slug-utils";
@@ -6612,6 +6614,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const msg = /chave de IA|OPENAI|GEMINI/i.test(error?.message || '') ? 'O modo Vibe Code requer a chave do GPT/Gemini configurada.' : (error?.message || 'Erro ao gerar página');
       res.status(503).json({ message: msg });
     }
+  });
+
+  // ===== Criador de Ebooks (IA) =====
+  app.post('/api/ebook/generate', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const { assunto, publico, objetivo, tom, paginas, idioma, autor, comImagens, tema } = req.body || {};
+      if (!assunto || String(assunto).trim().length < 3) return res.status(400).json({ message: 'Descreva o assunto do ebook' });
+      const ebook = await generateEbook({ assunto, publico, objetivo, tom, paginas, idioma, autor, comImagens, tema });
+      res.json({ ebook });
+    } catch (error: any) {
+      logger.error('[Ebook IA] erro:', error?.message);
+      const msg = /chave de IA|OPENAI|GEMINI|outline/i.test(error?.message || '') ? 'A geração de ebook requer a chave do GPT/Gemini configurada.' : (error?.message || 'Erro ao gerar ebook');
+      res.status(503).json({ message: msg });
+    }
+  });
+
+  app.post('/api/ebook/save', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const { ebook, slug } = req.body || {};
+      if (!ebook || !ebook.title || !Array.isArray(ebook.pages)) return res.status(400).json({ message: 'Ebook inválido' });
+      const stored = await ebookStore.saveEbook(ebook, req.user.id, slug);
+      res.json({ slug: stored.slug, updatedAt: stored.updatedAt });
+    } catch (error: any) {
+      res.status(error?.code === 'FORBIDDEN' ? 403 : 500).json({ message: error?.message || 'Erro ao salvar ebook' });
+    }
+  });
+
+  app.get('/api/ebook/list', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try { res.json(await ebookStore.listEbooks(req.user.id)); }
+    catch { res.json([]); }
+  });
+
+  app.get('/api/ebook/get/:slug', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    const e = await ebookStore.getEbook(req.params.slug);
+    if (!e) return res.status(404).json({ message: 'Ebook não encontrado' });
+    if (e.userId !== req.user.id) return res.status(403).json({ message: 'Acesso negado' });
+    res.json({ ebook: e, slug: e.slug });
+  });
+
+  app.delete('/api/ebook/:slug', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try { await ebookStore.deleteEbook(req.params.slug, req.user.id); res.json({ success: true }); }
+    catch (e: any) { res.status(e?.code === 'FORBIDDEN' ? 403 : 500).json({ message: e?.message || 'Erro' }); }
   });
 
   app.get('/api/quiz/get/:slug', authMiddleware, fullAccessMiddleware, async (req: any, res) => {

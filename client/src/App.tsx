@@ -26,6 +26,7 @@ const Timeline = lazy(() => import("@/pages/Timeline"));
 const PLRs = lazy(() => import("@/pages/PLRs"));
 const AITools = lazy(() => import("@/pages/AITools"));
 const AIStudio = lazy(() => import("@/pages/AIStudio"));
+const EbookStudio = lazy(() => import("@/pages/EbookStudio"));
 const QuizPlay = lazy(() => import("@/pages/QuizPlay"));
 const HostQuizPlay = lazy(() => import("@/pages/QuizPlay").then((m) => ({ default: m.HostQuizPlay })));
 
@@ -245,6 +246,7 @@ function Router() {
                 <Route path="/plrs" component={PLRs} />
                 <Route path="/ai-tools" component={AITools} />
                 <Route path="/ai-studio" component={AIStudio} />
+                <Route path="/ebooks" component={EbookStudio} />
                 <Route path="/quiz-builder" component={QuizBuilder} />
                 <Route path="/clonador" component={PageCloner} />
                 <Route path="/presell-dashboard" component={PreSellDashboard} />

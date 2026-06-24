@@ -140,6 +140,12 @@ export default function Sidebar() {
       testId: "nav-ai-studio"
     },
     {
+      name: "Criador de Ebooks",
+      href: "/ebooks",
+      icon: BookOpen,
+      testId: "nav-ebooks"
+    },
+    {
       name: "Quiz Builder",
       href: "/quiz-builder",
       icon: MousePointerClick,
