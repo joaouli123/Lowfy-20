@@ -441,7 +441,7 @@ export async function listVoices(): Promise<{ voices: { voiceId: string; name: s
     const r = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": ELEVENLABS_KEY } });
     if (!r.ok) return { voices: [] };
     const j: any = await r.json();
-    return { voices: (j.voices || []).map((v: any) => ({ voiceId: v.voice_id, name: v.name, category: v.category })) };
+    return { voices: (j.voices || []).map((v: any) => ({ voiceId: v.voice_id, name: v.name, category: v.category, previewUrl: v.preview_url })) };
   } catch { return { voices: [] }; }
 }
 

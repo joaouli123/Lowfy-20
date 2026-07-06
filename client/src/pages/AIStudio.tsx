@@ -714,7 +714,7 @@ export default function AIStudio() {
             <Card className="shadow-sm">
               <CardContent className="p-5 min-h-[340px]">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold">Minhas vozes</h3>
+                  <h3 className="text-sm font-semibold">Vozes disponíveis</h3>
                   <Button variant="ghost" size="sm" onClick={() => refetchVoices()} className="h-7 gap-1.5 text-xs"><RefreshCw className="w-3.5 h-3.5" /> Atualizar</Button>
                 </div>
                 {clonedVoiceId && (
@@ -722,19 +722,25 @@ export default function AIStudio() {
                     <Check className="w-4 h-4" /> Voz clonada criada! Já dá pra usar na Narração.
                   </div>
                 )}
-                {clonedVoices.length ? (
-                  <div className="space-y-1.5">
-                    {clonedVoices.map((v) => (
+                {(voicesData?.voices || []).length ? (
+                  <div className="space-y-1.5 max-h-[430px] overflow-y-auto pr-1">
+                    {(voicesData?.voices || []).map((v: any) => (
                       <div key={v.voiceId} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
                         <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center flex-shrink-0"><AudioWaveform className="w-3.5 h-3.5 text-primary" /></div>
-                        <span className="truncate flex-1 font-medium">{v.name}</span>
-                        <span className="text-[10px] text-muted-foreground uppercase">{v.category}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate font-medium">{v.name}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">{v.category}</p>
+                        </div>
+                        {v.previewUrl && (
+                          <button onClick={() => { try { new Audio(v.previewUrl).play(); } catch {} }} className="p-1.5 rounded hover:bg-muted transition" title="Ouvir amostra (grátis)"><Volume2 className="w-3.5 h-3.5 text-primary" /></button>
+                        )}
+                        <button onClick={() => { setTts((t) => ({ ...t, voice: v.voiceId })); toast({ title: `Voz "${v.name}" selecionada`, description: "Já dá pra usar na aba Narração." }); }} className="text-[11px] font-medium border rounded-lg px-2 py-1 hover:bg-accent transition">Usar</button>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="h-full min-h-[260px] flex items-center justify-center">
-                    <EmptyState icon={AudioWaveform} title="Nenhuma voz clonada ainda" sub="Clone uma voz à esquerda — requer a chave ElevenLabs" />
+                    <EmptyState icon={AudioWaveform} title="Nenhuma voz disponível" sub="Conecte a chave ElevenLabs para ouvir e usar as vozes (as amostras são grátis)" />
                   </div>
                 )}
               </CardContent>
