@@ -187,6 +187,20 @@ const SECOES: { id: string; name: string; icon: any; build: () => any[] }[] = [
     E('text', 'Você tem 7 dias para testar. Se não gostar, devolvemos 100% do seu dinheiro, sem perguntas.', txt({ fontSize: '18px', color: '#334155', paddingBottom: '16px' })),
     E('button', 'QUERO COM GARANTIA', cta({ buttonEffect: 'none' })),
   ] },
+  { id: 'video', name: 'Vídeo depoimento', icon: Video, build: () => [
+    E('headline', 'Veja o que dizem sobre isso', txt({ fontSize: '30px', color: '#0f172a', fontWeight: 'bold', paddingTop: '32px', paddingBottom: '12px' })),
+    E('video', '', txt({ videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoWidth: '100%', paddingTop: '4px', paddingBottom: '10px' })),
+    E('text', '"Melhor decisão que tomei. Recomendo de olhos fechados." — Cliente', txt({ fontSize: '16px', color: '#475569', fontStyle: 'italic', paddingBottom: '16px' })),
+  ] },
+  { id: 'contador', name: 'Contador', icon: Clock, build: () => [
+    E('headline', 'A oferta acaba em breve', txt({ fontSize: '30px', color: '#0f172a', fontWeight: 'bold', paddingTop: '32px', paddingBottom: '10px' })),
+    E('countdown', '', txt({ countdownMinutes: 15, countdownTime: 15, countdownTextColor: '#ffffff', countdownBgColor: '#0d9b6e', countdownPrefix: 'Termina em: ', paddingBottom: '14px' })),
+    E('button', 'GARANTIR AGORA', cta()),
+  ] },
+  { id: 'logos', name: 'Selos / Logos', icon: ImageIcon, build: () => [
+    E('text', 'APROVADO E RECOMENDADO POR', txt({ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold', paddingTop: '28px', paddingBottom: '8px' })),
+    E('image', '', txt({ imageUrl: 'https://placehold.co/640x110?text=Selos+%2B+Garantias', imageWidth: '85%', paddingTop: '0px', paddingBottom: '20px' })),
+  ] },
 ];
 
 interface PreSellTemplate { id: string; name: string; description: string; icon: string; build: () => any[]; }

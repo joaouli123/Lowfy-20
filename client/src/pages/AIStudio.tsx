@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import ImageUpload from "@/components/quiz/ImageUpload";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -140,6 +141,21 @@ function Slider({ label, value, min, max, step, onChange }: { label: string; val
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} className="w-full accent-primary h-1.5 cursor-pointer" />
     </div>
   );
+}
+
+// Prévia de voz GRÁTIS via navegador (Web Speech API) — não consome API/tokens.
+function speakDemo(text: string, rate = 1) {
+  try {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance((text || "Olá! Esta é uma prévia de narração em português do Brasil.").slice(0, 240));
+    u.lang = "pt-BR";
+    u.rate = Math.max(0.6, Math.min(1.4, rate));
+    const pt = synth.getVoices().find((v) => /pt[-_]?BR|portugu/i.test(`${v.lang} ${v.name}`));
+    if (pt) u.voice = pt;
+    synth.speak(u);
+  } catch {}
 }
 
 export default function AIStudio() {
@@ -482,6 +498,9 @@ export default function AIStudio() {
                     ))}
                   </div>
                 </Field>
+                <button type="button" onClick={() => speakDemo(tts.text, tts.speed)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition -mt-1.5">
+                  <Volume2 className="w-3.5 h-3.5" /> Ouvir prévia (grátis, voz do navegador)
+                </button>
                 <Field label="Modelo (ElevenLabs)">
                   <div className="flex flex-wrap gap-1.5">
                     {[["eleven_v3", "v3 · expressivo"], ["eleven_multilingual_v2", "Multilingual v2"], ["eleven_flash_v2_5", "Flash · rápido"]].map(([v, l]) => (
@@ -632,8 +651,8 @@ export default function AIStudio() {
                     </div>
                   </Field>
                 </div>
-                <Field label="Imagem base (opcional)" hint="Cole uma URL pública para animar a imagem (image-to-video do Seedance).">
-                  <Input value={vid.imageUrl} onChange={(e) => setVid({ ...vid, imageUrl: e.target.value })} placeholder="https://…  (vazio = gera do texto)" />
+                <Field label="Imagem base (opcional)" hint="Envie uma imagem ou cole uma URL para animar (image-to-video do Seedance).">
+                  <ImageUpload value={vid.imageUrl} onChange={(url) => setVid({ ...vid, imageUrl: url })} folder="ai-videos-base" compact />
                 </Field>
                 <Button className="w-full shadow-sm" disabled={videoMut.isPending || (!vid.prompt && !vid.imageUrl)} onClick={() => videoMut.mutate()}>
                   {videoMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}

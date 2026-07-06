@@ -191,7 +191,7 @@ export default function Sidebar() {
       testId: "nav-clonador"
     },
     {
-      name: "Pre-Sell Builder",
+      name: "Criador de Páginas",
       href: "/presell-dashboard",
       icon: Layout,
       testId: "nav-presell-dashboard"
