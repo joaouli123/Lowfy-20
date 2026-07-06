@@ -96,16 +96,11 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
         return { buffer: Buffer.from(b64, "base64"), mime };
       }
     } catch (e: any) {
-      logger.warn(`[AI Studio] gpt-image indisponível (${e?.message?.slice(0, 60)}), usando gerador gratuito.`);
+      throw new Error(`Falha na geração de imagem premium (gpt-image): ${e?.message?.slice(0, 90)}`);
     }
   }
 
-  const [w, h] = (params.size || "1024x1024").split("x").map((n) => parseInt(n, 10) || 1024);
-  const seed = Math.floor(Math.random() * 1_000_000);
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(params.prompt)}?width=${w}&height=${h}&nologo=true&model=flux&seed=${seed}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Falha ao gerar imagem (${r.status})`);
-  return { buffer: Buffer.from(await r.arrayBuffer()), mime: "image/jpeg" };
+  throw new Error("Geração de imagem requer a chave premium OPENAI_API_KEY (gpt-image).");
 }
 
 /** Nome do idioma para instruções aos modelos (padrão pt-BR). */
@@ -405,13 +400,11 @@ export async function generateNarration(params: GenerateTTSParams): Promise<{ bu
       } as any);
       return { buffer: Buffer.from(await res.arrayBuffer()), mime: "audio/mpeg" };
     } catch (e: any) {
-      logger.warn(`[AI Studio] OpenAI TTS indisponível (${e?.message?.slice(0, 60)}), usando narração gratuita.`);
+      throw new Error(`Falha na narração premium (OpenAI TTS): ${e?.message?.slice(0, 90)}`);
     }
   }
 
-  // Fallback GRATUITO (pt-BR, sem chave) — para o recurso funcionar imediatamente.
-  // ElevenLabs/OpenAI assumem automaticamente quando a chave é configurada.
-  return { buffer: await googleTtsFree(params.text, params.idioma || "pt-BR"), mime: "audio/mpeg" };
+  throw new Error("Narração premium requer a chave ElevenLabs (recomendado) ou OpenAI configurada.");
 }
 
 // ---------- Clonagem de voz (ElevenLabs Instant Voice Cloning) ----------
@@ -607,22 +600,11 @@ export async function generateAdVideo(params: GenerateVideoParams): Promise<{ bu
     try {
       return await falTextToVideo(params);
     } catch (e: any) {
-      logger.warn(`[AI Studio] fal.ai indisponível (${e?.message?.slice(0, 80)}), usando gerador gratuito.`);
+      throw new Error(`Falha na geração de vídeo premium (Seedance): ${e?.message?.slice(0, 100)}`);
     }
   }
 
-  // Free: imagem base + narração → MP4
-  const image = params.imageUrl
-    ? await resolveImageBuffer(params.imageUrl)
-    : (await generateAdImage({ prompt: params.prompt, size: params.size === "1080x1920" ? "1024x1536" : params.size === "1920x1080" ? "1536x1024" : "1024x1024" })).buffer;
-
-  let audio: Buffer | null = null;
-  if (params.script && params.script.trim()) {
-    audio = (await generateNarration({ text: params.script, voice: params.voice, idioma: (params as any).idioma })).buffer;
-  }
-
-  const buffer = await imageAudioToMp4({ image, audio, size: params.size, zoomIntensity: 0.0006 });
-  return { buffer, mime: "video/mp4" };
+  throw new Error("Geração de vídeo requer a chave premium FAL_KEY (Seedance 2.0).");
 }
 
 export interface GenerateAvatarParams {
@@ -643,21 +625,11 @@ export async function generateTalkingAvatar(params: GenerateAvatarParams): Promi
     try {
       return await premiumTalkingAvatar(params);
     } catch (e: any) {
-      logger.warn(`[AI Studio] provedor de avatar indisponível (${e?.message?.slice(0, 80)}), usando fallback gratuito.`);
+      throw new Error(`Falha na geração de avatar premium (HeyGen/D-ID): ${e?.message?.slice(0, 100)}`);
     }
   }
 
-  if (!params.imageUrl) throw new Error("É necessária a foto da pessoa (imageUrl) para gerar o avatar.");
-  const image = await resolveImageBuffer(params.imageUrl);
-
-  let audio: Buffer | null = null;
-  if (params.audioUrl) audio = await fetchBuffer(params.audioUrl);
-  else if (params.text && params.text.trim()) audio = (await generateNarration({ text: params.text, voice: params.voice, idioma: (params as any).idioma })).buffer;
-  else throw new Error("Informe um texto (text) ou áudio (audioUrl) para a narração do avatar.");
-
-  // zoom mais sutil para rosto ("respiração")
-  const buffer = await imageAudioToMp4({ image, audio, size: params.size, zoomIntensity: 0.00035 });
-  return { buffer, mime: "video/mp4" };
+  throw new Error("Avatar com lip-sync real requer a chave premium HeyGen (HEYGEN_API_KEY) ou D-ID (DID_API_KEY).");
 }
 
 // ---------- Provedores premium (ativam com a respectiva chave) ----------

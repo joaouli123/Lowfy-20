@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -88,14 +88,11 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-function ProviderBadge({ free, premium }: { free: string; premium: string }) {
+function ProviderBadge({ premium }: { free?: string; premium: string }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
       <span className="inline-flex items-center gap-1 rounded-full bg-accent text-accent-foreground px-2 py-0.5 font-medium">
-        <span className="w-1.5 h-1.5 rounded-full bg-primary" /> {free}
-      </span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5">
-        <Sparkles className="w-3 h-3" /> Premium: {premium}
+        <Sparkles className="w-3 h-3" /> {premium}
       </span>
     </div>
   );
@@ -271,6 +268,29 @@ export default function AIStudio() {
     });
   };
 
+  // Gravação de voz na hora (MediaRecorder)
+  const [recording, setRecording] = useState(false);
+  const recRef = useRef<MediaRecorder | null>(null);
+  const recChunks = useRef<Blob[]>([]);
+  const toggleRec = async () => {
+    if (recording) { recRef.current?.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      recChunks.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size) recChunks.current.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(recChunks.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onload = () => setCloneSamples((s) => [...s, { data: String(reader.result), type: "audio/webm", name: `gravacao-${s.length + 1}.webm` }].slice(0, 5));
+        reader.readAsDataURL(blob);
+        setRecording(false);
+      };
+      recRef.current = mr; mr.start(); setRecording(true);
+    } catch { toast({ title: "Não foi possível acessar o microfone", variant: "destructive" }); }
+  };
+
   const onPhotoPick = (file?: File) => {
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) { toast({ title: "Foto muito grande", description: "Use uma imagem de até 8MB.", variant: "destructive" }); return; }
@@ -314,7 +334,7 @@ export default function AIStudio() {
               </select>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground rounded-lg bg-card/60 border px-3 py-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Funciona grátis · premium ao conectar as chaves
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Qualidade premium — conecte suas chaves de API
             </div>
           </div>
         </div>
@@ -512,9 +532,6 @@ export default function AIStudio() {
                     ))}
                   </div>
                 </Field>
-                <button type="button" onClick={() => speakDemo(tts.text, tts.speed)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition -mt-1.5">
-                  <Volume2 className="w-3.5 h-3.5" /> Ouvir prévia (grátis, voz do navegador)
-                </button>
                 <Field label="Modelo (ElevenLabs)">
                   <div className="flex flex-wrap gap-1.5">
                     {[["eleven_v3", "v3 · expressivo"], ["eleven_multilingual_v2", "Multilingual v2"], ["eleven_flash_v2_5", "Flash · rápido"]].map(([v, l]) => (
@@ -707,6 +724,9 @@ export default function AIStudio() {
                     <span className="text-sm text-muted-foreground">Clique para enviar amostras</span>
                     <input type="file" accept="audio/*" multiple className="hidden" onChange={(e) => onSamplePick(e.target.files)} />
                   </label>
+                  <button type="button" onClick={toggleRec} className={`mt-2 w-full h-10 rounded-lg border flex items-center justify-center gap-2 text-sm font-medium transition ${recording ? "border-red-300 bg-red-50 text-red-600" : "hover:bg-muted"}`}>
+                    {recording ? <><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" /> Gravando… clique para parar</> : <><Mic className="w-4 h-4" /> Gravar agora pelo microfone</>}
+                  </button>
                 </Field>
                 {cloneSamples.length > 0 && (
                   <div className="space-y-1.5">
