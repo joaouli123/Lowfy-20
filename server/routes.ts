@@ -6641,6 +6641,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gera UMA imagem para um bloco/capa do ebook (Flux grátis sem chave; gpt-image com chave)
+  app.post('/api/ebook/gen-image', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const { prompt, theme, cover } = req.body || {};
+      if (!prompt || String(prompt).trim().length < 3) return res.status(400).json({ message: 'Prompt vazio' });
+      const styleHint = theme === 'moderno' ? 'estilo moderno, cores vibrantes, formas geométricas'
+        : theme === 'corporativo' ? 'estilo corporativo, tons sóbrios e profissionais'
+        : theme === 'minimal' ? 'estilo minimalista, paleta neutra, muito espaço'
+        : 'estilo editorial elegante e refinado';
+      const full = cover
+        ? `Capa de ebook profissional sobre: ${prompt}. ${styleHint}. Composição vertical, sem texto, alta qualidade, foco visual forte.`
+        : `${prompt}. ${styleHint}. Ilustração profissional para ebook, sem texto sobreposto, alta qualidade.`;
+      const { buffer, mime } = await aiStudio.generateAdImage({ prompt: full, size: cover ? '1024x1536' : '1536x1024', quality: 'high', format: 'webp' });
+      const ext = mime.includes('webp') ? 'webp' : mime.includes('jpeg') ? 'jpg' : 'png';
+      const url = await new ObjectStorageService().uploadBuffer(buffer, 'ebooks-img', mime, ext);
+      res.json({ url });
+    } catch (error: any) {
+      logger.error('[Ebook IA] imagem:', error?.message);
+      res.status(503).json({ message: error?.message || 'Erro ao gerar imagem' });
+    }
+  });
+
   app.get('/api/ebook/list', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try { res.json(await ebookStore.listEbooks(req.user.id)); }
     catch { res.json([]); }
