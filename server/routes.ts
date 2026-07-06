@@ -6379,7 +6379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/ai-studio/image', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const { produto, estilo, headline, formato, publico, prompt, size, quality, provider, background, format, compression } = req.body || {};
-      const finalPrompt = prompt || aiStudio.buildAdImagePrompt({ produto, estilo, headline, formato, publico });
+      const finalPrompt = prompt || aiStudio.buildAdImagePrompt({ produto, estilo, headline, formato, publico, idioma: req.body?.idioma });
       if (!finalPrompt || finalPrompt.trim().length < 3) {
         return res.status(400).json({ message: 'Descreva o produto/criativo' });
       }
@@ -6402,7 +6402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!produto || !tipo) {
         return res.status(400).json({ message: 'Informe o produto e o tipo de copy' });
       }
-      const result = await aiStudio.generateCopy({ produto, publico, dor, beneficios, oferta, tipo, framework, tom, variacoes });
+      const result = await aiStudio.generateCopy({ produto, publico, dor, beneficios, oferta, tipo, framework, tom, variacoes, idioma: req.body?.idioma });
       void aiGenStore.saveGen({ userId: req.user.id, type: 'copy', text: (result.variacoes || []).join('\n\n'), title: String(produto || 'Copy').slice(0, 80), prompt: String(tipo || '') });
       res.json({ variacoes: result.variacoes });
     } catch (error: any) {
@@ -6421,7 +6421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (String(text).length > 5000) {
         return res.status(400).json({ message: 'Texto muito longo (máx. 5000 caracteres)' });
       }
-      const { buffer, mime } = await aiStudio.generateNarration({ text, voice, provider, instructions, modelId, stability, similarityBoost, style, speed });
+      const { buffer, mime } = await aiStudio.generateNarration({ text, voice, provider, instructions, modelId, stability, similarityBoost, style, speed, idioma: req.body?.idioma });
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-audio', mime, 'mp3');
       void aiGenStore.saveGen({ userId: req.user.id, type: 'audio', url, title: 'Narração', prompt: String(text).slice(0, 80) });
@@ -6438,7 +6438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { imageUrl, text, audioUrl, size, voice } = req.body || {};
       if (!imageUrl) return res.status(400).json({ message: 'Envie a foto da pessoa (imageUrl)' });
       if (!text && !audioUrl) return res.status(400).json({ message: 'Informe o texto a ser falado' });
-      const { buffer, mime } = await aiStudio.generateTalkingAvatar({ imageUrl, text, audioUrl, size, voice });
+      const { buffer, mime } = await aiStudio.generateTalkingAvatar({ imageUrl, text, audioUrl, size, voice, idioma: req.body?.idioma } as any);
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-avatares', mime, 'mp4');
       void aiGenStore.saveGen({ userId: req.user.id, type: 'video', url, title: 'Avatar', prompt: String(text || '').slice(0, 80) });
@@ -6454,7 +6454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { prompt, imageUrl, script, size, voice, resolution, duration } = req.body || {};
       if (!prompt && !imageUrl) return res.status(400).json({ message: 'Descreva o vídeo ou envie uma imagem base' });
-      const { buffer, mime } = await aiStudio.generateAdVideo({ prompt, imageUrl, script, size, voice, resolution, duration });
+      const { buffer, mime } = await aiStudio.generateAdVideo({ prompt, imageUrl, script, size, voice, resolution, duration, idioma: req.body?.idioma } as any);
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-videos', mime, 'mp4');
       void aiGenStore.saveGen({ userId: req.user.id, type: 'video', url, title: String(prompt || 'Vídeo').slice(0, 80), prompt: String(prompt || '').slice(0, 80) });

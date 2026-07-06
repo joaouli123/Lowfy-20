@@ -108,6 +108,11 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
   return { buffer: Buffer.from(await r.arrayBuffer()), mime: "image/jpeg" };
 }
 
+/** Nome do idioma para instruções aos modelos (padrão pt-BR). */
+export function langName(code?: string): string {
+  return ({ "pt-BR": "português do Brasil", en: "inglês", es: "espanhol", fr: "francês", it: "italiano", de: "alemão" } as Record<string, string>)[code || "pt-BR"] || "português do Brasil";
+}
+
 /**
  * Monta um prompt de imagem rico a partir da descrição do produto/criativo,
  * aplicando boas práticas de criativo de anúncio (composição, foco, legibilidade).
@@ -118,12 +123,14 @@ export function buildAdImagePrompt(opts: {
   headline?: string;
   formato?: "quadrado" | "story" | "feed";
   publico?: string;
+  idioma?: string;
 }): string {
   const partes = [
     `Crie um criativo publicitário profissional e fotorrealista para anúncio de: ${opts.produto}.`,
     opts.publico ? `Público-alvo: ${opts.publico}.` : "",
     opts.estilo ? `Estilo visual: ${opts.estilo}.` : "Estilo moderno, alto contraste, com foco no produto.",
     opts.headline ? `Inclua o texto em destaque, perfeitamente legível e sem erros de ortografia: "${opts.headline}".` : "",
+    opts.idioma && opts.idioma !== "pt-BR" ? `Qualquer texto na imagem deve estar em ${langName(opts.idioma)}.` : "",
     "Composição limpa, iluminação de estúdio, cores vibrantes, espaço para o produto respirar. Qualidade de agência publicitária. Sem marcas d'água.",
   ];
   return partes.filter(Boolean).join(" ");
@@ -146,6 +153,7 @@ export interface GenerateCopyParams {
   framework?: CopyFramework;
   tom?: string;
   variacoes?: number;
+  idioma?: string;
 }
 
 const COPY_SYSTEM = `Você é um copywriter de resposta direta de classe mundial, no nível de Gary Halbert, Eugene Schwartz, David Ogilvy e dos melhores do marketing digital brasileiro.
@@ -166,6 +174,7 @@ ${params.beneficios ? `- Benefícios: ${params.beneficios}` : ""}
 ${params.oferta ? `- Oferta/preço: ${params.oferta}` : ""}
 ${params.tom ? `- Tom de voz: ${params.tom}` : ""}
 ${fw}
+Escreva TODO o conteúdo no idioma: ${langName(params.idioma)}.
 Devolva como JSON: {"variacoes": ["...", "..."]}. Cada variação deve ser ${tamanhoPorTipo(params.tipo)}.`;
 
   // Premium: OpenAI GPT (melhor qualidade de copy). Gemini só como fallback se OpenAI ausente.
@@ -354,6 +363,7 @@ export interface GenerateTTSParams {
   similarityBoost?: number;  // 0..1
   style?: number;            // 0..1
   speed?: number;            // 0.7..1.2
+  idioma?: string;           // idioma (ex.: pt-BR); usado na narração grátis
 }
 
 export async function generateNarration(params: GenerateTTSParams): Promise<{ buffer: Buffer; mime: string }> {
@@ -401,7 +411,7 @@ export async function generateNarration(params: GenerateTTSParams): Promise<{ bu
 
   // Fallback GRATUITO (pt-BR, sem chave) — para o recurso funcionar imediatamente.
   // ElevenLabs/OpenAI assumem automaticamente quando a chave é configurada.
-  return { buffer: await googleTtsFree(params.text, "pt-BR"), mime: "audio/mpeg" };
+  return { buffer: await googleTtsFree(params.text, params.idioma || "pt-BR"), mime: "audio/mpeg" };
 }
 
 // ---------- Clonagem de voz (ElevenLabs Instant Voice Cloning) ----------
@@ -608,7 +618,7 @@ export async function generateAdVideo(params: GenerateVideoParams): Promise<{ bu
 
   let audio: Buffer | null = null;
   if (params.script && params.script.trim()) {
-    audio = (await generateNarration({ text: params.script, voice: params.voice })).buffer;
+    audio = (await generateNarration({ text: params.script, voice: params.voice, idioma: (params as any).idioma })).buffer;
   }
 
   const buffer = await imageAudioToMp4({ image, audio, size: params.size, zoomIntensity: 0.0006 });
@@ -642,7 +652,7 @@ export async function generateTalkingAvatar(params: GenerateAvatarParams): Promi
 
   let audio: Buffer | null = null;
   if (params.audioUrl) audio = await fetchBuffer(params.audioUrl);
-  else if (params.text && params.text.trim()) audio = (await generateNarration({ text: params.text, voice: params.voice })).buffer;
+  else if (params.text && params.text.trim()) audio = (await generateNarration({ text: params.text, voice: params.voice, idioma: (params as any).idioma })).buffer;
   else throw new Error("Informe um texto (text) ou áudio (audioUrl) para a narração do avatar.");
 
   // zoom mais sutil para rosto ("respiração")

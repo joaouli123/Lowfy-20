@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Sparkles, Image as ImageIcon, Type, Mic, Video, UserSquare2,
-  Loader2, Copy, Download, Wand2, RefreshCw, Check, Upload, History, Volume2,
+  Loader2, Copy, Download, Wand2, RefreshCw, Check, Upload, History, Volume2, Languages,
   AudioWaveform, Trash2, X,
 } from "lucide-react";
 
@@ -180,12 +180,13 @@ export default function AIStudio() {
   const delHist = async (id: string) => { try { await apiRequest("DELETE", `/api/ai-studio/history/${id}`); refetchHist(); } catch {} };
 
   // ---- Criativo (imagem) ----
+  const [lang, setLang] = useState("pt-BR"); // idioma global do Estúdio (padrão pt-BR)
   const [img, setImg] = useState({ produto: "", estilo: "", headline: "", publico: "", ratio: "1:1", quality: "high", format: "png", background: "auto" });
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const imageMut = useMutation({
     mutationFn: async () => {
       const size = img.ratio === "16:9" ? "1536x1024" : (img.ratio === "9:16" || img.ratio === "4:5") ? "1024x1536" : "1024x1024";
-      const r = await apiRequest("POST", "/api/ai-studio/image", { ...img, size });
+      const r = await apiRequest("POST", "/api/ai-studio/image", { ...img, size, idioma: lang });
       return (await r.json()) as { url: string };
     },
     onSuccess: (d) => { setImgUrl(d.url); pushHist({ type: "image", url: d.url, label: img.produto || "Criativo" }); },
@@ -197,7 +198,7 @@ export default function AIStudio() {
   const [copyOut, setCopyOut] = useState<string[]>([]);
   const copyMut = useMutation({
     mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/copy", copy);
+      const r = await apiRequest("POST", "/api/ai-studio/copy", { ...copy, idioma: lang });
       return (await r.json()) as { variacoes: string[] };
     },
     onSuccess: (d) => setCopyOut(d.variacoes || []),
@@ -209,7 +210,7 @@ export default function AIStudio() {
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
   const ttsMut = useMutation({
     mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/tts", tts);
+      const r = await apiRequest("POST", "/api/ai-studio/tts", { ...tts, idioma: lang });
       return (await r.json()) as { url: string };
     },
     onSuccess: (d) => { setTtsUrl(d.url); pushHist({ type: "audio", url: d.url, label: "Narração" }); },
@@ -221,7 +222,7 @@ export default function AIStudio() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const avatarMut = useMutation({
     mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/avatar", { imageUrl: avatar.photo, text: avatar.text, voice: avatar.voice, size: avatar.size });
+      const r = await apiRequest("POST", "/api/ai-studio/avatar", { imageUrl: avatar.photo, text: avatar.text, voice: avatar.voice, size: avatar.size, idioma: lang });
       return (await r.json()) as { url: string };
     },
     onSuccess: (d) => { setAvatarUrl(d.url); pushHist({ type: "video", url: d.url, label: "Avatar" }); },
@@ -233,7 +234,7 @@ export default function AIStudio() {
   const [vidUrl, setVidUrl] = useState<string | null>(null);
   const videoMut = useMutation({
     mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/video", vid);
+      const r = await apiRequest("POST", "/api/ai-studio/video", { ...vid, idioma: lang });
       return (await r.json()) as { url: string };
     },
     onSuccess: (d) => { setVidUrl(d.url); pushHist({ type: "video", url: d.url, label: vid.prompt || "Vídeo" }); },
@@ -300,8 +301,21 @@ export default function AIStudio() {
               <p className="text-sm text-muted-foreground mt-0.5">Criativos, copy persuasiva, narração realista, avatar lip-sync e vídeos — tudo num só lugar.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground rounded-lg bg-card/60 border px-3 py-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Funciona grátis · upgrade premium ao conectar suas chaves
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 rounded-lg bg-card border px-2.5 py-1.5" title="Idioma das gerações">
+              <Languages className="w-3.5 h-3.5 text-muted-foreground" />
+              <select value={lang} onChange={(e) => setLang(e.target.value)} className="text-xs font-medium bg-transparent outline-none cursor-pointer">
+                <option value="pt-BR">Português (BR)</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="it">Italiano</option>
+                <option value="de">Deutsch</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground rounded-lg bg-card/60 border px-3 py-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Funciona grátis · premium ao conectar as chaves
+            </div>
           </div>
         </div>
       </div>
