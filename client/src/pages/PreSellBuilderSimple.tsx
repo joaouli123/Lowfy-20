@@ -150,6 +150,45 @@ const txt = (over: any = {}) => ({
 });
 const cta = (over: any = {}) => txt({ fontSize: '20px', color: '#ffffff', fontWeight: 'bold', backgroundColor: '#0d9b6e', buttonUrl: '#', buttonOpenNewTab: true, buttonDelay: 0, buttonEffect: 'pulse', paddingTop: '18px', paddingBottom: '18px', marginTop: '12px', marginBottom: '8px', ...over });
 
+// Seções prontas (inserem vários blocos já diagramados de uma vez)
+const SECOES: { id: string; name: string; icon: any; build: () => any[] }[] = [
+  { id: 'hero', name: 'Hero', icon: Sparkles, build: () => [
+    E('headline', 'Transforme [resultado] em [tempo]', txt({ fontSize: '42px', color: '#0f172a', fontWeight: 'bold', paddingTop: '40px', paddingBottom: '8px' })),
+    E('subheadline', 'A solução completa para [público] alcançar [objetivo] sem [objeção].', txt({ fontSize: '20px', color: '#475569', paddingTop: '0px', paddingBottom: '16px' })),
+    E('button', 'QUERO COMEÇAR AGORA', cta()),
+  ] },
+  { id: 'beneficios', name: 'Benefícios', icon: CheckCircle, build: () => [
+    E('headline', 'Tudo o que você recebe', txt({ fontSize: '32px', color: '#0f172a', fontWeight: 'bold', paddingTop: '32px', paddingBottom: '10px' })),
+    E('text', '✅  Benefício específico e desejável número um', txt({ textAlign: 'left', fontSize: '17px', color: '#334155', paddingTop: '6px', paddingBottom: '6px' })),
+    E('text', '✅  Benefício específico e desejável número dois', txt({ textAlign: 'left', fontSize: '17px', color: '#334155', paddingTop: '6px', paddingBottom: '6px' })),
+    E('text', '✅  Benefício específico e desejável número três', txt({ textAlign: 'left', fontSize: '17px', color: '#334155', paddingTop: '6px', paddingBottom: '6px' })),
+  ] },
+  { id: 'depoimentos', name: 'Depoimentos', icon: Info, build: () => [
+    E('headline', 'Quem já usou, aprova', txt({ fontSize: '30px', color: '#0f172a', fontWeight: 'bold', paddingTop: '32px', paddingBottom: '12px' })),
+    E('text', '"Resultado que eu não esperava tão rápido. Recomendo demais!" — Cliente satisfeito', txt({ fontSize: '17px', color: '#475569', fontStyle: 'italic', paddingBottom: '10px' })),
+    E('text', '"Simples de aplicar e funcionou de verdade." — Outro cliente', txt({ fontSize: '17px', color: '#475569', fontStyle: 'italic', paddingBottom: '10px' })),
+  ] },
+  { id: 'preco', name: 'Oferta / Preço', icon: ShoppingBag, build: () => [
+    E('headline', 'Condição especial por tempo limitado', txt({ fontSize: '30px', color: '#0f172a', fontWeight: 'bold', paddingTop: '32px', paddingBottom: '6px' })),
+    E('subheadline', 'De R$ 497 por apenas', txt({ fontSize: '18px', color: '#94a3b8', textDecoration: 'line-through', paddingBottom: '0px' })),
+    E('headline', 'R$ 197', txt({ fontSize: '52px', color: '#0d9b6e', fontWeight: 'bold', paddingTop: '0px', paddingBottom: '10px' })),
+    E('button', 'GARANTIR MINHA VAGA', cta()),
+    E('text', '🔒 Pagamento seguro · 7 dias de garantia', txt({ fontSize: '13px', color: '#94a3b8', paddingTop: '4px', paddingBottom: '24px' })),
+  ] },
+  { id: 'faq', name: 'FAQ', icon: Search, build: () => [
+    E('headline', 'Perguntas frequentes', txt({ fontSize: '30px', color: '#0f172a', fontWeight: 'bold', paddingTop: '32px', paddingBottom: '12px' })),
+    E('subheadline', 'Como funciona?', txt({ textAlign: 'left', fontSize: '18px', color: '#0f172a', fontWeight: 'bold', paddingBottom: '2px' })),
+    E('text', 'Explique aqui de forma clara e objetiva.', txt({ textAlign: 'left', fontSize: '16px', color: '#475569', paddingBottom: '10px' })),
+    E('subheadline', 'Tenho garantia?', txt({ textAlign: 'left', fontSize: '18px', color: '#0f172a', fontWeight: 'bold', paddingBottom: '2px' })),
+    E('text', 'Sim, 7 dias de garantia incondicional.', txt({ textAlign: 'left', fontSize: '16px', color: '#475569', paddingBottom: '10px' })),
+  ] },
+  { id: 'garantia', name: 'Garantia', icon: Check, build: () => [
+    E('headline', 'Risco zero pra você', txt({ fontSize: '30px', color: '#0f172a', fontWeight: 'bold', paddingTop: '32px', paddingBottom: '8px' })),
+    E('text', 'Você tem 7 dias para testar. Se não gostar, devolvemos 100% do seu dinheiro, sem perguntas.', txt({ fontSize: '18px', color: '#334155', paddingBottom: '16px' })),
+    E('button', 'QUERO COM GARANTIA', cta({ buttonEffect: 'none' })),
+  ] },
+];
+
 interface PreSellTemplate { id: string; name: string; description: string; icon: string; build: () => any[]; }
 
 const PRESELL_TEMPLATES: PreSellTemplate[] = [
@@ -847,6 +886,12 @@ export default function PreSellBuilderSimple() {
       elements: [...(currentPage.elements || []), newElement]
     });
     setSelectedElementId(newElement.id);
+  };
+
+  const addSection = (els: any[]) => {
+    const withIds = els.map((e, i) => ({ ...e, id: `el-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}` }));
+    setCurrentPage((cp) => ({ ...cp, elements: [...(cp.elements || []), ...withIds] }));
+    toast({ title: "Seção adicionada" });
   };
 
   const getDefaultContent = (type: string): string => {
@@ -2179,6 +2224,23 @@ export default function PreSellBuilderSimple() {
                       label="Container"
                       onClick={() => addElement('container')}
                     />
+                  </div>
+                </div>
+
+                {/* Seções prontas */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Seções prontas</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SECOES.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => addSection(s.build())}
+                        className="h-auto flex flex-col items-center gap-2.5 p-4 rounded-lg border border-border bg-card text-foreground hover:bg-primary/10 hover:border-primary/60 hover:shadow-md transition-all"
+                      >
+                        <s.icon className="w-7 h-7 text-primary" />
+                        <span className="text-xs font-medium text-center leading-tight">{s.name}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
