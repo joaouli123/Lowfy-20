@@ -908,8 +908,11 @@ export function PostCard({ post, currentUser, onOpenComments, onOpenReactions }:
                       return (
                         <div key={index} className="rounded-lg overflow-hidden border border-border">
                           <img
-                            src={media.url}
+                            src={/^https?:\/\//i.test(media.url) && !media.url.includes(window.location.hostname) ? `/api/image-proxy?url=${encodeURIComponent(media.url)}` : media.url}
                             alt="Imagem do post"
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-auto max-h-[500px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
                             data-testid={`img-post-media-${post.id}-${index}`}
                             onClick={() => setShowImageModal(media.url)}
@@ -1003,8 +1006,10 @@ export function PostCard({ post, currentUser, onOpenComments, onOpenReactions }:
                   >
                     {post.linkPreview.image && (
                       <img
-                        src={post.linkPreview.image}
+                        src={/^https?:\/\//i.test(post.linkPreview.image) && !post.linkPreview.image.includes(window.location.hostname) ? `/api/image-proxy?url=${encodeURIComponent(post.linkPreview.image)}` : post.linkPreview.image}
                         alt={post.linkPreview.title || 'Preview'}
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
                         className="w-full h-48 object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -1533,7 +1538,8 @@ export function PostCard({ post, currentUser, onOpenComments, onOpenReactions }:
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden bg-black/40 backdrop-blur-sm border-none">
           <div className="relative w-full h-full flex items-center justify-center">
             <img
-              src={showImageModal || ''}
+              src={showImageModal ? (/^https?:\/\//i.test(showImageModal) && !showImageModal.includes(window.location.hostname) ? `/api/image-proxy?url=${encodeURIComponent(showImageModal)}` : showImageModal) : ''}
+              referrerPolicy="no-referrer"
               alt="Imagem completa"
               className="max-w-full max-h-[95vh] object-contain rounded-lg shadow-2xl"
               onClick={() => setShowImageModal(null)}
