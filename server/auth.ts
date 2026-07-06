@@ -166,6 +166,12 @@ export function isSubscriptionActive(user: any): boolean {
     return false;
   }
 
+  // EXPIRADO: nunca tem acesso, mesmo com accessPlan setado (fecha o furo de
+  // assinante expirado que mantinha acesso porque accessPlan nunca era resetado).
+  if (status === 'expired') {
+    return false;
+  }
+
   // BASIC ou FULL access_plan: Acesso garantido (compradores de pagamento único ou assinantes)
   // Esses usuários têm acesso independente do subscriptionStatus
   if (accessPlan === 'basic' || accessPlan === 'full') {

@@ -13,7 +13,7 @@ import {
   type QComponent, type QuizSpec, type QuizStep,
 } from "@/lib/quizSchema";
 import { TEMPLATES } from "@/lib/quizTemplates";
-import * as Icons from "lucide-react";
+import { Icons } from "@/lib/quizIcons";
 
 const Icon = ({ name, ...p }: { name: string; size?: number; className?: string }) => {
   const C = (Icons as any)[name] || Icons.Square;
@@ -246,7 +246,7 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
   const updateComp = (id: string, props: Record<string, any>, visibility?: any) =>
     setComps((list) => list.map((c) => (c.id === id ? { ...c, props: { ...c.props, ...props }, ...(visibility ? { visibility } : {}) } : c)));
   const removeComp = (id: string) => { setComps((list) => list.filter((c) => c.id !== id)); if (selId === id) setSelId(null); };
-  const dupComp = (id: string) => setComps((list) => { const i = list.findIndex((c) => c.id === id); if (i < 0) return list; const copy = [...list]; copy.splice(i + 1, 0, { ...list[i], id: Math.random().toString(36).slice(2, 9) }); return copy; });
+  const dupComp = (id: string) => setComps((list) => { const i = list.findIndex((c) => c.id === id); if (i < 0) return list; const src = list[i]; const props = JSON.parse(JSON.stringify(src.props || {})); if (Array.isArray(props.options)) props.options = props.options.map((o: any) => ({ ...o, id: Math.random().toString(36).slice(2, 9) })); const copy = [...list]; copy.splice(i + 1, 0, { ...src, id: Math.random().toString(36).slice(2, 9), props }); return copy; });
 
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e; if (!over) return;
@@ -265,7 +265,21 @@ function Editor({ spec: initial, onClose }: { spec: QuizSpec; onClose: () => voi
   };
 
   const addStep = () => { const s = newStep(`Etapa ${spec.steps.length + 1}`); setSteps([...spec.steps, s]); setStepIdx(spec.steps.length); setSelId(null); };
-  const delStep = (i: number) => { if (spec.steps.length <= 1) return; setSteps(spec.steps.filter((_, x) => x !== i)); setStepIdx(Math.max(0, i - 1)); setSelId(null); };
+  const delStep = (i: number) => {
+    if (spec.steps.length <= 1) return;
+    const deadId = spec.steps[i].id;
+    const clean = spec.steps.filter((_, x) => x !== i).map((s) => ({
+      ...s,
+      components: (s.components || []).map((c: any) => {
+        const p = { ...(c.props || {}) };
+        if (p.nextStepId === deadId) p.nextStepId = "";
+        if (p.stepId === deadId) p.stepId = "";
+        if (Array.isArray(p.options)) p.options = p.options.map((o: any) => o?.nextStepId === deadId ? { ...o, nextStepId: "" } : o);
+        return { ...c, props: p };
+      }),
+    }));
+    setSteps(clean); setStepIdx(Math.max(0, i - 1)); setSelId(null);
+  };
   const moveStep = (i: number, dir: number) => { const j = i + dir; if (j < 0 || j >= spec.steps.length) return; setSteps(arrayMove(spec.steps, i, j)); setStepIdx(j); };
 
   // garante 'name' (variável {{}}) único entre componentes opcoes/video_resposta,

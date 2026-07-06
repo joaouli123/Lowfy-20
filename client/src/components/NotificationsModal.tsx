@@ -40,7 +40,9 @@ export function NotificationsModal({ trigger }: NotificationsModalProps) {
 
   const { data: notifications = [], isLoading } = useQuery<NotificationWithActor[]>({
     queryKey: ["/api/notifications"],
-    refetchInterval: 30000,
+    // Só faz polling com o modal aberto; fora disso o socket invalida o cache.
+    refetchInterval: isOpen ? 30000 : false,
+    staleTime: 30000,
   });
 
   const markAsReadMutation = useMutation({

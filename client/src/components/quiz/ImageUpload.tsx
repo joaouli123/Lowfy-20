@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import * as Icons from "lucide-react";
+import { Icons } from "@/lib/quizIcons";
 
 /**
  * Upload de imagem com otimização (compressão + WebP no servidor).

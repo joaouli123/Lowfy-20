@@ -134,8 +134,12 @@ app.use((req, res, next) => {
     const statusKey = String(res.statusCode);
     runtimeMetrics.statusCounts[statusKey] = (runtimeMetrics.statusCounts[statusKey] || 0) + 1;
 
-    const routeKey = `${req.method} ${req.path}`;
-    runtimeMetrics.routeCounts[routeKey] = (runtimeMetrics.routeCounts[routeKey] || 0) + 1;
+    // Normaliza IDs e limita o número de chaves para evitar crescimento infinito
+    // de memória (slugs/UUIDs/varreduras de bots criavam chaves eternas).
+    const routeKey = `${req.method} ${req.path.replace(/\/[0-9a-f-]{16,}/gi, '/:id')}`;
+    if (routeKey in runtimeMetrics.routeCounts || Object.keys(runtimeMetrics.routeCounts).length < 500) {
+      runtimeMetrics.routeCounts[routeKey] = (runtimeMetrics.routeCounts[routeKey] || 0) + 1;
+    }
 
     if (res.statusCode >= 500) {
       runtimeMetrics.totalErrors += 1;

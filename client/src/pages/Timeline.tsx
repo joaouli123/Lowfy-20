@@ -136,7 +136,7 @@ export default function Timeline() {
       if (lastPage.length < 12) return undefined;
       return allPages.length * 12;
     },
-    staleTime: 0,
+    staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: true,

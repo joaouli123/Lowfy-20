@@ -49,9 +49,9 @@ export default defineConfig({
         // Separa bibliotecas pesadas/estáveis em chunks próprios para melhor cache
         // e para evitar duplicação entre chunks de rota.
         manualChunks: {
-          "react-vendor": ["react", "react-dom", "wouter"],
+          "react-vendor": ["react", "react-dom", "wouter", "clsx", "tailwind-merge"],
           "query-vendor": ["@tanstack/react-query"],
-          "chart-vendor": ["recharts", "chart.js", "react-chartjs-2"],
+          "chart-vendor": ["recharts"],
           "motion-vendor": ["framer-motion"],
           "editor-vendor": ["quill"],
         },

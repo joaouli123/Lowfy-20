@@ -914,7 +914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Activate Account - After purchase (email + CPF + password)
-  app.post('/api/auth/activate-account', async (req, res) => {
+  app.post('/api/auth/activate-account', passwordResetLimiter, async (req, res) => {
     try {
       const { email, cpf, password, confirmPassword } = req.body;
 
@@ -1041,7 +1041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.insert(passwordResetTokens).values({
         userId: user.id,
         email: user.email,
-        token: resetToken,
+        token: crypto.createHash('sha256').update(resetToken).digest('hex'),
         expiresAt,
       });
 
@@ -1101,7 +1101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.insert(passwordResetTokens).values({
         userId: user.id,
         email: user.email,
-        token: resetToken,
+        token: crypto.createHash('sha256').update(resetToken).digest('hex'),
         expiresAt,
       });
 
@@ -1126,11 +1126,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           response: emailError.response,
           stack: emailError.stack,
         });
-        return res.status(500).json({ message: "Erro ao enviar email. Tente novamente mais tarde." });
+        // Não vaza que o email existe: responde genérico mesmo em falha de envio.
       }
 
-      res.json({ 
-        message: "Se o email existir em nossa base, você receberá um link para redefinir sua senha." 
+      res.json({
+        message: "Se o email existir em nossa base, você receberá um link para redefinir sua senha."
       });
     } catch (error) {
       console.error("Error in forgot-password:", error);
@@ -1156,7 +1156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(passwordResetTokens)
         .where(and(
-          eq(passwordResetTokens.token, token),
+          eq(passwordResetTokens.token, crypto.createHash('sha256').update(token).digest('hex')),
           eq(passwordResetTokens.used, false),
           gte(passwordResetTokens.expiresAt, new Date())
         ))
@@ -1403,7 +1403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -5302,7 +5302,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 await db
                   .update(users)
                   .set({
-                    subscriptionStatus: 'canceled',
+                    subscriptionStatus: 'refunded',
+                    accessPlan: null,
                     accountStatus: 'pending',
                     updatedAt: new Date(),
                   })
@@ -6535,8 +6536,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const spec = req.body || {};
       if (!spec.name) return res.status(400).json({ message: 'Nome do quiz é obrigatório' });
-      const slug = quizStore.sanitizeSlug(spec.slug || spec.name);
+      let slug = quizStore.sanitizeSlug(spec.slug || spec.name);
       if (!slug) return res.status(400).json({ message: 'Slug inválido' });
+      // Funil novo (sem slug próprio): garante slug único para não sobrescrever outro.
+      if (!spec.slug) {
+        const base = slug;
+        for (let i = 2; await quizStore.getQuizMeta(slug); i++) slug = `${base}-${i}`;
+      }
       const meta = await quizStore.saveQuiz(slug, { ...spec, slug }, req.user.id);
       res.json({ slug, meta, url: `/q/${slug}` });
     } catch (e: any) {
