@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ImageUpload from "@/components/quiz/ImageUpload";
+import { ELEVEN_VOICES } from "@/lib/elevenVoices";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -247,6 +248,8 @@ export default function AIStudio() {
     },
   });
   const clonedVoices = (voicesData?.voices || []).filter((v) => v.category === "cloned" || v.category === "professional" || v.category === "generated");
+  // Lista de vozes: a da conta (server, se a chave estiver no ambiente) ou o catálogo público (prévias tocam sem env).
+  const voiceList: any[] = (voicesData?.voices && voicesData.voices.length ? voicesData.voices : ELEVEN_VOICES);
   const [cloneName, setCloneName] = useState("");
   const [cloneSamples, setCloneSamples] = useState<{ data: string; type: string; name: string }[]>([]);
   const [clonedVoiceId, setClonedVoiceId] = useState<string | null>(null);
@@ -756,9 +759,9 @@ export default function AIStudio() {
                     <Check className="w-4 h-4" /> Voz clonada criada! Já dá pra usar na Narração.
                   </div>
                 )}
-                {(voicesData?.voices || []).length ? (
+                {voiceList.length ? (
                   <div className="space-y-1.5 max-h-[430px] overflow-y-auto pr-1">
-                    {(voicesData?.voices || []).map((v: any) => (
+                    {voiceList.map((v: any) => (
                       <div key={v.voiceId} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
                         <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center flex-shrink-0"><AudioWaveform className="w-3.5 h-3.5 text-primary" /></div>
                         <div className="flex-1 min-w-0">
