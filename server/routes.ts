@@ -74,6 +74,7 @@ import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
 import * as aiStudio from "./services/aiStudio";
 import { generateEbook } from "./services/ebookStudio";
 import * as ebookStore from "./ebookStore";
+import * as aiGenStore from "./aiGenStore";
 import * as quizStore from "./quizStore";
 import * as railwayDomains from "./services/railwayDomains";
 import { sanitizePageName } from "./utils/slug-utils";
@@ -6386,6 +6387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ext = mime.includes('webp') ? 'webp' : mime.includes('jpeg') ? 'jpg' : 'png';
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-criativos', mime, ext);
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'image', url, title: String(produto || finalPrompt || 'Criativo').slice(0, 80), prompt: finalPrompt });
       res.json({ url, prompt: finalPrompt });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar imagem:', error?.message);
@@ -6401,6 +6403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Informe o produto e o tipo de copy' });
       }
       const result = await aiStudio.generateCopy({ produto, publico, dor, beneficios, oferta, tipo, framework, tom, variacoes });
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'copy', text: (result.variacoes || []).join('\n\n'), title: String(produto || 'Copy').slice(0, 80), prompt: String(tipo || '') });
       res.json({ variacoes: result.variacoes });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar copy:', error?.message);
@@ -6421,6 +6424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { buffer, mime } = await aiStudio.generateNarration({ text, voice, provider, instructions, modelId, stability, similarityBoost, style, speed });
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-audio', mime, 'mp3');
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'audio', url, title: 'Narração', prompt: String(text).slice(0, 80) });
       res.json({ url });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar narração:', error?.message);
@@ -6437,6 +6441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { buffer, mime } = await aiStudio.generateTalkingAvatar({ imageUrl, text, audioUrl, size, voice });
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-avatares', mime, 'mp4');
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'video', url, title: 'Avatar', prompt: String(text || '').slice(0, 80) });
       res.json({ url });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar avatar:', error?.message);
@@ -6452,11 +6457,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { buffer, mime } = await aiStudio.generateAdVideo({ prompt, imageUrl, script, size, voice, resolution, duration });
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-videos', mime, 'mp4');
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'video', url, title: String(prompt || 'Vídeo').slice(0, 80), prompt: String(prompt || '').slice(0, 80) });
       res.json({ url });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar vídeo:', error?.message);
       res.status(500).json({ message: error?.message || 'Erro ao gerar vídeo' });
     }
+  });
+
+  // Histórico de gerações do Estúdio (com filtro por tipo e busca)
+  app.get('/api/ai-studio/history', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try { res.json(await aiGenStore.listGens(req.user.id, { type: req.query.type as string, q: req.query.q as string })); }
+    catch { res.json([]); }
+  });
+  app.delete('/api/ai-studio/history/:id', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try { await aiGenStore.deleteGen(req.params.id, req.user.id); res.json({ success: true }); }
+    catch { res.status(500).json({ message: 'Erro' }); }
   });
 
   // Listar vozes (incluindo clonadas) — ElevenLabs

@@ -147,6 +147,22 @@ export default function AIStudio() {
   const [history, setHistory] = useState<Hist[]>([]);
   const pushHist = (h: Hist) => setHistory((p) => [h, ...p].slice(0, 12));
 
+  // ---- Histórico persistente (todas as gerações) ----
+  const [histType, setHistType] = useState("all");
+  const [histQ, setHistQ] = useState("");
+  const { data: hist = [], refetch: refetchHist, isFetching: histLoading } = useQuery({
+    queryKey: ["/api/ai-studio/history", histType, histQ],
+    queryFn: async () => {
+      const p = new URLSearchParams();
+      if (histType !== "all") p.set("type", histType);
+      if (histQ) p.set("q", histQ);
+      const r = await apiRequest("GET", `/api/ai-studio/history?${p.toString()}`);
+      return (await r.json()) as any[];
+    },
+    staleTime: 0,
+  });
+  const delHist = async (id: string) => { try { await apiRequest("DELETE", `/api/ai-studio/history/${id}`); refetchHist(); } catch {} };
+
   // ---- Criativo (imagem) ----
   const [img, setImg] = useState({ produto: "", estilo: "", headline: "", publico: "", ratio: "1:1", quality: "high", format: "png", background: "auto" });
   const [imgUrl, setImgUrl] = useState<string | null>(null);
@@ -283,6 +299,7 @@ export default function AIStudio() {
           <TabsTrigger value="avatar" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><UserSquare2 className="w-4 h-4" /> Avatar</TabsTrigger>
           <TabsTrigger value="video" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Video className="w-4 h-4" /> Vídeo</TabsTrigger>
           <TabsTrigger value="clonar" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><AudioWaveform className="w-4 h-4" /> Clonar Voz</TabsTrigger>
+          <TabsTrigger value="historico" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><History className="w-4 h-4" /> Histórico</TabsTrigger>
         </TabsList>
 
         {/* ---------- CRIATIVO ---------- */}
@@ -703,6 +720,49 @@ export default function AIStudio() {
                 )}
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        {/* ---------- HISTÓRICO ---------- */}
+        <TabsContent value="historico" className="flex-1 min-w-0 w-full mt-0">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <input value={histQ} onChange={(e) => setHistQ(e.target.value)} placeholder="Buscar por título ou prompt…" className="flex-1 min-w-[180px] h-9 rounded-md border border-input bg-card px-3 text-sm" />
+              <button onClick={() => refetchHist()} className="text-sm rounded-lg px-3 py-1.5 border hover:bg-muted flex items-center gap-1.5 transition"><RefreshCw className={`w-3.5 h-3.5 ${histLoading ? "animate-spin" : ""}`} />Atualizar</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {[["all", "Todos"], ["image", "Imagens"], ["copy", "Copy"], ["audio", "Áudio"], ["video", "Vídeo"]].map(([v, l]) => (
+                <Chip key={v} active={histType === v} onClick={() => setHistType(v)}>{l}</Chip>
+              ))}
+            </div>
+            {hist.length ? (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {hist.map((g: any) => (
+                  <div key={g.id} className="group bg-card border rounded-xl overflow-hidden hover:shadow-md transition">
+                    <div className="aspect-video bg-muted/40 flex items-center justify-center overflow-hidden">
+                      {g.type === "image" ? <img src={g.url} alt="" className="w-full h-full object-cover" />
+                        : g.type === "video" ? <video src={g.url} className="w-full h-full object-cover" />
+                        : g.type === "audio" ? <Volume2 className="w-8 h-8 text-primary" />
+                        : <div className="p-3 text-[11px] text-muted-foreground line-clamp-5 w-full h-full overflow-hidden">{g.text}</div>}
+                    </div>
+                    <div className="p-2.5 flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{g.title}</p>
+                        <p className="text-[10px] text-muted-foreground">{new Date(g.createdAt).toLocaleDateString("pt-BR")}</p>
+                      </div>
+                      {g.type === "copy"
+                        ? <button onClick={() => { navigator.clipboard.writeText(g.text || ""); toast({ title: "Copiado!" }); }} className="p-1.5 rounded hover:bg-muted transition" title="Copiar"><Copy className="w-3.5 h-3.5" /></button>
+                        : <a href={g.url} download target="_blank" rel="noreferrer" className="p-1.5 rounded hover:bg-muted transition" title="Baixar"><Download className="w-3.5 h-3.5" /></a>}
+                      <button onClick={() => delHist(g.id)} className="p-1.5 rounded hover:bg-red-50 hover:text-red-600 transition" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="min-h-[300px] flex items-center justify-center">
+                <EmptyState icon={History} title="Nenhuma criação ainda" sub="Suas gerações aparecem aqui automaticamente" />
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>
