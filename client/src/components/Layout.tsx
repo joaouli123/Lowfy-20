@@ -1,4 +1,4 @@
-import { ReactNode, Suspense } from "react";
+import { ReactNode, Suspense, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import BugReportButton from "./BugReportButton";
@@ -19,6 +19,12 @@ function ContentLoader() {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  // O app logado é sempre tema claro; a landing (Home) pode ter deixado a classe
+  // "dark" no <html> via localStorage, então removemos ao entrar no app.
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+  }, []);
+
   return (
     <div className="min-h-screen flex bg-background" data-testid="layout-container">
       <Sidebar />
