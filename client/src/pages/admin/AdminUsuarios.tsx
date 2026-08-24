@@ -1,19 +1,44 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient as qc } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
+import {
+  Download,
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  UserCheck,
+  UserX,
+  AlertCircle,
+  AlertTriangle,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Lock,
+  Unlock,
+  XCircle,
+  CheckCircle,
+  UserCog,
+  Crown,
+  Star,
+  UserMinus,
+} from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  AdminPage, AdminPageHeader, StatCard, StatGrid, TableCard, EmptyState,
+  TableSkeleton, StatusBadge, FilterBar, formatNumber,
+} from "@/components/admin";
 
 const formatCPF = (value: string): string => {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -33,11 +58,11 @@ const formatPhone = (value: string): string => {
 
 const validateCPF = (cpf: string): boolean => {
   const cleanCpf = cpf.replace(/\D/g, '');
-  
+
   if (cleanCpf.length !== 11) return false;
-  
+
   if (/^(\d)\1{10}$/.test(cleanCpf)) return false;
-  
+
   let sum = 0;
   for (let i = 0; i < 9; i++) {
     sum += parseInt(cleanCpf.charAt(i)) * (10 - i);
@@ -45,7 +70,7 @@ const validateCPF = (cpf: string): boolean => {
   let remainder = (sum * 10) % 11;
   if (remainder === 10 || remainder === 11) remainder = 0;
   if (remainder !== parseInt(cleanCpf.charAt(9))) return false;
-  
+
   sum = 0;
   for (let i = 0; i < 10; i++) {
     sum += parseInt(cleanCpf.charAt(i)) * (11 - i);
@@ -53,35 +78,9 @@ const validateCPF = (cpf: string): boolean => {
   remainder = (sum * 10) % 11;
   if (remainder === 10 || remainder === 11) remainder = 0;
   if (remainder !== parseInt(cleanCpf.charAt(10))) return false;
-  
+
   return true;
 };
-import { 
-  Download, 
-  Upload, 
-  Search, 
-  ChevronLeft, 
-  ChevronRight,
-  Calendar,
-  Users,
-  UserCheck,
-  UserX,
-  AlertCircle,
-  AlertTriangle,
-  MoreVertical,
-  Edit,
-  Trash2,
-  Lock,
-  Unlock,
-  XCircle,
-  CheckCircle,
-  UserCog,
-  Crown,
-  Star,
-  UserMinus
-} from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 interface UserWithSubscription {
   id: string;
@@ -123,33 +122,42 @@ interface CSVFieldMapping {
   subscriptionExpiresAt: string;
 }
 
-export default function AdminUsuarios() {
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">Gerenciamento de Usuários</h1>
-        <p className="text-muted-foreground">Gerencie todos os usuários e assinaturas da plataforma</p>
-      </div>
-      <UsersManagement />
-    </div>
-  );
-}
+const SUBSCRIPTION_BADGE: Record<string, { label: string; tone: "success" | "danger" | "warning" | "neutral"; testId: string }> = {
+  active: { label: "Ativa", tone: "success", testId: "badge-active" },
+  expired: { label: "Vencida", tone: "danger", testId: "badge-expired" },
+  canceled: { label: "Cancelada", tone: "warning", testId: "badge-canceled" },
+  refunded: { label: "Reembolso", tone: "danger", testId: "badge-refunded" },
+};
 
-function UsersManagement() {
+const ACCESS_PLAN_LABEL: Record<string, string> = {
+  full: "Full",
+  basic: "Basic",
+};
+
+export default function AdminUsuarios() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchInput, setSearchInput] = useState("");
-  
+
+  // Busca server-side com debounce
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   const [activateDialogOpen, setActivateDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithSubscription | null>(null);
   const [expiresAt, setExpiresAt] = useState("");
   const [plan, setPlan] = useState("mensal");
-  
+
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -164,11 +172,11 @@ function UsersManagement() {
     accountStatus: "active",
     subscriptionStatus: "none",
   });
-  
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithSubscription | null>(null);
   const [cpfError, setCpfError] = useState<string | null>(null);
-  
+
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -181,7 +189,7 @@ function UsersManagement() {
     subscriptionExpiresAt: "subscriptionExpiresAt"
   });
 
-  const { data, isLoading, refetch } = useQuery<UsersManagementResponse>({
+  const { data, isLoading } = useQuery<UsersManagementResponse>({
     queryKey: ["/api/admin/users-management", page, search, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -217,19 +225,19 @@ function UsersManagement() {
       return data;
     },
     onSuccess: (data) => {
-      toast({ 
-        title: "Usuário excluído com sucesso!", 
-        description: `${data?.deletedTables?.length || 0} tabelas afetadas` 
+      toast({
+        title: "Usuário excluído com sucesso!",
+        description: `${data?.deletedTables?.length || 0} tabelas afetadas`
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users-management"] });
       setDeleteDialogOpen(false);
       setUserToDelete(null);
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Erro ao excluir usuário", 
-        description: error?.message || "Ocorreu um erro ao excluir o usuário", 
-        variant: "destructive" 
+      toast({
+        title: "Erro ao excluir usuário",
+        description: error?.message || "Ocorreu um erro ao excluir o usuário",
+        variant: "destructive"
       });
     },
   });
@@ -294,20 +302,20 @@ function UsersManagement() {
         cpf: fieldMapping.cpf === "__none__" ? "" : fieldMapping.cpf,
       };
       formData.append("fieldMapping", JSON.stringify(normalizedMapping));
-      
+
       const res = await fetch("/api/admin/users/import-csv", {
         method: "POST",
         body: formData,
         credentials: "include"
       });
-      
+
       if (!res.ok) throw new Error("Erro ao importar CSV");
       return res.json();
     },
     onSuccess: (data) => {
-      toast({ 
-        title: "Importação concluída!", 
-        description: `${data.success} usuários importados. ${data.errors?.length || 0} erros.` 
+      toast({
+        title: "Importação concluída!",
+        description: `${data.success} usuários importados. ${data.errors?.length || 0} erros.`
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users-management"] });
       setCsvModalOpen(false);
@@ -354,9 +362,9 @@ function UsersManagement() {
         }
       }
       setCpfError(null);
-      
+
       const cleanPhone = editForm.phone.replace(/\D/g, '');
-      
+
       updateUserMutation.mutate({
         id: selectedUser.id,
         data: {
@@ -398,15 +406,10 @@ function UsersManagement() {
     setActivateDialogOpen(true);
   };
 
-  const handleSearch = () => {
-    setSearch(searchInput);
-    setPage(1);
-  };
-
   const handleExportCSV = async () => {
     try {
       const response = await apiRequest("GET", "/api/admin/users/export-csv");
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -416,7 +419,7 @@ function UsersManagement() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({ title: "CSV exportado com sucesso!" });
     } catch (error: any) {
       toast({ title: "Erro ao exportar CSV", description: error.message, variant: "destructive" });
@@ -426,16 +429,16 @@ function UsersManagement() {
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
+
     setCsvFile(file);
-    
+
     const text = await file.text();
     const lines = text.split("\n");
     if (lines.length > 0) {
       const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, ""));
       setCsvHeaders(headers);
     }
-    
+
     setCsvModalOpen(true);
   };
 
@@ -445,41 +448,12 @@ function UsersManagement() {
     }
   };
 
-  const getSubscriptionStatusBadge = (status: string | null) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-green-500 hover:bg-green-600" data-testid="badge-active">Ativa</Badge>;
-      case "expired":
-        return <Badge variant="destructive" data-testid="badge-expired">Vencida</Badge>;
-      case "canceled":
-        return <Badge variant="secondary" className="bg-orange-500 text-white hover:bg-orange-600" data-testid="badge-canceled">Cancelada</Badge>;
-      case "refunded":
-        return <Badge className="bg-red-600 hover:bg-red-700 text-white" data-testid="badge-refunded">Reembolso</Badge>;
-      case "none":
-      default:
-        return <Badge variant="outline" data-testid="badge-none">Sem assinatura</Badge>;
-    }
-  };
-
-  const getAccountStatusBadge = (status: string | null) => {
-    switch (status) {
-      case "active":
-        return <Badge variant="outline" className="border-green-500 text-green-600">Ativo</Badge>;
-      case "blocked":
-        return <Badge variant="destructive">Bloqueado</Badge>;
-      case "pending":
-        return <Badge variant="secondary">Pendente</Badge>;
-      default:
-        return <Badge variant="outline">-</Badge>;
-    }
-  };
-
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "-";
+    if (!dateStr) return "—";
     try {
       return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
     } catch {
-      return "-";
+      return "—";
     }
   };
 
@@ -490,357 +464,321 @@ function UsersManagement() {
     total: pagination.total,
     active: users.filter(u => u.subscriptionStatus === "active").length,
     expired: users.filter(u => u.subscriptionStatus === "expired").length,
-    canceled: users.filter(u => u.subscriptionStatus === "canceled").length,
     refunded: users.filter(u => u.subscriptionStatus === "refunded").length,
     none: users.filter(u => !u.subscriptionStatus || u.subscriptionStatus === "none").length,
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                <Users className="h-6 w-6 text-blue-600 dark:text-blue-300" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total de Usuários</p>
-                <p className="text-2xl font-bold" data-testid="stat-total">{pagination.total}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-                <UserCheck className="h-6 w-6 text-green-600 dark:text-green-300" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Ativa</p>
-                <p className="text-2xl font-bold text-green-600" data-testid="stat-active">{stats.active}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-red-100 dark:bg-red-900 rounded-full">
-                <UserX className="h-6 w-6 text-red-600 dark:text-red-300" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Vencida</p>
-                <p className="text-2xl font-bold text-red-600" data-testid="stat-expired">{stats.expired}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <AdminPage width="wide">
+      <AdminPageHeader
+        title="Gerenciamento de usuários"
+        description="Gerencie todos os usuários e assinaturas da plataforma"
+        icon={Users}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} data-testid="button-export-csv">
+              <Download className="w-4 h-4 mr-2" />
+              Exportar CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} data-testid="button-import-csv">
+              <Upload className="w-4 h-4 mr-2" />
+              Importar CSV
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </>
+        }
+      />
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-red-600/10 dark:bg-red-600/20 rounded-full">
-                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Reembolso</p>
-                <p className="text-2xl font-bold text-red-600" data-testid="stat-refunded">{stats.refunded}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full">
-                <AlertCircle className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Sem Assinatura</p>
-                <p className="text-2xl font-bold text-gray-600" data-testid="stat-none">{stats.none}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <StatGrid cols={5}>
+        <StatCard
+          label="Total de usuários"
+          value={formatNumber(stats.total)}
+          icon={Users}
+          tone="info"
+          loading={isLoading}
+          testId="stat-total"
+        />
+        <StatCard
+          label="Assinatura ativa"
+          value={formatNumber(stats.active)}
+          icon={UserCheck}
+          tone="success"
+          hint="na página atual"
+          loading={isLoading}
+          testId="stat-active"
+        />
+        <StatCard
+          label="Vencidas"
+          value={formatNumber(stats.expired)}
+          icon={UserX}
+          tone="danger"
+          hint="na página atual"
+          loading={isLoading}
+          testId="stat-expired"
+        />
+        <StatCard
+          label="Reembolsos"
+          value={formatNumber(stats.refunded)}
+          icon={AlertTriangle}
+          tone="warning"
+          hint="na página atual"
+          loading={isLoading}
+          testId="stat-refunded"
+        />
+        <StatCard
+          label="Sem assinatura"
+          value={formatNumber(stats.none)}
+          icon={AlertCircle}
+          tone="default"
+          hint="na página atual"
+          loading={isLoading}
+          testId="stat-none"
+        />
+      </StatGrid>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <CardTitle>Lista de Usuários</CardTitle>
-              <CardDescription>Gerencie usuários e suas assinaturas</CardDescription>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
+      <FilterBar
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Buscar por nome, email ou telefone..."
+      >
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+          <SelectTrigger className="h-9 w-[200px] text-sm" data-testid="select-status-filter">
+            <SelectValue placeholder="Filtrar por status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="active">Assinatura ativa</SelectItem>
+            <SelectItem value="expired">Assinatura vencida</SelectItem>
+            <SelectItem value="canceled">Assinatura cancelada</SelectItem>
+            <SelectItem value="refunded">Reembolso</SelectItem>
+            <SelectItem value="none">Sem assinatura</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
+
+      <TableCard
+        title="Usuários"
+        count={pagination.total}
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {users.length} de {formatNumber(pagination.total)} usuários
+            </p>
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={handleExportCSV}
-                data-testid="button-export-csv"
+                size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                data-testid="button-prev-page"
               >
-                <Download className="w-4 h-4 mr-2" />
-                Exportar CSV
+                <ChevronLeft className="w-4 h-4" />
+                Anterior
               </Button>
-              
+              <span className="text-sm px-2 tabular-nums" data-testid="pagination-info">
+                Página {pagination.page} de {pagination.totalPages}
+              </span>
               <Button
                 variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="button-import-csv"
+                size="sm"
+                onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                disabled={page >= pagination.totalPages}
+                data-testid="button-next-page"
               >
-                <Upload className="w-4 h-4 mr-2" />
-                Importar CSV
-              </Button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".csv"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 flex gap-2">
-              <Input
-                placeholder="Buscar por nome, email ou telefone..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                data-testid="input-search"
-              />
-              <Button onClick={handleSearch} data-testid="button-search">
-                <Search className="w-4 h-4" />
+                Próxima
+                <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
-            
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[200px]" data-testid="select-status-filter">
-                <SelectValue placeholder="Filtrar por status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="active">Assinatura Ativa</SelectItem>
-                <SelectItem value="expired">Assinatura Vencida</SelectItem>
-                <SelectItem value="canceled">Assinatura Cancelada</SelectItem>
-                <SelectItem value="refunded">Reembolso</SelectItem>
-                <SelectItem value="none">Sem Assinatura</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
+        }
+      >
+        {isLoading ? (
+          <TableSkeleton rows={8} />
+        ) : users.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="Nenhum usuário encontrado"
+            description="Ajuste a busca ou o filtro de status."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Usuário</TableHead>
+                <TableHead>Telefone</TableHead>
+                <TableHead>Assinatura</TableHead>
+                <TableHead>Plano de acesso</TableHead>
+                <TableHead>Pagamento</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead>Cadastro</TableHead>
+                <TableHead className="text-right pr-4">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => {
+                const sub = user.subscriptionStatus && SUBSCRIPTION_BADGE[user.subscriptionStatus];
+                return (
+                  <TableRow key={user.id}>
+                    <TableCell data-testid={`user-name-${user.id}`}>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium truncate max-w-[200px]">{user.name}</p>
+                          {user.isAdmin && <StatusBadge tone="violet">Admin</StatusBadge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate max-w-[220px]" data-testid={`user-email-${user.id}`}>{user.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap" data-testid={`user-phone-${user.id}`}>
+                      {user.phone ? formatPhone(user.phone) : "—"}
+                    </TableCell>
+                    <TableCell data-testid={`user-subscription-status-${user.id}`}>
+                      <div className="flex flex-col items-start gap-1">
+                        {sub ? (
+                          <StatusBadge tone={sub.tone} dot data-testid={sub.testId}>{sub.label}</StatusBadge>
+                        ) : (
+                          <StatusBadge tone="neutral" data-testid="badge-none">Sem assinatura</StatusBadge>
+                        )}
+                        {user.accountStatus === 'blocked' && (
+                          <StatusBadge tone="danger">Bloqueado</StatusBadge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {user.accessPlan ? (
+                        <StatusBadge tone={user.accessPlan === "full" ? "warning" : "info"}>
+                          {ACCESS_PLAN_LABEL[user.accessPlan] || user.accessPlan}
+                        </StatusBadge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Free</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums text-sm" data-testid={`user-subscription-date-${user.id}`}>
+                      {formatDate(user.latestSubscriptionPaidAt)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums text-sm" data-testid={`user-expiry-${user.id}`}>
+                      {formatDate(user.subscriptionExpiresAt)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums text-sm" data-testid={`user-created-${user.id}`}>
+                      {formatDate(user.createdAt)}
+                    </TableCell>
+                    <TableCell className="text-right pr-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            data-testid={`button-actions-${user.id}`}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuItem
+                            onClick={() => handleOpenEditDialog(user)}
+                            data-testid={`action-edit-${user.id}`}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Editar usuário
+                          </DropdownMenuItem>
 
-          {isLoading ? (
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data Criação</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>Status Assinatura</TableHead>
-                      <TableHead>Data Assinatura</TableHead>
-                      <TableHead>Vencimento</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell data-testid={`user-created-${user.id}`}>
-                          {formatDate(user.createdAt)}
-                        </TableCell>
-                        <TableCell className="font-medium" data-testid={`user-name-${user.id}`}>
-                          <div className="flex items-center gap-2">
-                            {user.name}
-                            {user.isAdmin && (
-                              <Badge variant="secondary" className="text-xs">Admin</Badge>
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            onClick={() => handleOpenActivateDialog(user)}
+                            data-testid={`action-activate-${user.id}`}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2 text-emerald-600" />
+                            Ativar assinatura
+                          </DropdownMenuItem>
+
+                          {user.subscriptionStatus === 'active' && (
+                            <DropdownMenuItem
+                              onClick={() => deactivateSubscriptionMutation.mutate(user.id)}
+                              data-testid={`action-deactivate-${user.id}`}
+                            >
+                              <XCircle className="w-4 h-4 mr-2" />
+                              Desativar assinatura
+                            </DropdownMenuItem>
+                          )}
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            onClick={() => setAccessPlanMutation.mutate({ userId: user.id, accessPlan: 'full' })}
+                            disabled={user.accessPlan === 'full' || setAccessPlanMutation.isPending}
+                            data-testid={`action-plan-full-${user.id}`}
+                            className={user.accessPlan === 'full' ? 'bg-amber-50' : ''}
+                          >
+                            <Crown className="w-4 h-4 mr-2 text-amber-500" />
+                            Plano Full {user.accessPlan === 'full' && '✓'}
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => setAccessPlanMutation.mutate({ userId: user.id, accessPlan: 'basic' })}
+                            disabled={user.accessPlan === 'basic' || setAccessPlanMutation.isPending}
+                            data-testid={`action-plan-basic-${user.id}`}
+                            className={user.accessPlan === 'basic' ? 'bg-blue-50' : ''}
+                          >
+                            <Star className="w-4 h-4 mr-2 text-blue-500" />
+                            Plano Basic {user.accessPlan === 'basic' && '✓'}
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => setAccessPlanMutation.mutate({ userId: user.id, accessPlan: null })}
+                            disabled={!user.accessPlan || setAccessPlanMutation.isPending}
+                            data-testid={`action-plan-free-${user.id}`}
+                            className={!user.accessPlan ? 'bg-gray-50' : ''}
+                          >
+                            <UserMinus className="w-4 h-4 mr-2 text-gray-500" />
+                            Plano Free {!user.accessPlan && '✓'}
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            onClick={() => handleToggleBlock(user)}
+                            data-testid={`action-block-${user.id}`}
+                          >
+                            {user.accountStatus === 'blocked' ? (
+                              <>
+                                <Unlock className="w-4 h-4 mr-2" />
+                                Desbloquear acesso
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-4 h-4 mr-2 text-amber-600" />
+                                Bloquear acesso
+                              </>
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell data-testid={`user-email-${user.id}`}>
-                          {user.email}
-                        </TableCell>
-                        <TableCell data-testid={`user-phone-${user.id}`}>
-                          {user.phone || "-"}
-                        </TableCell>
-                        <TableCell data-testid={`user-subscription-status-${user.id}`}>
-                          <div className="flex flex-col gap-1">
-                            {getSubscriptionStatusBadge(user.subscriptionStatus)}
-                            {user.accountStatus === 'blocked' && (
-                              <Badge variant="destructive" className="text-xs">Bloqueado</Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell data-testid={`user-subscription-date-${user.id}`}>
-                          {formatDate(user.latestSubscriptionPaidAt)}
-                        </TableCell>
-                        <TableCell data-testid={`user-expiry-${user.id}`}>
-                          {formatDate(user.subscriptionExpiresAt)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                data-testid={`button-actions-${user.id}`}
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem
-                                onClick={() => handleOpenEditDialog(user)}
-                                data-testid={`action-edit-${user.id}`}
-                              >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Editar Usuário
-                              </DropdownMenuItem>
-                              
-                              <DropdownMenuSeparator />
-                              
-                              <DropdownMenuItem
-                                onClick={() => handleOpenActivateDialog(user)}
-                                data-testid={`action-activate-${user.id}`}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Ativar Assinatura
-                              </DropdownMenuItem>
-                              
-                              {user.subscriptionStatus === 'active' && (
-                                <DropdownMenuItem
-                                  onClick={() => deactivateSubscriptionMutation.mutate(user.id)}
-                                  data-testid={`action-deactivate-${user.id}`}
-                                >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Desativar Assinatura
-                                </DropdownMenuItem>
-                              )}
-                              
-                              <DropdownMenuSeparator />
+                          </DropdownMenuItem>
 
-                              {/* Opções de Plano de Acesso */}
-                              <DropdownMenuItem
-                                onClick={() => setAccessPlanMutation.mutate({ userId: user.id, accessPlan: 'full' })}
-                                disabled={user.accessPlan === 'full' || setAccessPlanMutation.isPending}
-                                data-testid={`action-plan-full-${user.id}`}
-                                className={user.accessPlan === 'full' ? 'bg-amber-50' : ''}
-                              >
-                                <Crown className="w-4 h-4 mr-2 text-amber-500" />
-                                Plano Full {user.accessPlan === 'full' && '✓'}
-                              </DropdownMenuItem>
-                              
-                              <DropdownMenuItem
-                                onClick={() => setAccessPlanMutation.mutate({ userId: user.id, accessPlan: 'basic' })}
-                                disabled={user.accessPlan === 'basic' || setAccessPlanMutation.isPending}
-                                data-testid={`action-plan-basic-${user.id}`}
-                                className={user.accessPlan === 'basic' ? 'bg-blue-50' : ''}
-                              >
-                                <Star className="w-4 h-4 mr-2 text-blue-500" />
-                                Plano Basic {user.accessPlan === 'basic' && '✓'}
-                              </DropdownMenuItem>
-                              
-                              <DropdownMenuItem
-                                onClick={() => setAccessPlanMutation.mutate({ userId: user.id, accessPlan: null })}
-                                disabled={!user.accessPlan || setAccessPlanMutation.isPending}
-                                data-testid={`action-plan-free-${user.id}`}
-                                className={!user.accessPlan ? 'bg-gray-50' : ''}
-                              >
-                                <UserMinus className="w-4 h-4 mr-2 text-gray-500" />
-                                Plano Free {!user.accessPlan && '✓'}
-                              </DropdownMenuItem>
-                              
-                              <DropdownMenuSeparator />
-                              
-                              <DropdownMenuItem
-                                onClick={() => handleToggleBlock(user)}
-                                data-testid={`action-block-${user.id}`}
-                              >
-                                {user.accountStatus === 'blocked' ? (
-                                  <>
-                                    <Unlock className="w-4 h-4 mr-2" />
-                                    Desbloquear Acesso
-                                  </>
-                                ) : (
-                                  <>
-                                    <Lock className="w-4 h-4 mr-2" />
-                                    Bloquear Acesso
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              
-                              <DropdownMenuSeparator />
-                              
-                              <DropdownMenuItem
-                                onClick={() => handleOpenDeleteDialog(user)}
-                                className="text-red-600 focus:text-red-600"
-                                data-testid={`action-delete-${user.id}`}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Excluir Usuário
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                          <DropdownMenuSeparator />
 
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Mostrando {users.length} de {pagination.total} usuários
-                </p>
-                
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    data-testid="button-prev-page"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Anterior
-                  </Button>
-                  
-                  <span className="text-sm px-4" data-testid="pagination-info">
-                    Página {pagination.page} de {pagination.totalPages}
-                  </span>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-                    disabled={page >= pagination.totalPages}
-                    data-testid="button-next-page"
-                  >
-                    Próxima
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+                          <DropdownMenuItem
+                            onClick={() => handleOpenDeleteDialog(user)}
+                            className="text-red-600 focus:text-red-600"
+                            data-testid={`action-delete-${user.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Excluir usuário
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
 
       {/* Edit User Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -848,13 +786,13 @@ function UsersManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCog className="w-5 h-5" />
-              Editar Usuário
+              Editar usuário
             </DialogTitle>
             <DialogDescription>
               Edite as informações de {selectedUser?.name}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -866,7 +804,7 @@ function UsersManagement() {
                   data-testid="input-edit-name"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-email">Email *</Label>
                 <Input
@@ -877,7 +815,7 @@ function UsersManagement() {
                   data-testid="input-edit-email"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-phone">Telefone</Label>
                 <Input
@@ -891,7 +829,7 @@ function UsersManagement() {
                   data-testid="input-edit-phone"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-cpf">CPF</Label>
                 <Input
@@ -910,7 +848,7 @@ function UsersManagement() {
                   <p className="text-xs text-red-500">{cpfError}</p>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-profession">Profissão</Label>
                 <Input
@@ -920,9 +858,9 @@ function UsersManagement() {
                   data-testid="input-edit-profession"
                 />
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="edit-area">Área de Atuação</Label>
+                <Label htmlFor="edit-area">Área de atuação</Label>
                 <Input
                   id="edit-area"
                   value={editForm.areaAtuacao}
@@ -930,7 +868,7 @@ function UsersManagement() {
                   data-testid="input-edit-area"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-location">Localização</Label>
                 <Input
@@ -940,11 +878,11 @@ function UsersManagement() {
                   data-testid="input-edit-location"
                 />
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="edit-account-status">Status da Conta</Label>
-                <Select 
-                  value={editForm.accountStatus} 
+                <Label htmlFor="edit-account-status">Status da conta</Label>
+                <Select
+                  value={editForm.accountStatus}
                   onValueChange={(v) => setEditForm(prev => ({ ...prev, accountStatus: v }))}
                 >
                   <SelectTrigger data-testid="select-edit-account-status">
@@ -957,18 +895,18 @@ function UsersManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="edit-subscription-status">Status da Assinatura</Label>
-                <Select 
-                  value={editForm.subscriptionStatus} 
+                <Label htmlFor="edit-subscription-status">Status da assinatura</Label>
+                <Select
+                  value={editForm.subscriptionStatus}
                   onValueChange={(v) => setEditForm(prev => ({ ...prev, subscriptionStatus: v }))}
                 >
                   <SelectTrigger data-testid="select-edit-subscription-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Sem Assinatura</SelectItem>
+                    <SelectItem value="none">Sem assinatura</SelectItem>
                     <SelectItem value="active">Ativa</SelectItem>
                     <SelectItem value="expired">Expirada</SelectItem>
                     <SelectItem value="canceled">Cancelada</SelectItem>
@@ -976,7 +914,7 @@ function UsersManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2 flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -989,7 +927,7 @@ function UsersManagement() {
                 <Label htmlFor="edit-is-admin">Administrador</Label>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="edit-bio">Bio</Label>
               <Textarea
@@ -1001,17 +939,17 @@ function UsersManagement() {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleSaveEdit}
               disabled={updateUserMutation.isPending}
               data-testid="button-save-edit"
             >
-              {updateUserMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+              {updateUserMutation.isPending ? "Salvando..." : "Salvar alterações"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1021,12 +959,12 @@ function UsersManagement() {
       <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ativar/Editar Assinatura</DialogTitle>
+            <DialogTitle>Ativar/editar assinatura</DialogTitle>
             <DialogDescription>
               Ativar ou editar a assinatura de {selectedUser?.name}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="plan">Plano</Label>
@@ -1040,9 +978,9 @@ function UsersManagement() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="expiresAt">Data de Vencimento</Label>
+              <Label htmlFor="expiresAt">Data de vencimento</Label>
               <Input
                 id="expiresAt"
                 type="date"
@@ -1052,12 +990,12 @@ function UsersManagement() {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setActivateDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 if (selectedUser && expiresAt) {
                   activateSubscriptionMutation.mutate({
@@ -1070,7 +1008,7 @@ function UsersManagement() {
               disabled={!expiresAt || activateSubscriptionMutation.isPending}
               data-testid="button-confirm-activate"
             >
-              {activateSubscriptionMutation.isPending ? "Ativando..." : "Ativar Assinatura"}
+              {activateSubscriptionMutation.isPending ? "Ativando..." : "Ativar assinatura"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1082,7 +1020,7 @@ function UsersManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
               <Trash2 className="w-5 h-5" />
-              Excluir Usuário
+              Excluir usuário
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>Tem certeza que deseja excluir o usuário <strong>{userToDelete?.name}</strong>?</p>
@@ -1108,7 +1046,7 @@ function UsersManagement() {
               className="bg-red-600 hover:bg-red-700"
               disabled={deleteUserMutation.isPending}
             >
-              {deleteUserMutation.isPending ? "Excluindo..." : "Sim, Excluir Usuário"}
+              {deleteUserMutation.isPending ? "Excluindo..." : "Sim, excluir usuário"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1123,17 +1061,17 @@ function UsersManagement() {
               Mapeie as colunas do seu arquivo CSV para os campos do sistema
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
               Arquivo: <span className="font-medium">{csvFile?.name}</span>
             </p>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Campo: Nome *</Label>
-                <Select 
-                  value={fieldMapping.name} 
+                <Select
+                  value={fieldMapping.name}
                   onValueChange={(v) => setFieldMapping(prev => ({ ...prev, name: v }))}
                 >
                   <SelectTrigger data-testid="select-map-name">
@@ -1146,11 +1084,11 @@ function UsersManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Campo: Email *</Label>
-                <Select 
-                  value={fieldMapping.email} 
+                <Select
+                  value={fieldMapping.email}
                   onValueChange={(v) => setFieldMapping(prev => ({ ...prev, email: v }))}
                 >
                   <SelectTrigger data-testid="select-map-email">
@@ -1163,11 +1101,11 @@ function UsersManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Campo: Telefone</Label>
-                <Select 
-                  value={fieldMapping.phone} 
+                <Select
+                  value={fieldMapping.phone}
                   onValueChange={(v) => setFieldMapping(prev => ({ ...prev, phone: v }))}
                 >
                   <SelectTrigger data-testid="select-map-phone">
@@ -1184,8 +1122,8 @@ function UsersManagement() {
 
               <div className="space-y-2">
                 <Label>Campo: CPF</Label>
-                <Select 
-                  value={fieldMapping.cpf} 
+                <Select
+                  value={fieldMapping.cpf}
                   onValueChange={(v) => setFieldMapping(prev => ({ ...prev, cpf: v }))}
                 >
                   <SelectTrigger data-testid="select-map-cpf">
@@ -1206,16 +1144,16 @@ function UsersManagement() {
             <Button variant="outline" onClick={() => { setCsvModalOpen(false); setCsvFile(null); setCsvHeaders([]); }}>
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleImportCSV}
               disabled={importCSVMutation.isPending}
               data-testid="button-confirm-import"
             >
-              {importCSVMutation.isPending ? "Importando..." : "Importar Usuários"}
+              {importCSVMutation.isPending ? "Importando..." : "Importar usuários"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPage>
   );
 }

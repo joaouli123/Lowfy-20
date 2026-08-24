@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,14 +9,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Edit, Trash, X, Settings, AlertCircle, MoreVertical, Wrench, Upload, Image as ImageIcon } from "lucide-react";
+import { Plus, Edit, Trash, X, MoreVertical, Wrench, Upload, Package, Bot, KeyRound, ListChecks } from "lucide-react";
 import {
   insertServiceSchema,
   insertAIToolSchema,
@@ -33,29 +32,63 @@ import {
   type QuizInterativoSettings,
 } from "@shared/schema";
 import { z } from "zod";
+import {
+  AdminPage,
+  AdminPageHeader,
+  TableCard,
+  EmptyState,
+  TableSkeleton,
+  StatusBadge,
+  formatBRL,
+} from "@/components/admin";
+
+const AI_CATEGORIES: { value: string; label: string }[] = [
+  { value: "mineracao", label: "Ferramentas de Mineração" },
+  { value: "ia", label: "Inteligência Artificial" },
+  { value: "design", label: "Design" },
+  { value: "seo", label: "SEO" },
+  { value: "cortesia", label: "Cortesia" },
+  { value: "infoprodutos", label: "Infoprodutos" },
+  { value: "brinde", label: "Brinde" },
+  { value: "manutencao", label: "Manutenção" },
+  { value: "assistentes", label: "IA Conversacional" },
+  { value: "imagem-video", label: "Criação de Imagens e Vídeos" },
+  { value: "edicao", label: "Edição" },
+  { value: "apresentacao", label: "Apresentações" },
+  { value: "banco-imagens", label: "Banco de Imagens" },
+  { value: "texto", label: "Texto" },
+  { value: "video", label: "Vídeo" },
+  { value: "audio", label: "Áudio" },
+  { value: "codigo", label: "Código" },
+  { value: "analise", label: "Análise" },
+  { value: "outros", label: "Outros" },
+];
+
+const categoryLabel = (value?: string | null) =>
+  AI_CATEGORIES.find((c) => c.value === value)?.label || value || "—";
 
 export default function AdminServicos() {
   return (
-    <div className="p-[50px]">
-      <ServicesManagement />
-    </div>
-  );
-}
+    <AdminPage>
+      <AdminPageHeader
+        title="Serviços e ferramentas"
+        description="White Label, ferramentas de IA, acessos globais e Quiz Interativo"
+        icon={Wrench}
+      />
 
-function ServicesManagement() {
-  return (
-    <Tabs defaultValue="services" className="mt-6">
-      <TabsList className="grid w-full grid-cols-4 bg-white">
-        <TabsTrigger value="services" className="">White Label</TabsTrigger>
-        <TabsTrigger value="ai-tools" className="">FERRAMENTAS IA</TabsTrigger>
-        <TabsTrigger value="global-access" className="">ACESSOS GLOBAIS</TabsTrigger>
-        <TabsTrigger value="quiz-interativo" className="">QUIZ INTERATIVO</TabsTrigger>
-      </TabsList>
-      <TabsContent value="services"><ServicesTab /></TabsContent>
-      <TabsContent value="ai-tools"><AIToolsTab /></TabsContent>
-      <TabsContent value="global-access"><GlobalAccessTab /></TabsContent>
-      <TabsContent value="quiz-interativo"><QuizInterativoTab /></TabsContent>
-    </Tabs>
+      <Tabs defaultValue="services">
+        <TabsList>
+          <TabsTrigger value="services" data-testid="tab-services">White Label</TabsTrigger>
+          <TabsTrigger value="ai-tools" data-testid="tab-ai-tools">Ferramentas IA</TabsTrigger>
+          <TabsTrigger value="global-access" data-testid="tab-global-access">Acessos globais</TabsTrigger>
+          <TabsTrigger value="quiz-interativo" data-testid="tab-quiz-interativo">Quiz Interativo</TabsTrigger>
+        </TabsList>
+        <TabsContent value="services" className="mt-5"><ServicesTab /></TabsContent>
+        <TabsContent value="ai-tools" className="mt-5"><AIToolsTab /></TabsContent>
+        <TabsContent value="global-access" className="mt-5"><GlobalAccessTab /></TabsContent>
+        <TabsContent value="quiz-interativo" className="mt-5"><QuizInterativoTab /></TabsContent>
+      </Tabs>
+    </AdminPage>
   );
 }
 
@@ -215,198 +248,234 @@ function ServicesTab() {
   };
 
   return (
-    <Card className="mt-4 bg-white">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>White Label</CardTitle>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => openDialog()} data-testid="button-create-service">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo White Label
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingService ? "Editar White Label" : "Novo White Label"}</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="imageUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Imagem</FormLabel>
-                      <FormControl>
-                        <div className="space-y-3">
-                          {imagePreview && (
-                            <div className="relative w-full h-48 bg-muted rounded-lg overflow-hidden">
-                              <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                className="absolute top-2 right-2"
-                                onClick={() => {
-                                  form.setValue('imageUrl', '');
-                                  setImagePreview("");
-                                }}
-                                data-testid="button-remove-image"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploadingImage}
-                            data-testid="button-upload-image"
-                            className="w-full"
-                          >
-                            <Upload className="w-4 h-4 mr-2" />
-                            {isUploadingImage ? "Enviando..." : "Selecionar Imagem"}
-                          </Button>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-                            className="hidden"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-service-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} data-testid="input-service-description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="priceCents"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Preço (centavos)</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-service-price" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="benefitsText"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Benefícios (um por linha)</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} data-testid="input-service-benefits" rows={5} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex gap-4">
-                  <FormField
-                    control={form.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between">
-                        <FormLabel>Ativo</FormLabel>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-service-active" />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="isPopular"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between">
-                        <FormLabel>Popular</FormLabel>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-service-popular" />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="submit" data-testid="button-submit-service">
-                    {editingService ? "Atualizar" : "Criar"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
+    <>
+      <TableCard
+        title="White Label"
+        count={services?.length}
+        actions={
+          <Button size="sm" onClick={() => openDialog()} data-testid="button-create-service">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Novo White Label
+          </Button>
+        }
+      >
         {isLoading ? (
-          <Skeleton className="h-64" />
+          <TableSkeleton rows={4} />
+        ) : !services || services.length === 0 ? (
+          <EmptyState
+            icon={Package}
+            title="Nenhum White Label cadastrado"
+            description="Crie o primeiro serviço White Label para exibi-lo aos usuários."
+            action={
+              <Button size="sm" onClick={() => openDialog()}>
+                <Plus className="w-4 h-4 mr-1.5" />
+                Novo White Label
+              </Button>
+            }
+          />
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Preço</TableHead>
+                <TableHead className="text-right">Preço</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead className="w-[110px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {services?.map((service) => (
+              {services.map((service) => (
                 <TableRow key={service.id}>
-                  <TableCell data-testid={`service-name-${service.id}`}>{service.name}</TableCell>
-                  <TableCell data-testid={`service-price-${service.id}`}>R$ {(service.priceCents / 100).toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant={service.isActive ? "default" : "secondary"} data-testid={`service-status-${service.id}`}>
-                      {service.isActive ? "Ativo" : "Inativo"}
-                    </Badge>
+                  <TableCell data-testid={`service-name-${service.id}`}>
+                    <div className="flex items-center gap-3">
+                      {service.imageUrl ? (
+                        <img src={service.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover border" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
+                          <Package className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-medium text-sm">{service.name}</span>
+                        {service.isPopular && (
+                          <StatusBadge tone="warning" className="ml-2">Popular</StatusBadge>
+                        )}
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell className="space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => openDialog(service)} data-testid={`button-edit-service-${service.id}`}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(service.id)} data-testid={`button-delete-service-${service.id}`}>
-                      <Trash className="w-4 h-4" />
-                    </Button>
+                  <TableCell className="text-right tabular-nums font-medium" data-testid={`service-price-${service.id}`}>
+                    {formatBRL(service.priceCents)}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge tone={service.isActive ? "success" : "neutral"} dot data-testid={`service-status-${service.id}`}>
+                      {service.isActive ? "Ativo" : "Inativo"}
+                    </StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openDialog(service)} data-testid={`button-edit-service-${service.id}`} title="Editar">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deleteMutation.mutate(service.id)} data-testid={`button-delete-service-${service.id}`} title="Excluir">
+                        <Trash className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
-      </CardContent>
-    </Card>
+      </TableCard>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingService ? "Editar White Label" : "Novo White Label"}</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="imageUrl"
+                render={() => (
+                  <FormItem>
+                    <FormLabel>Imagem</FormLabel>
+                    <FormControl>
+                      <div className="space-y-3">
+                        {imagePreview && (
+                          <div className="relative w-full h-48 bg-muted rounded-lg overflow-hidden">
+                            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-2 right-2"
+                              onClick={() => {
+                                form.setValue('imageUrl', '');
+                                setImagePreview("");
+                              }}
+                              data-testid="button-remove-image"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                          data-testid="button-upload-image"
+                          className="w-full"
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          {isUploadingImage ? "Enviando..." : "Selecionar Imagem"}
+                        </Button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+                          className="hidden"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-service-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} data-testid="input-service-description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="priceCents"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preço (centavos)</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-service-price" />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      {formatBRL(form.watch("priceCents") || 0)}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="benefitsText"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Benefícios (um por linha)</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} data-testid="input-service-benefits" rows={5} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-6 bg-muted/60 rounded-lg p-3">
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0">
+                      <FormLabel className="font-normal">Ativo</FormLabel>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-service-active" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="isPopular"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0">
+                      <FormLabel className="font-normal">Popular</FormLabel>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-service-popular" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit-service">
+                  {editingService ? "Atualizar" : "Criar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -569,237 +638,31 @@ function AIToolsTab() {
   };
 
   return (
-    <Card className="mt-4 bg-white">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>FERRAMENTAS IA</CardTitle>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => openDialog()} data-testid="button-create-ai-tool">
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Ferramenta
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingTool ? "Editar Ferramenta IA" : "Nova Ferramenta IA"}</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome *</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-ai-tool-name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categoria *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-ai-tool-category">
-                              <SelectValue placeholder="Selecione uma categoria" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="mineracao">Ferramentas de Mineração</SelectItem>
-                            <SelectItem value="ia">Inteligência Artificial</SelectItem>
-                            <SelectItem value="design">Design</SelectItem>
-                            <SelectItem value="seo">SEO</SelectItem>
-                            <SelectItem value="cortesia">Cortesia</SelectItem>
-                            <SelectItem value="infoprodutos">Infoprodutos</SelectItem>
-                            <SelectItem value="brinde">Brinde</SelectItem>
-                            <SelectItem value="manutencao">Manutenção</SelectItem>
-                            <SelectItem value="assistentes">IA Conversacional</SelectItem>
-                            <SelectItem value="imagem-video">Criação de Imagens e Vídeos</SelectItem>
-                            <SelectItem value="edicao">Edição</SelectItem>
-                            <SelectItem value="apresentacao">Apresentações</SelectItem>
-                            <SelectItem value="banco-imagens">Banco de Imagens</SelectItem>
-                            <SelectItem value="texto">Texto</SelectItem>
-                            <SelectItem value="video">Vídeo</SelectItem>
-                            <SelectItem value="audio">Áudio</SelectItem>
-                            <SelectItem value="codigo">Código</SelectItem>
-                            <SelectItem value="analise">Análise</SelectItem>
-                            <SelectItem value="outros">Outros</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} value={field.value || ""} data-testid="input-ai-tool-description" rows={3} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="toolUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>URL da Ferramenta *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="https://..." data-testid="input-ai-tool-url" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="logoUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>URL do Logo</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            value={field.value || ""} 
-                            placeholder="https://..." 
-                            data-testid="input-ai-tool-logo" 
-                          />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          Exemplo CapCut Pro: https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/CapCut_Logo.svg/1200px-CapCut_Logo.svg.png
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="videoUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>URL do Vídeo Tutorial</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value || ""} placeholder="https://..." data-testid="input-ai-tool-video" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="instructions"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Instruções de Uso</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} value={field.value || ""} data-testid="input-ai-tool-instructions" rows={4} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Credenciais de Acesso</FormLabel>
-                    <Button type="button" variant="outline" size="sm" onClick={addCredential} data-testid="button-add-credential">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Credencial
-                    </Button>
-                  </div>
-                  {credentials.map((cred, index) => (
-                    <div key={index} className="border rounded-lg p-3 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Credencial {index + 1}</span>
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => removeCredential(index)}
-                          data-testid={`button-remove-credential-${index}`}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="text-sm font-medium">Rótulo</label>
-                          <Input
-                            value={cred.label}
-                            onChange={(e) => updateCredential(index, "label", e.target.value)}
-                            placeholder="Ex: Conta Principal"
-                            data-testid={`input-credential-label-${index}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Login/Email</label>
-                          <Input
-                            value={cred.login}
-                            onChange={(e) => updateCredential(index, "login", e.target.value)}
-                            placeholder="email@exemplo.com"
-                            data-testid={`input-credential-login-${index}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Senha</label>
-                          <Input
-                            type="text"
-                            value={cred.password}
-                            onChange={(e) => updateCredential(index, "password", e.target.value)}
-                            placeholder="Senha"
-                            data-testid={`input-credential-password-${index}`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between border rounded-lg p-3">
-                      <FormLabel>Ferramenta Ativa</FormLabel>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-ai-tool-active" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <DialogFooter>
-                  <Button type="submit" data-testid="button-submit-ai-tool">
-                    {editingTool ? "Atualizar" : "Criar"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
+    <>
+      <TableCard
+        title="Ferramentas IA"
+        count={tools?.length}
+        actions={
+          <Button size="sm" onClick={() => openDialog()} data-testid="button-create-ai-tool">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Nova ferramenta
+          </Button>
+        }
+      >
         {isLoading ? (
-          <Skeleton className="h-64" />
+          <TableSkeleton rows={6} />
+        ) : !tools || tools.length === 0 ? (
+          <EmptyState
+            icon={Bot}
+            title="Nenhuma ferramenta cadastrada"
+            description="Adicione ferramentas de IA para disponibilizá-las aos usuários."
+            action={
+              <Button size="sm" onClick={() => openDialog()}>
+                <Plus className="w-4 h-4 mr-1.5" />
+                Nova ferramenta
+              </Button>
+            }
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -808,29 +671,38 @@ function AIToolsTab() {
                 <TableHead>Categoria</TableHead>
                 <TableHead className="text-center">Credenciais</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="w-[60px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tools?.map((tool) => (
+              {tools.map((tool) => (
                 <TableRow key={tool.id}>
                   <TableCell data-testid={`ai-tool-name-${tool.id}`}>
-                    <span className="font-medium">{tool.name}</span>
+                    <div className="flex items-center gap-3">
+                      {tool.logoUrl ? (
+                        <img src={tool.logoUrl} alt="" className="w-8 h-8 rounded-lg object-contain border bg-white p-0.5" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
+                          <Bot className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <span className="font-medium text-sm">{tool.name}</span>
+                    </div>
                   </TableCell>
                   <TableCell data-testid={`ai-tool-category-${tool.id}`}>
-                    <Badge variant="outline" className="capitalize">{tool.category}</Badge>
+                    <Badge variant="outline" className="text-xs">{categoryLabel(tool.category)}</Badge>
                   </TableCell>
-                  <TableCell data-testid={`ai-tool-credentials-${tool.id}`} className="text-center">
-                    <span className="font-semibold text-lg">{tool.accessCredentials?.length || 0}</span>
+                  <TableCell data-testid={`ai-tool-credentials-${tool.id}`} className="text-center tabular-nums font-medium">
+                    {tool.accessCredentials?.length || 0}
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={tool.isUnderMaintenance ? "outline" : tool.isActive ? "default" : "secondary"} 
+                    <StatusBadge
+                      tone={tool.isUnderMaintenance ? "warning" : tool.isActive ? "success" : "neutral"}
+                      dot
                       data-testid={`ai-tool-status-${tool.id}`}
-                      className={`w-fit ${tool.isUnderMaintenance ? 'text-orange-600 border-orange-600' : ''}`}
                     >
-                      {tool.isUnderMaintenance ? "Em Manutenção" : tool.isActive ? "Ativo" : "Inativo"}
-                    </Badge>
+                      {tool.isUnderMaintenance ? "Em manutenção" : tool.isActive ? "Ativo" : "Inativo"}
+                    </StatusBadge>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -844,15 +716,15 @@ function AIToolsTab() {
                           <Edit className="w-4 h-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => toggleMaintenance(tool)}
                           data-testid={`button-maintenance-ai-tool-${tool.id}`}
                         >
                           <Wrench className="w-4 h-4 mr-2" />
-                          {tool.isUnderMaintenance ? "Remover Manutenção" : "Colocar em Manutenção"}
+                          {tool.isUnderMaintenance ? "Remover manutenção" : "Colocar em manutenção"}
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => deleteMutation.mutate(tool.id)} 
+                        <DropdownMenuItem
+                          onClick={() => deleteMutation.mutate(tool.id)}
                           className="text-red-600"
                           data-testid={`button-delete-ai-tool-${tool.id}`}
                         >
@@ -867,8 +739,211 @@ function AIToolsTab() {
             </TableBody>
           </Table>
         )}
-      </CardContent>
-    </Card>
+      </TableCard>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingTool ? "Editar Ferramenta IA" : "Nova Ferramenta IA"}</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome *</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-ai-tool-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categoria *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-ai-tool-category">
+                            <SelectValue placeholder="Selecione uma categoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {AI_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value || ""} data-testid="input-ai-tool-description" rows={3} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="toolUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL da Ferramenta *</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="https://..." data-testid="input-ai-tool-url" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="logoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL do Logo</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value || ""}
+                          placeholder="https://..."
+                          data-testid="input-ai-tool-logo"
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Exemplo CapCut Pro: https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/CapCut_Logo.svg/1200px-CapCut_Logo.svg.png
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="videoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Vídeo Tutorial</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="https://..." data-testid="input-ai-tool-video" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="instructions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Instruções de Uso</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value || ""} data-testid="input-ai-tool-instructions" rows={4} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <FormLabel>Credenciais de Acesso</FormLabel>
+                  <Button type="button" variant="outline" size="sm" onClick={addCredential} data-testid="button-add-credential">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Credencial
+                  </Button>
+                </div>
+                {credentials.map((cred, index) => (
+                  <div key={index} className="border rounded-lg p-3 space-y-3 bg-muted/40">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Credencial {index + 1}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCredential(index)}
+                        data-testid={`button-remove-credential-${index}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-sm font-medium">Rótulo</label>
+                        <Input
+                          value={cred.label}
+                          onChange={(e) => updateCredential(index, "label", e.target.value)}
+                          placeholder="Ex: Conta Principal"
+                          data-testid={`input-credential-label-${index}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Login/Email</label>
+                        <Input
+                          value={cred.login}
+                          onChange={(e) => updateCredential(index, "login", e.target.value)}
+                          placeholder="email@exemplo.com"
+                          data-testid={`input-credential-login-${index}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Senha</label>
+                        <Input
+                          type="text"
+                          value={cred.password}
+                          onChange={(e) => updateCredential(index, "password", e.target.value)}
+                          placeholder="Senha"
+                          data-testid={`input-credential-password-${index}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between border rounded-lg p-3 bg-muted/60 space-y-0">
+                    <FormLabel className="font-normal">Ferramenta Ativa</FormLabel>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-ai-tool-active" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit-ai-tool">
+                  {editingTool ? "Atualizar" : "Criar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -966,99 +1041,31 @@ function GlobalAccessTab() {
   };
 
   return (
-    <Card className="mt-4 bg-white">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>ACESSOS GLOBAIS</CardTitle>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => openDialog()} data-testid="button-create-global-access">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Acesso
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingAccess ? "Editar Acesso Global" : "Novo Acesso Global"}</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="label"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rótulo/Nome *</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Ex: ACESSO 1" data-testid="input-access-label" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="login"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Login/Email *</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Login ou email" data-testid="input-access-login" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha *</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} placeholder="Senha de acesso" data-testid="input-access-password" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="order"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ordem de Exibição</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-access-order" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between">
-                      <FormLabel>Acesso Ativo</FormLabel>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-access-active" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="submit" data-testid="button-submit-access">
-                    {editingAccess ? "Atualizar" : "Criar"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
+    <>
+      <TableCard
+        title="Acessos globais"
+        count={accesses?.length}
+        actions={
+          <Button size="sm" onClick={() => openDialog()} data-testid="button-create-global-access">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Novo acesso
+          </Button>
+        }
+      >
         {isLoading ? (
-          <Skeleton className="h-64" />
+          <TableSkeleton rows={4} />
+        ) : !accesses || accesses.length === 0 ? (
+          <EmptyState
+            icon={KeyRound}
+            title="Nenhum acesso global cadastrado"
+            description="Cadastre credenciais compartilhadas para as ferramentas de IA."
+            action={
+              <Button size="sm" onClick={() => openDialog()}>
+                <Plus className="w-4 h-4 mr-1.5" />
+                Novo acesso
+              </Button>
+            }
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -1066,41 +1073,123 @@ function GlobalAccessTab() {
                 <TableHead>Rótulo</TableHead>
                 <TableHead>Login</TableHead>
                 <TableHead>Senha</TableHead>
-                <TableHead>Ordem</TableHead>
+                <TableHead className="text-right">Ordem</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead className="w-[110px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accesses?.map((access) => (
+              {accesses.map((access) => (
                 <TableRow key={access.id}>
-                  <TableCell data-testid={`access-label-${access.id}`}>{access.label}</TableCell>
-                  <TableCell data-testid={`access-login-${access.id}`}>{access.login}</TableCell>
-                  <TableCell data-testid={`access-password-${access.id}`}>••••••••</TableCell>
-                  <TableCell data-testid={`access-order-${access.id}`}>{access.order}</TableCell>
+                  <TableCell className="font-medium text-sm" data-testid={`access-label-${access.id}`}>{access.label}</TableCell>
+                  <TableCell className="text-sm" data-testid={`access-login-${access.id}`}>{access.login}</TableCell>
+                  <TableCell className="text-muted-foreground" data-testid={`access-password-${access.id}`}>••••••••</TableCell>
+                  <TableCell className="text-right tabular-nums" data-testid={`access-order-${access.id}`}>{access.order}</TableCell>
                   <TableCell>
-                    <Badge variant={access.isActive ? "default" : "secondary"} data-testid={`access-status-${access.id}`}>
+                    <StatusBadge tone={access.isActive ? "success" : "neutral"} dot data-testid={`access-status-${access.id}`}>
                       {access.isActive ? "Ativo" : "Inativo"}
-                    </Badge>
+                    </StatusBadge>
                   </TableCell>
-                  <TableCell className="space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => openDialog(access)} data-testid={`button-edit-access-${access.id}`}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(access.id)} data-testid={`button-delete-access-${access.id}`}>
-                      <Trash className="w-4 h-4" />
-                    </Button>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openDialog(access)} data-testid={`button-edit-access-${access.id}`} title="Editar">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deleteMutation.mutate(access.id)} data-testid={`button-delete-access-${access.id}`} title="Excluir">
+                        <Trash className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
-      </CardContent>
-    </Card>
+      </TableCard>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingAccess ? "Editar Acesso Global" : "Novo Acesso Global"}</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="label"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rótulo/Nome *</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Ex: ACESSO 1" data-testid="input-access-label" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="login"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Login/Email *</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Login ou email" data-testid="input-access-login" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Senha *</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} placeholder="Senha de acesso" data-testid="input-access-password" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="order"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ordem de Exibição</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-access-order" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between border rounded-lg p-3 bg-muted/60 space-y-0">
+                    <FormLabel className="font-normal">Acesso Ativo</FormLabel>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-access-active" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit-access">
+                  {editingAccess ? "Atualizar" : "Criar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
-
 
 function QuizInterativoTab() {
   const { toast } = useToast();
@@ -1181,165 +1270,153 @@ function QuizInterativoTab() {
     }
   };
 
+  const settingsFields = settings ? [
+    { label: "URL do vídeo", value: settings.videoUrl || "Não configurado", testId: "text-current-video-url" },
+    { label: "URL da plataforma", value: settings.platformUrl, testId: "text-current-platform-url" },
+    { label: "Login", value: settings.login, testId: "text-current-login" },
+    { label: "Senha", value: settings.password, testId: "text-current-password" },
+  ] : [];
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Configurações - Quiz Interativo</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">Gerencie as credenciais e vídeo do Quiz Interativo</p>
+    <>
+      <div className="rounded-xl border bg-card shadow-sm">
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Quiz Interativo</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Credenciais e vídeo tutorial exibidos na página do Quiz Interativo</p>
+          </div>
+          <Button size="sm" onClick={openDialog} data-testid="button-edit-quiz-settings">
+            {settings ? (
+              <>
+                <Edit className="w-4 h-4 mr-1.5" />
+                Editar configurações
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-1.5" />
+                Criar configurações
+              </>
+            )}
+          </Button>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openDialog} data-testid="button-edit-quiz-settings">
-              {settings ? (
-                <>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar Configurações
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Criar Configurações
-                </>
-              )}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{settings ? "Editar" : "Criar"} Configurações do Quiz Interativo</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="videoUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>URL do Vídeo (Opcional)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="https://www.youtube.com/embed/..." data-testid="input-quiz-video-url" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="platformUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>URL da Plataforma *</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="https://plataforma-quiz.com" data-testid="input-quiz-platform-url" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="login"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Login/Email *</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Login ou email de acesso" data-testid="input-quiz-login" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha *</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} placeholder="Senha de acesso" data-testid="input-quiz-password" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between">
-                      <FormLabel>Configuração Ativa</FormLabel>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-quiz-active" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit-quiz-settings">
-                    {(createMutation.isPending || updateMutation.isPending) ? "Salvando..." : (settings ? "Atualizar" : "Criar")}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-64" />
-        ) : settings ? (
-          <div className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-muted-foreground">URL do Vídeo</label>
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border">
-                  <p className="text-sm font-mono break-all" data-testid="text-current-video-url">
-                    {settings.videoUrl || "Não configurado"}
-                  </p>
-                </div>
+        <div className="p-5">
+          {isLoading ? (
+            <Skeleton className="h-48 w-full rounded-lg" />
+          ) : settings ? (
+            <div className="space-y-5">
+              <div className="grid md:grid-cols-2 gap-4">
+                {settingsFields.map((f) => (
+                  <div key={f.testId} className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">{f.label}</label>
+                    <div className="bg-secondary/60 rounded-lg p-3 border">
+                      <p className="text-sm font-mono break-all" data-testid={f.testId}>{f.value}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-muted-foreground">URL da Plataforma</label>
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border">
-                  <p className="text-sm font-mono break-all" data-testid="text-current-platform-url">
-                    {settings.platformUrl}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-muted-foreground">Login</label>
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border">
-                  <p className="text-sm font-mono" data-testid="text-current-login">
-                    {settings.login}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-muted-foreground">Senha</label>
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border">
-                  <p className="text-sm font-mono" data-testid="text-current-password">
-                    {settings.password}
-                  </p>
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Status:</span>
+                <StatusBadge tone={settings.isActive ? "success" : "neutral"} dot data-testid="badge-current-status">
+                  {settings.isActive ? "Ativo" : "Inativo"}
+                </StatusBadge>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-semibold text-muted-foreground">Status:</label>
-              <Badge variant={settings.isActive ? "default" : "secondary"} data-testid="badge-current-status">
-                {settings.isActive ? "Ativo" : "Inativo"}
-              </Badge>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground mb-4">Nenhuma configuração cadastrada</p>
-            <Button onClick={openDialog} data-testid="button-create-quiz-settings-empty">
-              <Plus className="w-4 h-4 mr-2" />
-              Criar Configurações
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          ) : (
+            <EmptyState
+              icon={ListChecks}
+              title="Nenhuma configuração cadastrada"
+              description="Crie as configurações para exibir o Quiz Interativo aos usuários."
+              action={
+                <Button size="sm" onClick={openDialog} data-testid="button-create-quiz-settings-empty">
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Criar configurações
+                </Button>
+              }
+            />
+          )}
+        </div>
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{settings ? "Editar" : "Criar"} Configurações do Quiz Interativo</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="videoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Vídeo (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="https://www.youtube.com/embed/..." data-testid="input-quiz-video-url" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="platformUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL da Plataforma *</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="https://plataforma-quiz.com" data-testid="input-quiz-platform-url" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="login"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Login/Email *</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Login ou email de acesso" data-testid="input-quiz-login" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Senha *</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} placeholder="Senha de acesso" data-testid="input-quiz-password" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between border rounded-lg p-3 bg-muted/60 space-y-0">
+                    <FormLabel className="font-normal">Configuração Ativa</FormLabel>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-quiz-active" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit-quiz-settings">
+                  {(createMutation.isPending || updateMutation.isPending) ? "Salvando..." : (settings ? "Atualizar" : "Criar")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

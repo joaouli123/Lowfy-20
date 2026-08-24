@@ -1,28 +1,18 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Bug, Trash2, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useMemo } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useState } from "react";
+  AdminPage, AdminPageHeader, StatCard, StatGrid, TableCard, EmptyState,
+  TableSkeleton, StatusBadge, FilterBar,
+} from "@/components/admin";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SupportTicket {
   id: string;
@@ -35,18 +25,14 @@ interface SupportTicket {
   priority: string;
   createdAt: string;
   userId?: string;
-  attachments?: Array<{
-    id: string;
-    url: string;
-    type: 'image' | 'video';
-    name: string;
-    size: number;
-  }>;
+  attachments?: Array<{ id: string; url: string; type: 'image' | 'video'; name: string; size: number }>;
 }
 
 export default function AdminBugs() {
   const { toast } = useToast();
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: tickets = [], isLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/admin/support-tickets"],
@@ -58,189 +44,143 @@ export default function AdminBugs() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/support-tickets"] });
-      toast({
-        title: "Status atualizado",
-        description: "O status do bug foi atualizado com sucesso.",
-      });
+      toast({ title: "Status atualizado", description: "O status do bug foi atualizado com sucesso." });
     },
   });
 
   const deleteTicketMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/admin/support-tickets/${id}`);
-    },
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/admin/support-tickets/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/support-tickets"] });
-      toast({
-        title: "Bug removido",
-        description: "O bug foi removido com sucesso.",
-      });
+      toast({ title: "Bug removido", description: "O bug foi removido com sucesso." });
       setSelectedTicket(null);
     },
   });
 
-  const getStatusBadge = (status: string) => {
+  const statusBadge = (status: string) => {
     switch (status) {
-      case "open":
-        return <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" /> Aberto</Badge>;
-      case "in_progress":
-        return <Badge variant="default" className="gap-1 bg-yellow-500 hover:bg-yellow-600"><Clock className="h-3 w-3" /> Em Progresso</Badge>;
-      case "closed":
-        return <Badge variant="secondary" className="gap-1"><CheckCircle className="h-3 w-3" /> Fechado</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+      case "open": return <StatusBadge tone="danger" dot>Aberto</StatusBadge>;
+      case "in_progress": return <StatusBadge tone="warning" dot>Em progresso</StatusBadge>;
+      case "closed": return <StatusBadge tone="success" dot>Fechado</StatusBadge>;
+      default: return <StatusBadge>{status}</StatusBadge>;
     }
   };
 
-  const getPriorityBadge = (priority: string) => {
+  const priorityBadge = (priority: string) => {
     switch (priority) {
-      case "high":
-        return <Badge variant="destructive">Alta</Badge>;
-      case "medium":
-        return <Badge variant="default" className="bg-orange-500 hover:bg-orange-600">Média</Badge>;
-      case "low":
-        return <Badge variant="secondary">Baixa</Badge>;
-      default:
-        return <Badge variant="outline">{priority}</Badge>;
+      case "high": return <StatusBadge tone="danger">Alta</StatusBadge>;
+      case "medium": return <StatusBadge tone="warning">Média</StatusBadge>;
+      case "low": return <StatusBadge tone="neutral">Baixa</StatusBadge>;
+      default: return <StatusBadge>{priority}</StatusBadge>;
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="max-w-7xl mx-auto p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="h-64 bg-muted rounded"></div>
-        </div>
-      </div>
-    );
-  }
+  const counts = useMemo(() => ({
+    open: tickets.filter(t => t.status === "open").length,
+    inProgress: tickets.filter(t => t.status === "in_progress").length,
+    closed: tickets.filter(t => t.status === "closed").length,
+  }), [tickets]);
 
-  const openTickets = tickets.filter(t => t.status === "open");
-  const inProgressTickets = tickets.filter(t => t.status === "in_progress");
-  const closedTickets = tickets.filter(t => t.status === "closed");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return tickets.filter(t => {
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (q && !`${t.subject} ${t.name} ${t.email}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [tickets, search, statusFilter]);
 
   return (
-    <div className="max-w-7xl mx-auto p-8" data-testid="admin-bugs-page">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
-          <Bug className="h-8 w-8 text-orange-500" />
-          Bugs Reportados
-        </h1>
-        <p className="text-muted-foreground">
-          Gerencie e acompanhe os bugs reportados pelos usuários
-        </p>
-      </div>
+    <AdminPage data-testid="admin-bugs-page">
+      <AdminPageHeader
+        title="Bugs reportados"
+        description="Acompanhe e resolva os problemas reportados pelos usuários"
+        icon={Bug}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-500" />
-              Abertos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-open-count">{openTickets.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4 text-yellow-500" />
-              Em Progresso
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-progress-count">{inProgressTickets.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              Fechados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-closed-count">{closedTickets.length}</div>
-          </CardContent>
-        </Card>
-      </div>
+      <StatGrid cols={3}>
+        <StatCard label="Abertos" value={counts.open} icon={AlertCircle} tone={counts.open > 0 ? "danger" : "default"} colorValue={counts.open > 0} loading={isLoading} testId="text-open-count" />
+        <StatCard label="Em progresso" value={counts.inProgress} icon={Clock} tone="warning" loading={isLoading} testId="text-progress-count" />
+        <StatCard label="Fechados" value={counts.closed} icon={CheckCircle} tone="success" loading={isLoading} testId="text-closed-count" />
+      </StatGrid>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Bugs</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {tickets.length === 0 ? (
-            <div className="text-center py-12" data-testid="empty-state-bugs">
-              <Bug className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                Nenhum bug reportado
-              </h3>
-              <p className="text-muted-foreground">
-                Os bugs reportados aparecerão aqui
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Assunto</TableHead>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Prioridade</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+      <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Buscar por assunto, nome ou e-mail...">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-[160px] text-sm" data-testid="select-status-filter">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="open">Abertos</SelectItem>
+            <SelectItem value="in_progress">Em progresso</SelectItem>
+            <SelectItem value="closed">Fechados</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
+
+      <TableCard title="Lista de bugs" count={filtered.length}>
+        {isLoading ? (
+          <TableSkeleton />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={Bug}
+            title={tickets.length === 0 ? "Nenhum bug reportado" : "Nenhum resultado"}
+            description={tickets.length === 0 ? "Os bugs reportados pelos usuários aparecerão aqui." : "Ajuste a busca ou o filtro de status."}
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Assunto</TableHead>
+                <TableHead>Usuário</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Prioridade</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right pr-4">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((ticket) => (
+                <TableRow
+                  key={ticket.id}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedTicket(ticket)}
+                  data-testid={`row-ticket-${ticket.id}`}
+                >
+                  <TableCell className="font-medium max-w-[280px] truncate">{ticket.subject}</TableCell>
+                  <TableCell>
+                    <div className="min-w-0">
+                      <div className="font-medium truncate max-w-[200px]">{ticket.name}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-[200px]">{ticket.email}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{statusBadge(ticket.status)}</TableCell>
+                  <TableCell>{priorityBadge(ticket.priority)}</TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
+                    {format(new Date(ticket.createdAt), "dd/MM/yy HH:mm", { locale: ptBR })}
+                  </TableCell>
+                  <TableCell className="text-right pr-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); deleteTicketMutation.mutate(ticket.id); }}
+                      data-testid={`button-delete-${ticket.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tickets.map((ticket) => (
-                  <TableRow
-                    key={ticket.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setSelectedTicket(ticket)}
-                    data-testid={`row-ticket-${ticket.id}`}
-                  >
-                    <TableCell className="font-medium">{ticket.subject}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{ticket.name}</div>
-                        <div className="text-xs text-muted-foreground">{ticket.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                    <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(ticket.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteTicketMutation.mutate(ticket.id);
-                        }}
-                        data-testid={`button-delete-${ticket.id}`}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
 
       <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
         <DialogContent className="max-w-2xl" data-testid="dialog-ticket-details">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Bug className="h-5 w-5 text-orange-500" />
+              <Bug className="h-5 w-5 text-amber-500" />
               {selectedTicket?.subject}
             </DialogTitle>
             <DialogDescription>
@@ -251,7 +191,7 @@ export default function AdminBugs() {
 
           <div className="space-y-4">
             <div>
-              <h4 className="font-semibold mb-2">Mensagem:</h4>
+              <h4 className="text-sm font-semibold mb-2">Mensagem</h4>
               <p className="text-sm text-muted-foreground bg-muted p-4 rounded-lg whitespace-pre-wrap">
                 {selectedTicket?.message}
               </p>
@@ -259,7 +199,7 @@ export default function AdminBugs() {
 
             {selectedTicket?.attachments && selectedTicket.attachments.length > 0 && (
               <div>
-                <h4 className="font-semibold mb-2">Anexos ({selectedTicket.attachments.length}):</h4>
+                <h4 className="text-sm font-semibold mb-2">Anexos ({selectedTicket.attachments.length})</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {selectedTicket.attachments.map((attachment, index) => (
                     <div key={attachment.id} className="border rounded-lg overflow-hidden">
@@ -273,19 +213,12 @@ export default function AdminBugs() {
                             data-testid={`img-attachment-${index}`}
                           />
                         ) : (
-                          <video
-                            src={attachment.url}
-                            controls
-                            className="w-full h-full object-cover"
-                            data-testid={`video-attachment-${index}`}
-                          />
+                          <video src={attachment.url} controls className="w-full h-full object-cover" data-testid={`video-attachment-${index}`} />
                         )}
                       </div>
                       <div className="p-2 bg-background">
                         <p className="text-xs font-medium truncate">{attachment.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {(attachment.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
+                        <p className="text-xs text-muted-foreground">{(attachment.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
                     </div>
                   ))}
@@ -293,14 +226,14 @@ export default function AdminBugs() {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <div>
-                <span className="text-sm font-medium">Status: </span>
-                {selectedTicket && getStatusBadge(selectedTicket.status)}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">Status:</span>
+                {selectedTicket && statusBadge(selectedTicket.status)}
               </div>
-              <div>
-                <span className="text-sm font-medium">Prioridade: </span>
-                {selectedTicket && getPriorityBadge(selectedTicket.priority)}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">Prioridade:</span>
+                {selectedTicket && priorityBadge(selectedTicket.priority)}
               </div>
             </div>
 
@@ -309,54 +242,37 @@ export default function AdminBugs() {
                 <>
                   {selectedTicket?.status === "open" && (
                     <Button
-                      variant="default"
-                      onClick={() => {
-                        if (selectedTicket) {
-                          updateStatusMutation.mutate({ id: selectedTicket.id, status: "in_progress" });
-                        }
-                      }}
+                      variant="outline"
+                      onClick={() => selectedTicket && updateStatusMutation.mutate({ id: selectedTicket.id, status: "in_progress" })}
                       disabled={updateStatusMutation.isPending}
                       data-testid="button-mark-progress"
                     >
-                      <Clock className="h-4 w-4 mr-2" />
-                      Marcar em Progresso
+                      <Clock className="h-4 w-4 mr-2" /> Marcar em progresso
                     </Button>
                   )}
                   <Button
-                    variant="default"
-                    className="bg-green-600 hover:bg-green-700"
-                    onClick={() => {
-                      if (selectedTicket) {
-                        updateStatusMutation.mutate({ id: selectedTicket.id, status: "closed" });
-                      }
-                    }}
+                    onClick={() => selectedTicket && updateStatusMutation.mutate({ id: selectedTicket.id, status: "closed" })}
                     disabled={updateStatusMutation.isPending}
                     data-testid="button-mark-closed"
                   >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Marcar como Resolvido
+                    <CheckCircle className="h-4 w-4 mr-2" /> Marcar como resolvido
                   </Button>
                 </>
               )}
               {selectedTicket?.status === "closed" && (
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    if (selectedTicket) {
-                      updateStatusMutation.mutate({ id: selectedTicket.id, status: "open" });
-                    }
-                  }}
+                  onClick={() => selectedTicket && updateStatusMutation.mutate({ id: selectedTicket.id, status: "open" })}
                   disabled={updateStatusMutation.isPending}
                   data-testid="button-reopen"
                 >
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Reabrir
+                  <AlertCircle className="h-4 w-4 mr-2" /> Reabrir
                 </Button>
               )}
             </div>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPage>
   );
 }

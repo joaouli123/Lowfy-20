@@ -1,8 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { 
-  MoreHorizontal, 
-  Eye, 
-  Trash2, 
-  Lock, 
-  LockOpen, 
-  Edit2, 
+import {
+  MoreHorizontal,
+  Eye,
+  Trash2,
+  Lock,
+  LockOpen,
+  Edit2,
   Link as LinkIcon,
   ExternalLink,
   AlertTriangle,
@@ -26,9 +24,13 @@ import {
   Check,
   ImagePlus,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ShoppingBag,
+  Store,
+  ShieldAlert,
+  TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +48,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  AdminPage, AdminPageHeader, StatCard, StatGrid, TableCard, EmptyState,
+  TableSkeleton, StatusBadge, FilterBar, formatBRL, formatNumber,
+} from "@/components/admin";
 
 interface MarketplaceProduct {
   id: string;
@@ -70,13 +76,6 @@ interface MarketplaceProduct {
   createdAt: string;
   updatedAt: string;
 }
-
-const formatCurrency = (cents: number) => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(cents / 100);
-};
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString("pt-BR", {
@@ -104,6 +103,9 @@ export default function AdminMarketplace() {
   const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
   const [blockReason, setBlockReason] = useState("");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const [editForm, setEditForm] = useState({
     title: "",
@@ -269,187 +271,253 @@ export default function AdminMarketplace() {
     };
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2" data-testid="page-title">Moderação de Produtos</h1>
-          <p className="text-muted-foreground">
-            Gerencie e modere todos os produtos do marketplace
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => window.open("/marketplace/politicas", "_blank")} data-testid="button-view-policies">
-          <ExternalLink className="w-4 h-4 mr-2" />
-          Ver Políticas
-        </Button>
-      </div>
+  const stats = useMemo(() => {
+    const list = products || [];
+    return {
+      total: list.length,
+      active: list.filter(p => p.isActive && !p.isBlocked).length,
+      blocked: list.filter(p => p.isBlocked).length,
+      sales: list.reduce((sum, p) => sum + (p.salesCount || 0), 0),
+    };
+  }, [products]);
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Produtos do Marketplace</span>
-            {products && products.length > 0 && (
-              <Badge variant="secondary">{products.length} produtos</Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : error ? (
-            <div className="text-center py-8">
-              <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-              <p className="text-muted-foreground">Erro ao carregar produtos</p>
-              <Button variant="outline" onClick={() => refetch()} className="mt-4" data-testid="button-retry">
-                Tentar novamente
-              </Button>
-            </div>
-          ) : !products || products.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground" data-testid="empty-state">
-              Nenhum produto encontrado
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Preço</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Vendas</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id} data-testid={`product-row-${product.id}`}>
-                      <TableCell className="font-medium max-w-[200px] truncate" data-testid={`product-title-${product.id}`}>
-                        {product.title}
-                      </TableCell>
-                      <TableCell data-testid={`product-seller-${product.id}`}>
-                        <div className="text-sm">
-                          <p className="font-medium">{product.sellerName || "—"}</p>
-                          <p className="text-xs text-muted-foreground">{product.sellerEmail || "—"}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell data-testid={`product-date-${product.id}`}>
-                        {formatDate(product.createdAt)}
-                      </TableCell>
-                      <TableCell data-testid={`product-price-${product.id}`}>
-                        {formatCurrency(product.price)}
-                      </TableCell>
-                      <TableCell data-testid={`product-category-${product.id}`}>
-                        <Badge variant="outline">
-                          {CATEGORIES.find(c => c.value === product.category)?.label || product.category || "—"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell data-testid={`product-sales-${product.id}`}>
-                        {product.salesCount || 0}
-                      </TableCell>
-                      <TableCell data-testid={`product-status-${product.id}`}>
-                        {product.isBlocked ? (
-                          <div>
-                            <Badge variant="destructive" className="bg-red-600 mb-1">
-                              Bloqueado
-                            </Badge>
-                            {product.blockReason && (
-                              <p className="text-xs text-red-600 mt-1 max-w-[150px] truncate" title={product.blockReason}>
-                                {product.blockReason}
-                              </p>
-                            )}
-                          </div>
-                        ) : product.isActive ? (
-                          <Badge variant="default" className="bg-green-600">
-                            Ativo
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Inativo</Badge>
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (products || []).filter(p => {
+      if (statusFilter === "active" && (!p.isActive || p.isBlocked)) return false;
+      if (statusFilter === "inactive" && (p.isActive || p.isBlocked)) return false;
+      if (statusFilter === "blocked" && !p.isBlocked) return false;
+      if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
+      if (q && !`${p.title} ${p.sellerName || ""} ${p.sellerEmail || ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [products, search, statusFilter, categoryFilter]);
+
+  return (
+    <AdminPage width="wide">
+      <AdminPageHeader
+        title="Moderação do marketplace"
+        description="Gerencie e modere todos os produtos do marketplace"
+        icon={Store}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => window.open("/marketplace/politicas", "_blank")} data-testid="button-view-policies">
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Ver políticas
+          </Button>
+        }
+      />
+
+      <StatGrid cols={4}>
+        <StatCard
+          label="Produtos"
+          value={formatNumber(stats.total)}
+          icon={ShoppingBag}
+          tone="info"
+          loading={isLoading}
+          testId="stat-total-products"
+        />
+        <StatCard
+          label="Ativos"
+          value={formatNumber(stats.active)}
+          icon={Check}
+          tone="success"
+          loading={isLoading}
+          testId="stat-active-products"
+        />
+        <StatCard
+          label="Bloqueados"
+          value={formatNumber(stats.blocked)}
+          icon={ShieldAlert}
+          tone={stats.blocked > 0 ? "danger" : "default"}
+          colorValue={stats.blocked > 0}
+          loading={isLoading}
+          testId="stat-blocked-products"
+        />
+        <StatCard
+          label="Vendas totais"
+          value={formatNumber(stats.sales)}
+          icon={TrendingUp}
+          tone="violet"
+          loading={isLoading}
+          testId="stat-total-sales"
+        />
+      </StatGrid>
+
+      <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Buscar por produto ou vendedor...">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-[150px] text-sm" data-testid="select-status-filter">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="active">Ativos</SelectItem>
+            <SelectItem value="inactive">Inativos</SelectItem>
+            <SelectItem value="blocked">Bloqueados</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="h-9 w-[170px] text-sm" data-testid="select-category-filter">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as categorias</SelectItem>
+            {CATEGORIES.map((cat) => (
+              <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FilterBar>
+
+      <TableCard title="Produtos do marketplace" count={filtered.length}>
+        {isLoading ? (
+          <TableSkeleton />
+        ) : error ? (
+          <div className="text-center py-10">
+            <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+            <p className="text-muted-foreground">Erro ao carregar produtos</p>
+            <Button variant="outline" onClick={() => refetch()} className="mt-4" data-testid="button-retry">
+              Tentar novamente
+            </Button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={ShoppingBag}
+            title={!products || products.length === 0 ? "Nenhum produto" : "Nenhum resultado"}
+            description={!products || products.length === 0
+              ? "Os produtos publicados pelos vendedores aparecerão aqui."
+              : "Ajuste a busca ou os filtros."}
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Produto</TableHead>
+                <TableHead>Vendedor</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead className="text-right">Preço</TableHead>
+                <TableHead className="text-right">Vendas</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right pr-4">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((product) => (
+                <TableRow key={product.id} data-testid={`product-row-${product.id}`}>
+                  <TableCell className="font-medium max-w-[220px] truncate" data-testid={`product-title-${product.id}`}>
+                    {product.title}
+                  </TableCell>
+                  <TableCell data-testid={`product-seller-${product.id}`}>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate max-w-[180px]">{product.sellerName || "—"}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[180px]">{product.sellerEmail || "—"}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell data-testid={`product-category-${product.id}`}>
+                    <Badge variant="outline">
+                      {CATEGORIES.find(c => c.value === product.category)?.label || product.category || "—"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums" data-testid={`product-price-${product.id}`}>
+                    {formatBRL(product.price)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums" data-testid={`product-sales-${product.id}`}>
+                    {product.salesCount || 0}
+                  </TableCell>
+                  <TableCell data-testid={`product-status-${product.id}`}>
+                    {product.isBlocked ? (
+                      <div>
+                        <StatusBadge tone="danger" dot>Bloqueado</StatusBadge>
+                        {product.blockReason && (
+                          <p className="text-xs text-rose-600 mt-1 max-w-[150px] truncate" title={product.blockReason}>
+                            {product.blockReason}
+                          </p>
                         )}
-                      </TableCell>
-                      <TableCell className="text-right" data-testid={`product-actions-${product.id}`}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" data-testid={`button-actions-${product.id}`}>
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem
-                              onClick={() => window.open(`/marketplace/produto/${product.id}`, "_blank")}
-                              data-testid={`action-view-${product.id}`}
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              Ver Produto
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedProduct(product);
-                                setLinksDialogOpen(true);
-                              }}
-                              data-testid={`action-links-${product.id}`}
-                            >
-                              <LinkIcon className="w-4 h-4 mr-2" />
-                              Ver Links
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleOpenEdit(product)}
-                              data-testid={`action-edit-${product.id}`}
-                            >
-                              <Edit2 className="w-4 h-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            {product.isBlocked ? (
-                              <DropdownMenuItem
-                                onClick={() => unblockMutation.mutate(product.id)}
-                                disabled={unblockMutation.isPending}
-                                data-testid={`action-unblock-${product.id}`}
-                              >
-                                <LockOpen className="w-4 h-4 mr-2 text-green-600" />
-                                Desbloquear
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedProduct(product);
-                                  setBlockDialogOpen(true);
-                                }}
-                                data-testid={`action-block-${product.id}`}
-                              >
-                                <Lock className="w-4 h-4 mr-2 text-amber-600" />
-                                Bloquear
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedProduct(product);
-                                setDeleteDialogOpen(true);
-                              }}
-                              className="text-red-600 focus:text-red-600"
-                              data-testid={`action-delete-${product.id}`}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      </div>
+                    ) : product.isActive ? (
+                      <StatusBadge tone="success" dot>Ativo</StatusBadge>
+                    ) : (
+                      <StatusBadge tone="neutral" dot>Inativo</StatusBadge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums text-sm" data-testid={`product-date-${product.id}`}>
+                    {formatDate(product.createdAt)}
+                  </TableCell>
+                  <TableCell className="text-right pr-2" data-testid={`product-actions-${product.id}`}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" data-testid={`button-actions-${product.id}`}>
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={() => window.open(`/marketplace/produto/${product.id}`, "_blank")}
+                          data-testid={`action-view-${product.id}`}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Ver produto
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setLinksDialogOpen(true);
+                          }}
+                          data-testid={`action-links-${product.id}`}
+                        >
+                          <LinkIcon className="w-4 h-4 mr-2" />
+                          Ver links
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleOpenEdit(product)}
+                          data-testid={`action-edit-${product.id}`}
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        {product.isBlocked ? (
+                          <DropdownMenuItem
+                            onClick={() => unblockMutation.mutate(product.id)}
+                            disabled={unblockMutation.isPending}
+                            data-testid={`action-unblock-${product.id}`}
+                          >
+                            <LockOpen className="w-4 h-4 mr-2 text-emerald-600" />
+                            Desbloquear
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setBlockDialogOpen(true);
+                            }}
+                            data-testid={`action-block-${product.id}`}
+                          >
+                            <Lock className="w-4 h-4 mr-2 text-amber-600" />
+                            Bloquear
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setDeleteDialogOpen(true);
+                          }}
+                          className="text-red-600 focus:text-red-600"
+                          data-testid={`action-delete-${product.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
 
       {/* Block Dialog */}
       <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
@@ -457,7 +525,7 @@ export default function AdminMarketplace() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="w-5 h-5 text-amber-600" />
-              Bloquear Produto
+              Bloquear produto
             </DialogTitle>
             <DialogDescription>
               O vendedor será notificado por email sobre o bloqueio.
@@ -488,7 +556,7 @@ export default function AdminMarketplace() {
               <p className="text-sm text-amber-800 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>
-                  O vendedor receberá um email informando que seu produto foi bloqueado por violar as 
+                  O vendedor receberá um email informando que seu produto foi bloqueado por violar as
                   <a href="/marketplace/politicas" target="_blank" className="underline ml-1">políticas do marketplace</a>.
                 </span>
               </p>
@@ -526,7 +594,7 @@ export default function AdminMarketplace() {
                 disabled={blockMutation.isPending}
                 data-testid="button-confirm-block"
               >
-                {blockMutation.isPending ? "Bloqueando..." : "Bloquear Produto"}
+                {blockMutation.isPending ? "Bloqueando..." : "Bloquear produto"}
               </Button>
             </div>
           </div>
@@ -539,12 +607,12 @@ export default function AdminMarketplace() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit2 className="w-5 h-5" />
-              Editar Produto
+              Editar produto
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="edit-title">Nome do Produto</Label>
+              <Label htmlFor="edit-title">Nome do produto</Label>
               <Input
                 id="edit-title"
                 value={editForm.title}
@@ -578,7 +646,7 @@ export default function AdminMarketplace() {
                   data-testid="input-edit-price"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  = {formatCurrency(editForm.price)}
+                  = {formatBRL(editForm.price)}
                 </p>
               </div>
               <div>
@@ -602,7 +670,7 @@ export default function AdminMarketplace() {
             </div>
 
             <div>
-              <Label htmlFor="edit-url">URL do Produto</Label>
+              <Label htmlFor="edit-url">URL do produto</Label>
               <Input
                 id="edit-url"
                 value={editForm.productUrl}
@@ -613,14 +681,12 @@ export default function AdminMarketplace() {
               />
             </div>
 
-            {/* Seção de Imagens */}
             <div className="space-y-3">
               <Label className="flex items-center gap-2">
                 <ImageIcon className="w-4 h-4" />
-                Imagens do Produto
+                Imagens do produto
               </Label>
-              
-              {/* Grid de imagens atuais */}
+
               {editForm.images.length > 0 ? (
                 <div className="grid grid-cols-3 gap-2">
                   {editForm.images.map((img, index) => (
@@ -653,7 +719,6 @@ export default function AdminMarketplace() {
                 </div>
               )}
 
-              {/* Adicionar nova imagem por URL */}
               <div className="flex gap-2">
                 <Input
                   placeholder="Cole a URL da imagem aqui..."
@@ -680,7 +745,7 @@ export default function AdminMarketplace() {
 
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <div>
-                <Label htmlFor="edit-active">Produto Ativo</Label>
+                <Label htmlFor="edit-active">Produto ativo</Label>
                 <p className="text-xs text-muted-foreground">
                   Produtos inativos não aparecem no marketplace
                 </p>
@@ -706,7 +771,7 @@ export default function AdminMarketplace() {
                 disabled={editMutation.isPending}
                 data-testid="button-save-edit"
               >
-                {editMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+                {editMutation.isPending ? "Salvando..." : "Salvar alterações"}
               </Button>
             </div>
           </div>
@@ -719,7 +784,7 @@ export default function AdminMarketplace() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LinkIcon className="w-5 h-5" />
-              Links do Produto
+              Links do produto
             </DialogTitle>
           </DialogHeader>
           {selectedProduct && (
@@ -730,107 +795,39 @@ export default function AdminMarketplace() {
 
               {(() => {
                 const links = getProductLinks(selectedProduct);
+                const rows: { key: string; label: string; url: string; testId?: string }[] = [
+                  { key: "product", label: "Página do produto", url: links.productPage, testId: "button-copy-product-link" },
+                  ...(links.productSlug ? [{ key: "slug", label: "Link amigável (slug)", url: links.productSlug, testId: "button-copy-slug-link" }] : []),
+                  { key: "seller", label: "Perfil do vendedor", url: links.sellerProfile, testId: "button-copy-seller-link" },
+                  ...(links.externalUrl ? [{ key: "external", label: "URL externa do produto", url: links.externalUrl, testId: "button-copy-external-link" }] : []),
+                ];
                 return (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1 min-w-0 mr-2">
-                        <p className="text-sm font-medium">Página do Produto</p>
-                        <p className="text-xs text-muted-foreground truncate">{links.productPage}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => copyToClipboard(links.productPage, "product")}
-                          data-testid="button-copy-product-link"
-                        >
-                          {copiedLink === "product" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => window.open(links.productPage, "_blank")}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {links.productSlug && (
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                    {rows.map((row) => (
+                      <div key={row.key} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex-1 min-w-0 mr-2">
-                          <p className="text-sm font-medium">Link Amigável (Slug)</p>
-                          <p className="text-xs text-muted-foreground truncate">{links.productSlug}</p>
+                          <p className="text-sm font-medium">{row.label}</p>
+                          <p className="text-xs text-muted-foreground truncate">{row.url}</p>
                         </div>
                         <div className="flex gap-1">
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => copyToClipboard(links.productSlug!, "slug")}
-                            data-testid="button-copy-slug-link"
+                            onClick={() => copyToClipboard(row.url, row.key)}
+                            data-testid={row.testId}
                           >
-                            {copiedLink === "slug" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            {copiedLink === row.key ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => window.open(links.productSlug!, "_blank")}
+                            onClick={() => window.open(row.url, "_blank")}
                           >
                             <ExternalLink className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
-                    )}
-
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1 min-w-0 mr-2">
-                        <p className="text-sm font-medium">Perfil do Vendedor</p>
-                        <p className="text-xs text-muted-foreground truncate">{links.sellerProfile}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => copyToClipboard(links.sellerProfile, "seller")}
-                          data-testid="button-copy-seller-link"
-                        >
-                          {copiedLink === "seller" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => window.open(links.sellerProfile, "_blank")}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {links.externalUrl && (
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1 min-w-0 mr-2">
-                          <p className="text-sm font-medium">URL Externa do Produto</p>
-                          <p className="text-xs text-muted-foreground truncate">{links.externalUrl}</p>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => copyToClipboard(links.externalUrl!, "external")}
-                            data-testid="button-copy-external-link"
-                          >
-                            {copiedLink === "external" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => window.open(links.externalUrl!, "_blank")}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    ))}
                   </div>
                 );
               })()}
@@ -849,7 +846,7 @@ export default function AdminMarketplace() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
+            <AlertDialogTitle>Excluir produto</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir o produto <strong>"{selectedProduct?.title}"</strong>?
               <br /><br />
@@ -869,6 +866,6 @@ export default function AdminMarketplace() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminPage>
   );
 }

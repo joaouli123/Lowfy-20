@@ -89,6 +89,7 @@ const PLRLicense = lazy(() => import("@/pages/legal/PLRLicense"));
 const Copyright = lazy(() => import("@/pages/legal/Copyright"));
 
 // Lazy load admin pages
+const AdminHome = lazy(() => import("@/pages/Admin"));
 const AdminAnalytics = lazy(() => import("@/pages/admin/AdminAnalytics"));
 const AdminClonagemAnalytics = lazy(() => import("@/pages/admin/AdminClonagemAnalytics"));
 const AdminUsuarios = lazy(() => import("@/pages/admin/AdminUsuarios"));
@@ -270,6 +271,9 @@ function Router() {
                 <Route path="/forum" component={Forum} />
                 <Route path="/forum/:idOrSlug" component={ForumTopic} />
                 <Route path="/set-password" component={SetPassword} />
+                <Route path="/admin">
+                  {() => <AdminRoute><AdminHome /></AdminRoute>}
+                </Route>
                 <Route path="/admin/analytics">
                   {() => <AdminRoute><AdminAnalytics /></AdminRoute>}
                 </Route>

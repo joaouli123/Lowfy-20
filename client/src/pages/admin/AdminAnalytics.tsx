@@ -1,59 +1,35 @@
-
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+  AreaChart, Area, CartesianGrid, Tooltip, XAxis, YAxis, Legend, ResponsiveContainer,
 } from "recharts";
 import {
-  Users,
-  MessageSquare,
-  BookOpen,
-  ShoppingBag,
-  Briefcase,
-  TicketIcon,
-  TrendingUp,
+  Users, MessageSquare, BookOpen, ShoppingBag, Briefcase, TicketIcon,
+  GraduationCap, Sparkles, BarChart3,
 } from "lucide-react";
+import {
+  AdminPage, AdminPageHeader, StatCard, StatGrid, ChartCard,
+  CHART_COLORS, gridProps, axisProps, tooltipStyle, formatNumber,
+} from "@/components/admin";
+
+interface AnalyticsData {
+  totalUsers: number;
+  activeUsers: number;
+  totalTopics: number;
+  totalReplies: number;
+  totalPLRs: number;
+  totalServices: number;
+  totalCourses: number;
+  totalAITools: number;
+  totalMarketplaceProducts: number;
+  totalSupportTickets: number;
+  openTickets: number;
+}
+
+interface UserGrowthData { date: string; count: number }
+interface ForumActivityData { date: string; topics: number; replies: number }
 
 export default function AdminAnalytics() {
-  interface AdminAnalytics {
-    totalUsers: number;
-    activeUsers: number;
-    totalTopics: number;
-    totalReplies: number;
-    totalPLRs: number;
-    totalServices: number;
-    totalCourses: number;
-    totalAITools: number;
-    totalMarketplaceProducts: number;
-    totalSupportTickets: number;
-    openTickets: number;
-  }
-
-  interface UserGrowthData {
-    date: string;
-    count: number;
-  }
-
-  interface ForumActivityData {
-    date: string;
-    topics: number;
-    replies: number;
-  }
-
-  const { data: analytics, isLoading: analyticsLoading } = useQuery<AdminAnalytics>({
+  const { data: analytics, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
     queryKey: ["/api/admin/analytics"],
   });
 
@@ -65,270 +41,135 @@ export default function AdminAnalytics() {
     queryKey: ["/api/admin/analytics/forum-activity"],
   });
 
+  const hasOpenTickets = (analytics?.openTickets ?? 0) > 0;
+
   return (
-    <div className="p-[50px]">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Analytics</h1>
-        <p className="text-muted-foreground">Visualize métricas e estatísticas da plataforma</p>
-      </div>
+    <AdminPage>
+      <AdminPageHeader
+        title="Analytics"
+        description="Métricas gerais da plataforma"
+        icon={BarChart3}
+      />
 
-      <div className="space-y-6">
-        {/* Analytics Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card data-testid="analytics-total-users">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de Usuários</p>
-                  {analyticsLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <p className="text-2xl font-bold text-foreground">
-                      {analytics?.totalUsers || 0}
-                    </p>
-                  )}
-                </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <Users className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-              {!analyticsLoading && analytics && (
-                <Badge variant="secondary" className="text-xs">
-                  {analytics.activeUsers} ativos
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
+      <StatGrid cols={4}>
+        <StatCard
+          label="Usuários"
+          value={formatNumber(analytics?.totalUsers)}
+          icon={Users}
+          tone="success"
+          hint={analytics ? `${formatNumber(analytics.activeUsers)} ativos` : undefined}
+          loading={analyticsLoading}
+          testId="analytics-total-users"
+        />
+        <StatCard
+          label="Tópicos no fórum"
+          value={formatNumber(analytics?.totalTopics)}
+          icon={MessageSquare}
+          tone="info"
+          hint={analytics ? `${formatNumber(analytics.totalReplies)} respostas` : undefined}
+          loading={analyticsLoading}
+          testId="analytics-total-topics"
+        />
+        <StatCard
+          label="Produtos no marketplace"
+          value={formatNumber(analytics?.totalMarketplaceProducts)}
+          icon={ShoppingBag}
+          tone="violet"
+          loading={analyticsLoading}
+          testId="analytics-total-products"
+        />
+        <StatCard
+          label="Tickets abertos"
+          value={formatNumber(analytics?.openTickets)}
+          icon={TicketIcon}
+          tone={hasOpenTickets ? "danger" : "default"}
+          colorValue={hasOpenTickets}
+          hint={analytics ? `${formatNumber(analytics.totalSupportTickets)} no total` : undefined}
+          loading={analyticsLoading}
+          testId="analytics-open-tickets"
+        />
+      </StatGrid>
 
-          <Card data-testid="analytics-total-topics">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de Tópicos</p>
-                  {analyticsLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <p className="text-2xl font-bold text-foreground">
-                      {analytics?.totalTopics || 0}
-                    </p>
-                  )}
-                </div>
-                <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center">
-                  <MessageSquare className="w-6 h-6 text-accent" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <StatGrid cols={4}>
+        <StatCard
+          label="PLRs"
+          value={formatNumber(analytics?.totalPLRs)}
+          icon={BookOpen}
+          loading={analyticsLoading}
+          testId="analytics-total-plrs"
+        />
+        <StatCard
+          label="Cursos"
+          value={formatNumber(analytics?.totalCourses)}
+          icon={GraduationCap}
+          loading={analyticsLoading}
+        />
+        <StatCard
+          label="Serviços white label"
+          value={formatNumber(analytics?.totalServices)}
+          icon={Briefcase}
+          loading={analyticsLoading}
+          testId="analytics-total-services"
+        />
+        <StatCard
+          label="Ferramentas de IA"
+          value={formatNumber(analytics?.totalAITools)}
+          icon={Sparkles}
+          loading={analyticsLoading}
+        />
+      </StatGrid>
 
-          <Card data-testid="analytics-total-plrs">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de PLRs</p>
-                  {analyticsLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <p className="text-2xl font-bold text-foreground">
-                      {analytics?.totalPLRs || 0}
-                    </p>
-                  )}
-                </div>
-                <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-secondary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <ChartCard
+        title="Crescimento de usuários"
+        description="Novos cadastros nos últimos 30 dias"
+        loading={userGrowthLoading}
+        empty={(userGrowth?.length ?? 0) === 0}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={userGrowth || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="growthGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_COLORS.primary} stopOpacity={0.25} />
+                <stop offset="100%" stopColor={CHART_COLORS.primary} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid {...gridProps} />
+            <XAxis {...axisProps} dataKey="date" dy={6} />
+            <YAxis {...axisProps} width={40} allowDecimals={false} />
+            <Tooltip {...tooltipStyle} />
+            <Area type="monotone" dataKey="count" stroke={CHART_COLORS.primary} strokeWidth={2} fill="url(#growthGradient)" name="Novos usuários" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </ChartCard>
 
-          <Card data-testid="analytics-total-products">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de Produtos</p>
-                  {analyticsLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <p className="text-2xl font-bold text-foreground">
-                      {analytics?.totalMarketplaceProducts || 0}
-                    </p>
-                  )}
-                </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <ShoppingBag className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card data-testid="analytics-total-services">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de Serviços</p>
-                  {analyticsLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <p className="text-2xl font-bold text-foreground">
-                      {analytics?.totalServices || 0}
-                    </p>
-                  )}
-                </div>
-                <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center">
-                  <Briefcase className="w-6 h-6 text-accent" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card data-testid="analytics-open-tickets" className={analytics?.openTickets && analytics.openTickets > 0 ? "border-destructive/50" : ""}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Tickets Abertos</p>
-                  {analyticsLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <p className={`text-2xl font-bold ${analytics?.openTickets && analytics.openTickets > 0 ? "text-destructive" : "text-foreground"}`}>
-                      {analytics?.openTickets || 0}
-                    </p>
-                  )}
-                </div>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${analytics?.openTickets && analytics.openTickets > 0 ? "bg-destructive/10" : "bg-secondary/10"}`}>
-                  <TicketIcon className={`w-6 h-6 ${analytics?.openTickets && analytics.openTickets > 0 ? "text-destructive" : "text-secondary"}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* User Growth Chart */}
-        <Card data-testid="chart-user-growth">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5" />
-              <span>Crescimento de Usuários (30 dias)</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {userGrowthLoading ? (
-              <Skeleton className="h-[300px] w-full" />
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={userGrowth || []}>
-                  <defs>
-                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="hsl(var(--muted-foreground))"
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                    tickMargin={10}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                    tickMargin={10}
-                    allowDecimals={false}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--card))", 
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
-                    }}
-                    labelStyle={{ fontWeight: 600 }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="count" 
-                    stroke="#8b5cf6" 
-                    strokeWidth={3}
-                    fill="url(#colorCount)"
-                    name="Novos Usuários"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Forum Activity Chart */}
-        <Card data-testid="chart-forum-activity">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <MessageSquare className="w-5 h-5" />
-              <span>Atividade do Fórum (30 dias)</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {forumActivityLoading ? (
-              <Skeleton className="h-[300px] w-full" />
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={forumActivity || []}>
-                  <defs>
-                    <linearGradient id="colorTopics" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorReplies" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="hsl(var(--muted-foreground))"
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                    tickMargin={10}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                    tickMargin={10}
-                    allowDecimals={false}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--card))", 
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
-                    }}
-                    labelStyle={{ fontWeight: 600 }}
-                  />
-                  <Legend 
-                    wrapperStyle={{ paddingTop: "20px" }}
-                    iconType="circle"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="topics" 
-                    stroke="#3b82f6" 
-                    strokeWidth={3}
-                    fill="url(#colorTopics)"
-                    name="Tópicos"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="replies" 
-                    stroke="#10b981" 
-                    strokeWidth={3}
-                    fill="url(#colorReplies)"
-                    name="Respostas"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+      <ChartCard
+        title="Atividade do fórum"
+        description="Tópicos e respostas nos últimos 30 dias"
+        loading={forumActivityLoading}
+        empty={(forumActivity?.length ?? 0) === 0}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={forumActivity || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="topicsGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_COLORS.sky} stopOpacity={0.25} />
+                <stop offset="100%" stopColor={CHART_COLORS.sky} stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id="repliesGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_COLORS.primary} stopOpacity={0.25} />
+                <stop offset="100%" stopColor={CHART_COLORS.primary} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid {...gridProps} />
+            <XAxis {...axisProps} dataKey="date" dy={6} />
+            <YAxis {...axisProps} width={40} allowDecimals={false} />
+            <Tooltip {...tooltipStyle} />
+            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+            <Area type="monotone" dataKey="topics" stroke={CHART_COLORS.sky} strokeWidth={2} fill="url(#topicsGradient)" name="Tópicos" />
+            <Area type="monotone" dataKey="replies" stroke={CHART_COLORS.primary} strokeWidth={2} fill="url(#repliesGradient)" name="Respostas" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </ChartCard>
+    </AdminPage>
   );
 }

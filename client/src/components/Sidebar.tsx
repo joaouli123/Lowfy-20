@@ -52,7 +52,8 @@ import {
   CreditCard,
   TrendingUp,
   DollarSign,
-  Wand2
+  Wand2,
+  KeyRound
 } from "lucide-react";
 import type { Notification } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -350,6 +351,12 @@ export default function Sidebar() {
       href: "/admin/whatsapp",
       icon: Phone,
       testId: "nav-admin-whatsapp"
+    },
+    {
+      name: "Recuperação de Conta",
+      href: "/admin/account-recovery",
+      icon: KeyRound,
+      testId: "nav-admin-account-recovery"
     },
   ] : [];
 

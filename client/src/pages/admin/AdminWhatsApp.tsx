@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,20 +15,29 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  MessageCircle, 
-  QrCode, 
-  Wifi, 
-  WifiOff, 
-  Phone, 
-  Send, 
+import {
+  AdminPage,
+  AdminPageHeader,
+  StatCard,
+  StatGrid,
+  TableCard,
+  EmptyState,
+  TableSkeleton,
+  StatusBadge,
+} from "@/components/admin";
+import {
+  MessageCircle,
+  QrCode,
+  Wifi,
+  WifiOff,
+  Phone,
+  Send,
   RefreshCw,
   CheckCircle2,
   XCircle,
   Loader2,
   AlertTriangle,
   Smartphone,
-  Activity,
   TrendingUp,
   Clock,
   Zap,
@@ -46,9 +54,7 @@ import {
   Users,
   UserMinus,
   Eye,
-  Edit,
-  MoreVertical,
-  FileText
+  FileText,
 } from "lucide-react";
 
 interface WhatsAppStatus {
@@ -145,7 +151,6 @@ export default function AdminWhatsApp() {
   const [recipientSearch, setRecipientSearch] = useState("");
   const [newBlockPhone, setNewBlockPhone] = useState("");
   const [newBlockName, setNewBlockName] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [campaignForm, setCampaignForm] = useState({
     title: "",
@@ -166,7 +171,7 @@ export default function AdminWhatsApp() {
     optOutKeyword: "SAIR",
     optOutMessage: "Para não receber mais mensagens de campanhas, responda: SAIR",
   });
-  
+
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -461,9 +466,9 @@ export default function AdminWhatsApp() {
   });
 
   const testCampaignMessageMutation = useMutation({
-    mutationFn: async (data: { 
-      phone: string; 
-      message: string; 
+    mutationFn: async (data: {
+      phone: string;
+      message: string;
       optOutMessage?: string | null;
       imageUrl?: string | null;
       imageFileName?: string | null;
@@ -473,7 +478,7 @@ export default function AdminWhatsApp() {
       audioFileName?: string | null;
       documentUrl?: string | null;
       documentFileName?: string | null;
-      mediaType?: string | null; 
+      mediaType?: string | null;
       mediaUrl?: string | null;
     }) => {
       const res = await apiRequest('POST', '/api/admin/whatsapp/campaigns/test-message', data);
@@ -523,17 +528,17 @@ export default function AdminWhatsApp() {
   const getStatusBadge = (campaignStatus: string) => {
     switch (campaignStatus) {
       case 'draft':
-        return <Badge variant="secondary"><FileText className="h-3 w-3 mr-1" />Rascunho</Badge>;
+        return <StatusBadge tone="neutral">Rascunho</StatusBadge>;
       case 'running':
-        return <Badge className="bg-green-500"><Play className="h-3 w-3 mr-1" />Em execução</Badge>;
+        return <StatusBadge tone="success" dot>Em execução</StatusBadge>;
       case 'paused':
-        return <Badge className="bg-yellow-500"><Pause className="h-3 w-3 mr-1" />Pausada</Badge>;
+        return <StatusBadge tone="warning" dot>Pausada</StatusBadge>;
       case 'completed':
-        return <Badge className="bg-blue-500"><CheckCircle2 className="h-3 w-3 mr-1" />Concluída</Badge>;
+        return <StatusBadge tone="info">Concluída</StatusBadge>;
       case 'cancelled':
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Cancelada</Badge>;
+        return <StatusBadge tone="danger">Cancelada</StatusBadge>;
       default:
-        return <Badge variant="secondary">{campaignStatus}</Badge>;
+        return <StatusBadge tone="neutral">{campaignStatus}</StatusBadge>;
     }
   };
 
@@ -541,27 +546,22 @@ export default function AdminWhatsApp() {
     const file = e.target.files?.[0];
     if (file) uploadMediaMutation.mutate({ file, type: 'image' });
   };
-  
+
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadMediaMutation.mutate({ file, type: 'video' });
   };
-  
+
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadMediaMutation.mutate({ file, type: 'audio' });
   };
-  
+
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadMediaMutation.mutate({ file, type: 'document' });
   };
-  
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) uploadMediaMutation.mutate({ file, type: 'image' });
-  };
-  
+
   const clearMedia = (type: 'image' | 'video' | 'audio' | 'document') => {
     setCampaignForm(prev => ({
       ...prev,
@@ -572,39 +572,43 @@ export default function AdminWhatsApp() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-6 space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Skeleton className="h-96" />
-          <Skeleton className="h-96" />
+      <AdminPage>
+        <Skeleton className="h-9 w-64" />
+        <StatGrid cols={4}>
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+        </StatGrid>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-96 rounded-xl" />
+          <Skeleton className="h-96 rounded-xl" />
         </div>
-      </div>
+      </AdminPage>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <MessageCircle className="h-8 w-8 text-green-500" />
-          <div>
-            <h1 className="text-2xl font-bold" data-testid="text-page-title">WhatsApp</h1>
-            <p className="text-muted-foreground">Conexão e campanhas de WhatsApp</p>
-          </div>
-        </div>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => refetch()}
-          data-testid="button-refresh-status"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Atualizar
-        </Button>
-      </div>
+    <AdminPage>
+      <AdminPageHeader
+        title="WhatsApp"
+        description="Conexão, campanhas em massa e lista de bloqueio"
+        icon={MessageCircle}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            data-testid="button-refresh-status"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
+        }
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList>
           <TabsTrigger value="conexao" data-testid="tab-conexao">
             <Wifi className="h-4 w-4 mr-2" />
             Conexão
@@ -619,54 +623,40 @@ export default function AdminWhatsApp() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="conexao" className="space-y-6 mt-6">
+        <TabsContent value="conexao" className="space-y-5 mt-5">
           {metrics && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Na Fila</p>
-                      <p className="text-2xl font-bold" data-testid="text-queue-length">{metrics.queue.length}</p>
-                    </div>
-                    <Clock className="h-8 w-8 text-blue-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Enviadas</p>
-                      <p className="text-2xl font-bold text-green-600" data-testid="text-total-sent">{metrics.queue.totalSent}</p>
-                    </div>
-                    <CheckCircle2 className="h-8 w-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Falharam</p>
-                      <p className="text-2xl font-bold text-red-600" data-testid="text-total-failed">{metrics.queue.totalFailed}</p>
-                    </div>
-                    <XCircle className="h-8 w-8 text-red-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Msgs/min</p>
-                      <p className="text-2xl font-bold" data-testid="text-msgs-per-minute">{metrics.queue.messagesPerMinute}</p>
-                    </div>
-                    <TrendingUp className="h-8 w-8 text-purple-500" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <StatGrid cols={4}>
+              <StatCard
+                label="Na fila"
+                value={metrics.queue.length}
+                icon={Clock}
+                tone="info"
+                testId="text-queue-length"
+              />
+              <StatCard
+                label="Enviadas"
+                value={metrics.queue.totalSent}
+                icon={CheckCircle2}
+                tone="success"
+                colorValue
+                testId="text-total-sent"
+              />
+              <StatCard
+                label="Falharam"
+                value={metrics.queue.totalFailed}
+                icon={XCircle}
+                tone="danger"
+                colorValue
+                testId="text-total-failed"
+              />
+              <StatCard
+                label="Msgs/min"
+                value={metrics.queue.messagesPerMinute}
+                icon={TrendingUp}
+                tone="violet"
+                testId="text-msgs-per-minute"
+              />
+            </StatGrid>
           )}
 
           {metrics?.queue.circuitBreakerOpen && (
@@ -680,46 +670,43 @@ export default function AdminWhatsApp() {
             </Alert>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-xl border bg-card shadow-sm">
+              <div className="px-5 py-4 border-b">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <QrCode className="h-4 w-4 text-muted-foreground" />
                   Conexão WhatsApp
-                </CardTitle>
-                <CardDescription>
+                </h3>
+                <p className="text-sm text-muted-foreground mt-0.5">
                   Escaneie o QR Code com seu WhatsApp para conectar
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+                </p>
+              </div>
+              <div className="p-5 space-y-5">
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-full ${status?.connected ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${status?.connected ? 'bg-emerald-50' : 'bg-secondary'}`}>
                     {status?.connected ? (
-                      <Wifi className="h-6 w-6 text-green-500" />
+                      <Wifi className="h-5 w-5 text-emerald-600" />
                     ) : status?.connecting ? (
-                      <Loader2 className="h-6 w-6 text-yellow-500 animate-spin" />
+                      <Loader2 className="h-5 w-5 text-amber-500 animate-spin" />
                     ) : (
-                      <WifiOff className="h-6 w-6 text-gray-400" />
+                      <WifiOff className="h-5 w-5 text-muted-foreground" />
                     )}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">Status:</span>
+                      <span className="text-sm font-medium">Status:</span>
                       {status?.connected ? (
-                        <Badge variant="default" className="bg-green-500" data-testid="badge-status-connected">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                        <StatusBadge tone="success" dot data-testid="badge-status-connected">
                           Conectado
-                        </Badge>
+                        </StatusBadge>
                       ) : status?.connecting ? (
-                        <Badge variant="secondary" className="bg-yellow-500 text-white" data-testid="badge-status-connecting">
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        <StatusBadge tone="warning" dot data-testid="badge-status-connecting">
                           Conectando...
-                        </Badge>
+                        </StatusBadge>
                       ) : (
-                        <Badge variant="secondary" data-testid="badge-status-disconnected">
-                          <XCircle className="h-3 w-3 mr-1" />
+                        <StatusBadge tone="neutral" data-testid="badge-status-disconnected">
                           Desconectado
-                        </Badge>
+                        </StatusBadge>
                       )}
                     </div>
                     {status?.phoneNumber && (
@@ -771,10 +758,10 @@ export default function AdminWhatsApp() {
                 )}
 
                 {status?.qrCode && !status?.connected && (
-                  <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg border">
-                    <img 
-                      src={status.qrCode} 
-                      alt="QR Code WhatsApp" 
+                  <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl border">
+                    <img
+                      src={status.qrCode}
+                      alt="QR Code WhatsApp"
                       className="w-64 h-64"
                       data-testid="img-qrcode"
                     />
@@ -788,8 +775,10 @@ export default function AdminWhatsApp() {
 
                 {!status?.qrCode && !status?.connected && !status?.connecting && (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Smartphone className="h-16 w-16 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground mb-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary mb-4">
+                      <Smartphone className="h-7 w-7 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
                       Clique em "Conectar" para gerar o QR Code
                     </p>
                   </div>
@@ -797,10 +786,10 @@ export default function AdminWhatsApp() {
 
                 <div className="flex gap-3">
                   {!status?.connected ? (
-                    <Button 
+                    <Button
                       onClick={() => connectMutation.mutate()}
                       disabled={connectMutation.isPending || status?.connecting}
-                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      className="flex-1"
                       data-testid="button-connect"
                     >
                       {connectMutation.isPending || status?.connecting ? (
@@ -811,7 +800,7 @@ export default function AdminWhatsApp() {
                       {status?.connecting ? 'Aguardando QR Code...' : 'Conectar WhatsApp'}
                     </Button>
                   ) : (
-                    <Button 
+                    <Button
                       onClick={() => disconnectMutation.mutate()}
                       disabled={disconnectMutation.isPending}
                       variant="destructive"
@@ -827,20 +816,20 @@ export default function AdminWhatsApp() {
                     </Button>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Send className="h-5 w-5" />
+            <div className="rounded-xl border bg-card shadow-sm">
+              <div className="px-5 py-4 border-b">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Send className="h-4 w-4 text-muted-foreground" />
                   Teste de Envio
-                </CardTitle>
-                <CardDescription>
+                </h3>
+                <p className="text-sm text-muted-foreground mt-0.5">
                   Envie uma mensagem de teste para verificar a conexão
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+                </p>
+              </div>
+              <div className="p-5 space-y-5">
                 {!status?.connected ? (
                   <Alert>
                     <AlertTriangle className="h-4 w-4" />
@@ -862,7 +851,7 @@ export default function AdminWhatsApp() {
                       />
                     </div>
 
-                    <Button 
+                    <Button
                       onClick={() => testMutation.mutate(testPhone.replace(/\D/g, ''))}
                       disabled={testMutation.isPending || testPhone.replace(/\D/g, '').length < 10}
                       className="w-full"
@@ -878,19 +867,19 @@ export default function AdminWhatsApp() {
                   </>
                 )}
 
-                <Alert className="bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  <AlertTitle className="text-yellow-700 dark:text-yellow-400">Importante</AlertTitle>
-                  <AlertDescription className="text-yellow-600 dark:text-yellow-300">
+                <Alert className="bg-amber-50 border-amber-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertTitle className="text-amber-800">Importante</AlertTitle>
+                  <AlertDescription className="text-amber-700">
                     Mantenha seu celular conectado à internet para que o WhatsApp funcione.
                   </AlertDescription>
                 </Alert>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="campanhas" className="space-y-6 mt-6">
+        <TabsContent value="campanhas" className="space-y-5 mt-5">
           {!status?.connected && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
@@ -901,289 +890,262 @@ export default function AdminWhatsApp() {
             </Alert>
           )}
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
+          <TableCard
+            title="Campanhas"
+            count={campaigns?.length ?? 0}
+            actions={
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="hidden md:inline-flex items-center gap-1.5 text-sm text-muted-foreground mr-1">
+                  <Users className="h-4 w-4" />
                   {eligibleRecipients?.count || 0} destinatários elegíveis
                 </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowOptOuts(true)}
+                  data-testid="button-view-opt-outs"
+                >
+                  <UserMinus className="h-4 w-4 mr-2" />
+                  Lista de Exclusões
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowCreateCampaign(true)}
+                  disabled={!status?.connected}
+                  data-testid="button-create-campaign"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Campanha
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowOptOuts(true)}
-                data-testid="button-view-opt-outs"
-              >
-                <UserMinus className="h-4 w-4 mr-2" />
-                Lista de Exclusões
-              </Button>
-            </div>
-            <Button
-              onClick={() => setShowCreateCampaign(true)}
-              disabled={!status?.connected}
-              data-testid="button-create-campaign"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Campanha
-            </Button>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Campanhas</CardTitle>
-              <CardDescription>
-                Gerencie suas campanhas de WhatsApp em massa
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!campaigns || campaigns.length === 0 ? (
-                <div className="text-center py-12">
-                  <Megaphone className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Nenhuma campanha criada ainda</p>
-                  <Button 
-                    className="mt-4" 
+            }
+          >
+            {!campaigns || campaigns.length === 0 ? (
+              <EmptyState
+                icon={Megaphone}
+                title="Nenhuma campanha criada ainda"
+                description="Crie uma campanha para enviar mensagens em massa aos usuários elegíveis."
+                action={
+                  <Button
                     onClick={() => setShowCreateCampaign(true)}
                     disabled={!status?.connected}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Criar Primeira Campanha
                   </Button>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Título</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Progresso</TableHead>
-                      <TableHead>Enviadas</TableHead>
-                      <TableHead>Erros</TableHead>
-                      <TableHead>Exclusões</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {campaigns.map((campaign) => (
-                      <TableRow key={campaign.id} data-testid={`row-campaign-${campaign.id}`}>
-                        <TableCell className="font-medium">{campaign.title}</TableCell>
-                        <TableCell>{getStatusBadge(campaign.status)}</TableCell>
-                        <TableCell>
-                          {campaign.totalRecipients > 0 ? (
-                            <div className="flex items-center gap-2">
-                              <Progress 
-                                value={(campaign.sentCount + campaign.errorCount + campaign.skippedCount) / campaign.totalRecipients * 100} 
-                                className="w-20 h-2"
-                              />
-                              <span className="text-xs text-muted-foreground">
-                                {campaign.sentCount + campaign.errorCount + campaign.skippedCount}/{campaign.totalRecipients}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-green-600">{campaign.sentCount}</TableCell>
-                        <TableCell className="text-red-600">{campaign.errorCount}</TableCell>
-                        <TableCell className="text-yellow-600">{campaign.optOutCount}</TableCell>
-                        <TableCell>
+                }
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Título</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Progresso</TableHead>
+                    <TableHead className="text-right">Enviadas</TableHead>
+                    <TableHead className="text-right">Erros</TableHead>
+                    <TableHead className="text-right">Exclusões</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {campaigns.map((campaign) => (
+                    <TableRow key={campaign.id} data-testid={`row-campaign-${campaign.id}`}>
+                      <TableCell className="font-medium">{campaign.title}</TableCell>
+                      <TableCell>{getStatusBadge(campaign.status)}</TableCell>
+                      <TableCell>
+                        {campaign.totalRecipients > 0 ? (
                           <div className="flex items-center gap-2">
+                            <Progress
+                              value={(campaign.sentCount + campaign.errorCount + campaign.skippedCount) / campaign.totalRecipients * 100}
+                              className="w-20 h-2"
+                            />
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {campaign.sentCount + campaign.errorCount + campaign.skippedCount}/{campaign.totalRecipients}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-emerald-600">{campaign.sentCount}</TableCell>
+                      <TableCell className="text-right tabular-nums text-red-600">{campaign.errorCount}</TableCell>
+                      <TableCell className="text-right tabular-nums text-amber-600">{campaign.optOutCount}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowCampaignDetails(campaign.id)}
+                            data-testid={`button-view-campaign-${campaign.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {campaign.status === 'draft' && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowSelectRecipients(campaign.id)}
+                                title="Selecionar destinatários"
+                                data-testid={`button-select-recipients-${campaign.id}`}
+                              >
+                                <Users className="h-4 w-4 text-sky-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startCampaignMutation.mutate(campaign.id)}
+                                disabled={!status?.connected || campaign.totalRecipients === 0}
+                                title={campaign.totalRecipients === 0 ? "Selecione destinatários primeiro" : "Iniciar campanha"}
+                                data-testid={`button-start-campaign-${campaign.id}`}
+                              >
+                                <Play className="h-4 w-4 text-emerald-600" />
+                              </Button>
+                            </>
+                          )}
+                          {campaign.status === 'running' && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setShowCampaignDetails(campaign.id)}
-                              data-testid={`button-view-campaign-${campaign.id}`}
+                              onClick={() => pauseCampaignMutation.mutate(campaign.id)}
+                              data-testid={`button-pause-campaign-${campaign.id}`}
                             >
-                              <Eye className="h-4 w-4" />
+                              <Pause className="h-4 w-4 text-amber-600" />
                             </Button>
-                            {campaign.status === 'draft' && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setShowSelectRecipients(campaign.id)}
-                                  title="Selecionar destinatários"
-                                  data-testid={`button-select-recipients-${campaign.id}`}
-                                >
-                                  <Users className="h-4 w-4 text-blue-600" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => startCampaignMutation.mutate(campaign.id)}
-                                  disabled={!status?.connected || campaign.totalRecipients === 0}
-                                  title={campaign.totalRecipients === 0 ? "Selecione destinatários primeiro" : "Iniciar campanha"}
-                                  data-testid={`button-start-campaign-${campaign.id}`}
-                                >
-                                  <Play className="h-4 w-4 text-green-600" />
-                                </Button>
-                              </>
-                            )}
-                            {campaign.status === 'running' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => pauseCampaignMutation.mutate(campaign.id)}
-                                data-testid={`button-pause-campaign-${campaign.id}`}
-                              >
-                                <Pause className="h-4 w-4 text-yellow-600" />
-                              </Button>
-                            )}
-                            {campaign.status === 'paused' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => resumeCampaignMutation.mutate(campaign.id)}
-                                disabled={!status?.connected}
-                                data-testid={`button-resume-campaign-${campaign.id}`}
-                              >
-                                <Play className="h-4 w-4 text-green-600" />
-                              </Button>
-                            )}
-                            {(campaign.status === 'draft' || campaign.status === 'completed' || campaign.status === 'cancelled') && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteCampaignMutation.mutate(campaign.id)}
-                                data-testid={`button-delete-campaign-${campaign.id}`}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                              </Button>
-                            )}
-                          </div>
+                          )}
+                          {campaign.status === 'paused' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => resumeCampaignMutation.mutate(campaign.id)}
+                              disabled={!status?.connected}
+                              data-testid={`button-resume-campaign-${campaign.id}`}
+                            >
+                              <Play className="h-4 w-4 text-emerald-600" />
+                            </Button>
+                          )}
+                          {(campaign.status === 'draft' || campaign.status === 'completed' || campaign.status === 'cancelled') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteCampaignMutation.mutate(campaign.id)}
+                              data-testid={`button-delete-campaign-${campaign.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </TableCard>
+        </TabsContent>
+
+        <TabsContent value="bloqueados" className="space-y-5 mt-5">
+          <div className="rounded-xl border bg-card p-4 sm:p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="new-block-phone">Telefone</Label>
+                <Input
+                  id="new-block-phone"
+                  placeholder="(11) 99999-9999"
+                  value={newBlockPhone}
+                  onChange={(e) => setNewBlockPhone(formatPhone(e.target.value))}
+                  data-testid="input-new-block-phone"
+                />
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="new-block-name">Nome (opcional)</Label>
+                <Input
+                  id="new-block-name"
+                  placeholder="Nome do contato"
+                  value={newBlockName}
+                  onChange={(e) => setNewBlockName(e.target.value)}
+                  data-testid="input-new-block-name"
+                />
+              </div>
+              <Button
+                onClick={() => addOptOutMutation.mutate({
+                  phone: newBlockPhone.replace(/\D/g, ''),
+                  userName: newBlockName || undefined
+                })}
+                disabled={addOptOutMutation.isPending || newBlockPhone.replace(/\D/g, '').length < 10}
+                data-testid="button-add-block"
+              >
+                {addOptOutMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Bloquear
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <TableCard title="Lista de bloqueio" count={optOuts?.length ?? 0}>
+            {optOutsLoading ? (
+              <TableSkeleton rows={5} />
+            ) : !optOuts || optOuts.length === 0 ? (
+              <EmptyState
+                icon={UserMinus}
+                title="Nenhum número bloqueado"
+                description="Os contatos que responderem a palavra-chave de opt-out aparecerão aqui automaticamente."
+              />
+            ) : (
+              <ScrollArea className="h-[440px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Origem</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="w-[80px] text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {optOuts.map((optOut) => (
+                      <TableRow key={optOut.id} data-testid={`row-optout-${optOut.id}`}>
+                        <TableCell className="font-mono text-sm">{optOut.phone}</TableCell>
+                        <TableCell>{optOut.userName || '-'}</TableCell>
+                        <TableCell>
+                          <StatusBadge tone={optOut.keyword === 'MANUAL' ? 'neutral' : 'warning'}>
+                            {optOut.keyword === 'MANUAL' ? 'Manual' : optOut.keyword || 'Automático'}
+                          </StatusBadge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(optOut.optedOutAt).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteOptOutMutation.mutate(optOut.id)}
+                            disabled={deleteOptOutMutation.isPending}
+                            data-testid={`button-unblock-${optOut.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="bloqueados" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserMinus className="h-5 w-5" />
-                    Lista de Bloqueio
-                  </CardTitle>
-                  <CardDescription>
-                    Números que optaram por não receber campanhas. Eles serão automaticamente ignorados nos disparos.
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="text-lg px-3 py-1">
-                  {optOuts?.length || 0} bloqueados
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-3 p-4 bg-muted rounded-lg">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="new-block-phone">Telefone</Label>
-                  <Input
-                    id="new-block-phone"
-                    placeholder="(11) 99999-9999"
-                    value={newBlockPhone}
-                    onChange={(e) => setNewBlockPhone(formatPhone(e.target.value))}
-                    data-testid="input-new-block-phone"
-                  />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="new-block-name">Nome (opcional)</Label>
-                  <Input
-                    id="new-block-name"
-                    placeholder="Nome do contato"
-                    value={newBlockName}
-                    onChange={(e) => setNewBlockName(e.target.value)}
-                    data-testid="input-new-block-name"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    onClick={() => addOptOutMutation.mutate({ 
-                      phone: newBlockPhone.replace(/\D/g, ''), 
-                      userName: newBlockName || undefined 
-                    })}
-                    disabled={addOptOutMutation.isPending || newBlockPhone.replace(/\D/g, '').length < 10}
-                    data-testid="button-add-block"
-                  >
-                    {addOptOutMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Bloquear
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {optOutsLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                </div>
-              ) : !optOuts || optOuts.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <UserMinus className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>Nenhum número bloqueado</p>
-                  <p className="text-sm">Os contatos que responderem a palavra-chave de opt-out aparecerão aqui automaticamente</p>
-                </div>
-              ) : (
-                <ScrollArea className="h-[400px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Telefone</TableHead>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Origem</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead className="w-[80px]">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {optOuts.map((optOut) => (
-                        <TableRow key={optOut.id} data-testid={`row-optout-${optOut.id}`}>
-                          <TableCell className="font-mono">{optOut.phone}</TableCell>
-                          <TableCell>{optOut.userName || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {optOut.keyword === 'MANUAL' ? 'Manual' : optOut.keyword || 'Automático'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(optOut.optedOutAt).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteOptOutMutation.mutate(optOut.id)}
-                              disabled={deleteOptOutMutation.isPending}
-                              data-testid={`button-unblock-${optOut.id}`}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
+              </ScrollArea>
+            )}
+          </TableCard>
 
           <Alert>
             <AlertTriangle className="h-4 w-4" />
@@ -1235,17 +1197,17 @@ export default function AdminWhatsApp() {
 
             <div className="space-y-4">
               <Label>Anexos (opcionais - pode enviar todos juntos)</Label>
-              
+
               <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
               <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleVideoUpload} />
               <input type="file" ref={audioInputRef} className="hidden" accept="audio/*" onChange={handleAudioUpload} />
               <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" onChange={handleDocumentUpload} />
-              
+
               <div className="grid grid-cols-2 gap-3">
-                <div className="border rounded-lg p-3 space-y-2">
+                <div className="border rounded-xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Image className="h-4 w-4 text-blue-500" />
+                      <Image className="h-4 w-4 text-sky-500" />
                       <span className="text-sm font-medium">Imagem</span>
                     </div>
                     {campaignForm.imageUrl && (
@@ -1263,10 +1225,10 @@ export default function AdminWhatsApp() {
                   )}
                 </div>
 
-                <div className="border rounded-lg p-3 space-y-2">
+                <div className="border rounded-xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Video className="h-4 w-4 text-purple-500" />
+                      <Video className="h-4 w-4 text-violet-500" />
                       <span className="text-sm font-medium">Vídeo</span>
                     </div>
                     {campaignForm.videoUrl && (
@@ -1284,10 +1246,10 @@ export default function AdminWhatsApp() {
                   )}
                 </div>
 
-                <div className="border rounded-lg p-3 space-y-2">
+                <div className="border rounded-xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Music className="h-4 w-4 text-green-500" />
+                      <Music className="h-4 w-4 text-emerald-500" />
                       <span className="text-sm font-medium">Áudio</span>
                     </div>
                     {campaignForm.audioUrl && (
@@ -1305,10 +1267,10 @@ export default function AdminWhatsApp() {
                   )}
                 </div>
 
-                <div className="border rounded-lg p-3 space-y-2">
+                <div className="border rounded-xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-orange-500" />
+                      <FileText className="h-4 w-4 text-amber-500" />
                       <span className="text-sm font-medium">Documento</span>
                     </div>
                     {campaignForm.documentUrl && (
@@ -1326,14 +1288,14 @@ export default function AdminWhatsApp() {
                   )}
                 </div>
               </div>
-              
+
               {uploadMediaMutation.isPending && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Enviando arquivo...
                 </div>
               )}
-              
+
               <p className="text-xs text-muted-foreground">
                 Você pode anexar até 4 tipos de arquivo (imagem + vídeo + áudio + documento) e todos serão enviados na mesma mensagem.
               </p>
@@ -1347,10 +1309,10 @@ export default function AdminWhatsApp() {
                   min={20}
                   max={120}
                   step={5}
-                  onValueChange={(values) => setCampaignForm(prev => ({ 
-                    ...prev, 
-                    intervalMinSec: values[0], 
-                    intervalMaxSec: values[1] 
+                  onValueChange={(values) => setCampaignForm(prev => ({
+                    ...prev,
+                    intervalMinSec: values[0],
+                    intervalMaxSec: values[1]
                   }))}
                   data-testid="slider-interval"
                 />
@@ -1485,49 +1447,39 @@ export default function AdminWhatsApp() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="text-2xl font-bold">{campaignDetails.stats?.total || campaignDetails.totalRecipients}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground">Enviadas</p>
-                    <p className="text-2xl font-bold text-green-600">{campaignDetails.stats?.sent || campaignDetails.sentCount}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground">Erros</p>
-                    <p className="text-2xl font-bold text-red-600">{campaignDetails.stats?.error || campaignDetails.errorCount}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground">Exclusões</p>
-                    <p className="text-2xl font-bold text-yellow-600">{campaignDetails.stats?.optedOut || campaignDetails.optOutCount}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground">Pendentes</p>
-                    <p className="text-2xl font-bold text-blue-600">{campaignDetails.stats?.pending || 0}</p>
-                  </CardContent>
-                </Card>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-xl font-semibold tabular-nums mt-0.5">{campaignDetails.stats?.total || campaignDetails.totalRecipients}</p>
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Enviadas</p>
+                  <p className="text-xl font-semibold tabular-nums mt-0.5 text-emerald-600">{campaignDetails.stats?.sent || campaignDetails.sentCount}</p>
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Erros</p>
+                  <p className="text-xl font-semibold tabular-nums mt-0.5 text-red-600">{campaignDetails.stats?.error || campaignDetails.errorCount}</p>
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Exclusões</p>
+                  <p className="text-xl font-semibold tabular-nums mt-0.5 text-amber-600">{campaignDetails.stats?.optedOut || campaignDetails.optOutCount}</p>
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Pendentes</p>
+                  <p className="text-xl font-semibold tabular-nums mt-0.5 text-sky-600">{campaignDetails.stats?.pending || 0}</p>
+                </div>
               </div>
 
               {campaignDetails.totalRecipients > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Progresso</span>
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-medium tabular-nums">
                       {Math.round(((campaignDetails.sentCount + campaignDetails.errorCount + campaignDetails.skippedCount) / campaignDetails.totalRecipients) * 100)}%
                     </span>
                   </div>
-                  <Progress 
-                    value={((campaignDetails.sentCount + campaignDetails.errorCount + campaignDetails.skippedCount) / campaignDetails.totalRecipients) * 100} 
+                  <Progress
+                    value={((campaignDetails.sentCount + campaignDetails.errorCount + campaignDetails.skippedCount) / campaignDetails.totalRecipients) * 100}
                     className="h-3"
                   />
                 </div>
@@ -1578,10 +1530,10 @@ export default function AdminWhatsApp() {
 
           <div className="py-4">
             {!optOuts || optOuts.length === 0 ? (
-              <div className="text-center py-12">
-                <UserMinus className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Nenhuma exclusão registrada</p>
-              </div>
+              <EmptyState
+                icon={UserMinus}
+                title="Nenhuma exclusão registrada"
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -1590,13 +1542,13 @@ export default function AdminWhatsApp() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Palavra-chave</TableHead>
                     <TableHead>Data</TableHead>
-                    <TableHead>Ações</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {optOuts.map((optOut) => (
                     <TableRow key={optOut.id} data-testid={`row-opt-out-${optOut.id}`}>
-                      <TableCell>{optOut.phone}</TableCell>
+                      <TableCell className="font-mono text-sm">{optOut.phone}</TableCell>
                       <TableCell>{optOut.userName || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{optOut.keyword || '-'}</Badge>
@@ -1604,7 +1556,7 @@ export default function AdminWhatsApp() {
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(optOut.optedOutAt).toLocaleDateString('pt-BR')}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1651,7 +1603,7 @@ export default function AdminWhatsApp() {
                   {campaignForm.message}
                 </div>
               </div>
-              
+
               {(campaignForm.imageFileName || campaignForm.videoFileName || campaignForm.audioFileName || campaignForm.documentFileName) && (
                 <div>
                   <Label className="text-sm text-muted-foreground">2. Anexos:</Label>
@@ -1671,7 +1623,7 @@ export default function AdminWhatsApp() {
                   </div>
                 </div>
               )}
-              
+
               {campaignForm.optOutMessage && (
                 <div>
                   <Label className="text-sm text-muted-foreground">
@@ -1758,7 +1710,7 @@ export default function AdminWhatsApp() {
                     onChange={(e) => setRecipientSearch(e.target.value)}
                     data-testid="input-recipient-search"
                   />
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="whitespace-nowrap">
                     {selectedRecipients.length} selecionados
                   </Badge>
                 </div>
@@ -1766,9 +1718,9 @@ export default function AdminWhatsApp() {
                 <ScrollArea className="h-[300px] border rounded-lg p-2">
                   <div className="space-y-1">
                     {eligibleRecipients?.recipients
-                      ?.filter(r => 
-                        !recipientSearch || 
-                        r.phone.includes(recipientSearch) || 
+                      ?.filter(r =>
+                        !recipientSearch ||
+                        r.phone.includes(recipientSearch) ||
                         (r.userName?.toLowerCase().includes(recipientSearch.toLowerCase()))
                       )
                       .map((recipient) => {
@@ -1777,7 +1729,7 @@ export default function AdminWhatsApp() {
                         return (
                           <div
                             key={recipientId}
-                            className={`flex items-center justify-between p-2 rounded cursor-pointer hover:bg-muted ${isSelected ? 'bg-primary/10' : ''}`}
+                            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-muted ${isSelected ? 'bg-primary/10' : ''}`}
                             onClick={() => {
                               if (isSelected) {
                                 setSelectedRecipients(prev => prev.filter(id => id !== recipientId));
@@ -1788,7 +1740,7 @@ export default function AdminWhatsApp() {
                             data-testid={`row-recipient-${recipientId}`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-gray-300'}`}>
+                              <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-input'}`}>
                                 {isSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
                               </div>
                               <div>
@@ -1832,6 +1784,6 @@ export default function AdminWhatsApp() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPage>
   );
 }

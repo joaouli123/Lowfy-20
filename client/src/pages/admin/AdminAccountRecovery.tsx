@@ -6,8 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import PageHeader from "@/components/PageHeader";
-import { ShieldCheck, ShieldAlert, Check, X, Clock, MessageCircle, Settings2, RefreshCw } from "lucide-react";
+import {
+  AdminPage,
+  AdminPageHeader,
+  StatCard,
+  StatGrid,
+  TableCard,
+  EmptyState,
+  TableSkeleton,
+  StatusBadge,
+} from "@/components/admin";
+import { ShieldCheck, ShieldAlert, Check, X, Clock, MessageCircle, Settings2, Inbox } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -73,15 +82,15 @@ const maskPhone = (phone: string) => {
 
 const stateBadge = (state: string) => {
   switch (state) {
-    case 'awaiting_admin': return <Badge variant="destructive" className="gap-1"><Clock className="h-3 w-3" /> Aguardando análise</Badge>;
-    case 'collecting': return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600 gap-1"><MessageCircle className="h-3 w-3" /> Em conversa</Badge>;
-    case 'awaiting_email_otp': return <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">Aguardando OTP</Badge>;
-    case 'approved': return <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Aprovada</Badge>;
-    case 'completed': return <Badge variant="secondary" className="gap-1"><Check className="h-3 w-3" /> Concluída</Badge>;
-    case 'denied': return <Badge variant="destructive">Negada</Badge>;
-    case 'expired': return <Badge variant="outline">Expirada</Badge>;
-    case 'cancelled': return <Badge variant="outline">Cancelada</Badge>;
-    default: return <Badge variant="outline">{state}</Badge>;
+    case 'awaiting_admin': return <StatusBadge tone="danger" dot><Clock className="h-3 w-3" /> Aguardando análise</StatusBadge>;
+    case 'collecting': return <StatusBadge tone="info" dot><MessageCircle className="h-3 w-3" /> Em conversa</StatusBadge>;
+    case 'awaiting_email_otp': return <StatusBadge tone="warning" dot>Aguardando OTP</StatusBadge>;
+    case 'approved': return <StatusBadge tone="success" dot>Aprovada</StatusBadge>;
+    case 'completed': return <StatusBadge tone="success"><Check className="h-3 w-3" /> Concluída</StatusBadge>;
+    case 'denied': return <StatusBadge tone="danger">Negada</StatusBadge>;
+    case 'expired': return <StatusBadge tone="neutral">Expirada</StatusBadge>;
+    case 'cancelled': return <StatusBadge tone="neutral">Cancelada</StatusBadge>;
+    default: return <StatusBadge tone="neutral">{state}</StatusBadge>;
   }
 };
 
@@ -97,9 +106,9 @@ const goalLabel = (goal?: string | null) => {
 
 const scoreBadge = (score?: number | null) => {
   const s = score ?? 0;
-  if (s >= 55) return <Badge className="bg-emerald-500 hover:bg-emerald-600">{s}</Badge>;
-  if (s >= 40) return <Badge className="bg-yellow-500 hover:bg-yellow-600">{s}</Badge>;
-  return <Badge variant="destructive">{s}</Badge>;
+  if (s >= 55) return <StatusBadge tone="success">{s}</StatusBadge>;
+  if (s >= 40) return <StatusBadge tone="warning">{s}</StatusBadge>;
+  return <StatusBadge tone="danger">{s}</StatusBadge>;
 };
 
 const MatchIcon = ({ ok }: { ok: boolean }) => ok
@@ -171,66 +180,82 @@ export default function AdminAccountRecovery() {
   const pending = requests.filter(r => r.state === 'awaiting_admin');
 
   const renderTable = (rows: RecoveryRequest[]) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Data</TableHead>
-          <TableHead>Telefone</TableHead>
-          <TableHead>Nome declarado</TableHead>
-          <TableHead>Objetivo</TableHead>
-          <TableHead>Score</TableHead>
-          <TableHead>Posse</TableHead>
-          <TableHead>Estado</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.length === 0 && (
-          <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma solicitação</TableCell></TableRow>
-        )}
-        {rows.map(r => (
-          <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelectedId(r.id)} data-testid={`row-recovery-${r.id}`}>
-            <TableCell className="whitespace-nowrap">{format(new Date(r.createdAt), 'dd/MM HH:mm', { locale: ptBR })}</TableCell>
-            <TableCell>{maskPhone(r.phone)}</TableCell>
-            <TableCell>{r.collectedName || '—'}</TableCell>
-            <TableCell>{goalLabel(r.goal)}</TableCell>
-            <TableCell>{scoreBadge(r.matchScore)}</TableCell>
-            <TableCell>
-              {r.possessionFactor === 'whatsapp_phone' && <Badge variant="secondary" className="gap-1"><ShieldCheck className="h-3 w-3" /> WhatsApp</Badge>}
-              {r.possessionFactor === 'email_otp' && <Badge variant="secondary" className="gap-1"><ShieldCheck className="h-3 w-3" /> E-mail OTP</Badge>}
-              {(!r.possessionFactor || r.possessionFactor === 'none') && <Badge variant="outline" className="gap-1"><ShieldAlert className="h-3 w-3" /> Nenhuma</Badge>}
-            </TableCell>
-            <TableCell>{stateBadge(r.state)}</TableCell>
+    rows.length === 0 ? (
+      <EmptyState
+        icon={Inbox}
+        title="Nenhuma solicitação"
+        description="As solicitações feitas ao agente de recuperação no WhatsApp aparecem aqui."
+      />
+    ) : (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Data</TableHead>
+            <TableHead>Telefone</TableHead>
+            <TableHead>Nome declarado</TableHead>
+            <TableHead>Objetivo</TableHead>
+            <TableHead>Score</TableHead>
+            <TableHead>Posse</TableHead>
+            <TableHead>Estado</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.map(r => (
+            <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelectedId(r.id)} data-testid={`row-recovery-${r.id}`}>
+              <TableCell className="whitespace-nowrap text-muted-foreground">{format(new Date(r.createdAt), 'dd/MM HH:mm', { locale: ptBR })}</TableCell>
+              <TableCell className="font-mono text-sm">{maskPhone(r.phone)}</TableCell>
+              <TableCell className="font-medium">{r.collectedName || '—'}</TableCell>
+              <TableCell>{goalLabel(r.goal)}</TableCell>
+              <TableCell>{scoreBadge(r.matchScore)}</TableCell>
+              <TableCell>
+                {r.possessionFactor === 'whatsapp_phone' && <StatusBadge tone="success"><ShieldCheck className="h-3 w-3" /> WhatsApp</StatusBadge>}
+                {r.possessionFactor === 'email_otp' && <StatusBadge tone="info"><ShieldCheck className="h-3 w-3" /> E-mail OTP</StatusBadge>}
+                {(!r.possessionFactor || r.possessionFactor === 'none') && <StatusBadge tone="neutral"><ShieldAlert className="h-3 w-3" /> Nenhuma</StatusBadge>}
+              </TableCell>
+              <TableCell>{stateBadge(r.state)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    )
   );
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
-      <PageHeader
+    <AdminPage>
+      <AdminPageHeader
         title="Recuperação de Conta"
         description="Solicitações do agente de recuperação via WhatsApp"
+        icon={ShieldCheck}
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Aguardando análise</CardTitle></CardHeader>
-          <CardContent><span className="text-2xl font-bold text-red-500">{counts['awaiting_admin'] || 0}</span></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Em conversa</CardTitle></CardHeader>
-          <CardContent><span className="text-2xl font-bold">{(counts['collecting'] || 0) + (counts['awaiting_email_otp'] || 0)}</span></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Concluídas</CardTitle></CardHeader>
-          <CardContent><span className="text-2xl font-bold text-emerald-600">{counts['completed'] || 0}</span></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Negadas</CardTitle></CardHeader>
-          <CardContent><span className="text-2xl font-bold">{counts['denied'] || 0}</span></CardContent>
-        </Card>
-      </div>
+      <StatGrid cols={4}>
+        <StatCard
+          label="Aguardando análise"
+          value={counts['awaiting_admin'] || 0}
+          icon={Clock}
+          tone="danger"
+          colorValue={(counts['awaiting_admin'] || 0) > 0}
+        />
+        <StatCard
+          label="Em conversa"
+          value={(counts['collecting'] || 0) + (counts['awaiting_email_otp'] || 0)}
+          icon={MessageCircle}
+          tone="info"
+        />
+        <StatCard
+          label="Concluídas"
+          value={counts['completed'] || 0}
+          icon={Check}
+          tone="success"
+          colorValue
+        />
+        <StatCard
+          label="Negadas"
+          value={counts['denied'] || 0}
+          icon={X}
+          tone="default"
+        />
+      </StatGrid>
 
       <Tabs defaultValue="pending">
         <TabsList>
@@ -241,23 +266,19 @@ export default function AdminAccountRecovery() {
           <TabsTrigger value="config" data-testid="tab-recovery-config"><Settings2 className="h-4 w-4 mr-1" /> Config</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pending">
-          <Card>
-            <CardContent className="pt-6">
-              {isLoading ? <div className="animate-pulse h-32 bg-muted rounded" /> : renderTable(pending)}
-            </CardContent>
-          </Card>
+        <TabsContent value="pending" className="mt-5">
+          <TableCard title="Pendentes de análise" count={pending.length}>
+            {isLoading ? <TableSkeleton rows={4} /> : renderTable(pending)}
+          </TableCard>
         </TabsContent>
 
-        <TabsContent value="all">
-          <Card>
-            <CardContent className="pt-6">
-              {isLoading ? <div className="animate-pulse h-32 bg-muted rounded" /> : renderTable(requests)}
-            </CardContent>
-          </Card>
+        <TabsContent value="all" className="mt-5">
+          <TableCard title="Todas as solicitações" count={requests.length}>
+            {isLoading ? <TableSkeleton rows={6} /> : renderTable(requests)}
+          </TableCard>
         </TabsContent>
 
-        <TabsContent value="config">
+        <TabsContent value="config" className="mt-5">
           {config && (
             <Card>
               <CardHeader>
@@ -492,6 +513,6 @@ export default function AdminAccountRecovery() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPage>
   );
 }
