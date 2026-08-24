@@ -22,10 +22,10 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex bg-background" data-testid="layout-container">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col">
         <TopBar />
         <main className="flex-1 overflow-y-auto">
-          <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-10 sm:py-14">
+          <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             <Suspense fallback={<ContentLoader />}>
               {children}
             </Suspense>

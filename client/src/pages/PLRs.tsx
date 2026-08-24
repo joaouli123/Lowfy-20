@@ -11,7 +11,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OptimizedImage } from "@/components/OptimizedImage";
-import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { FeatureLockedOverlay } from "@/components/FeatureLockedOverlay";
@@ -210,12 +209,16 @@ export default function PLRs() {
         description={seoConfig.plrs.description}
         canonicalUrl={seoConfig.plrs.canonical}
       />
-      <PageHeader title="PLRs Lowfy" description="Baixe produtos com direitos de revenda">
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">PLRs Lowfy</h1>
+          <p className="text-muted-foreground">Baixe produtos com direitos de revenda</p>
+        </div>
         <TourButton
           onClick={tour.start}
           label="Conhecer PLRs"
         />
-      </PageHeader>
+      </div>
 
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">

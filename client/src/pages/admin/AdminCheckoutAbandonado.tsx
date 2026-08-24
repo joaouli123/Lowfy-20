@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import PageHeader from "@/components/PageHeader";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -242,16 +241,17 @@ export default function AdminCheckoutAbandonado() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <PageHeader
-        title="Checkouts Abandonados"
-        description="Leads que iniciaram mas não concluíram o checkout"
-        testId="page-title"
-      >
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">Checkouts Abandonados</h1>
+          <p className="text-muted-foreground">Leads que iniciaram mas não concluíram o checkout</p>
+        </div>
+        
         <Button onClick={() => refetch()} variant="outline" data-testid="button-refresh">
           <RefreshCw className="w-4 h-4 mr-2" />
           Atualizar
         </Button>
-      </PageHeader>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>

@@ -1,125 +1,82 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
-import {
-  Avatar,
-  Button,
-  Input,
-  Tooltip,
-  ScrollShadow,
-  Accordion,
-  AccordionItem,
-  Divider,
-} from "@heroui/react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
-  Sparkles,
+  Zap,
   GraduationCap,
   Briefcase,
   MessageCircle,
   HelpCircle,
+  Settings,
   LogOut,
   User,
   Home,
+  Trophy,
   ShoppingBag,
   ShoppingCart,
   Shield,
   Users,
   BarChart3,
   Database,
+  ChevronDown,
+  ChevronRight,
   Wrench,
   MessageSquare,
+  Newspaper,
   MousePointerClick,
   Puzzle,
   FileText,
   Globe,
-  Search,
+  Sparkles,
   X,
-  Layout as LayoutIcon,
+  Layout,
   Target,
   Bug,
   Wallet,
   PanelLeftClose,
   PanelLeftOpen,
+  Crown,
+  Lock,
+  CheckCircle,
+  Clock,
+  ArrowLeft,
+  Mail,
+  IdCard,
   Phone,
-  ShieldCheck,
+  MapPin,
+  Building2,
   CreditCard,
   TrendingUp,
   DollarSign,
-  Wand2,
+  Wand2
 } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Notification } from "@shared/schema";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { usePreloadPages } from "@/hooks/usePreloadPages";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import collapsedLogoUrl from "@assets/Favicon_1764026734985.png";
 
-type NavItem = {
-  name: string;
-  href: string | null;
-  icon: any;
-  testId: string;
-  badge?: string;
-  // Subagrupamento visual opcional (usado hoje só pelo Painel Admin) — nunca afeta href/testId.
-  cluster?: string;
-};
-
-type NavGroup = {
-  key: string;
-  label: string;
-  icon: any;
-  items: NavItem[];
-  headerHref?: string;
-  sectionActive?: boolean;
-};
-
-// Remove acentos para permitir busca "produtos" encontrar "Produtos"/"pródutos" etc.
-const normalize = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-
-// Agrupa itens já filtrados em microclusters (usa a ordem de primeira ocorrência).
-// Itens sem `cluster` caem num grupo "sem título" (chave vazia).
-function groupByCluster(items: NavItem[]): { cluster: string; items: NavItem[] }[] {
-  const order: string[] = [];
-  const map = new Map<string, NavItem[]>();
-  items.forEach((item) => {
-    const key = item.cluster ?? "";
-    if (!map.has(key)) {
-      map.set(key, []);
-      order.push(key);
-    }
-    map.get(key)!.push(item);
-  });
-  return order.map((cluster) => ({ cluster, items: map.get(cluster)! }));
-}
 
 export default function Sidebar() {
   const { preloadOnHover } = usePreloadPages();
-  // `setLocation` é usado só pelo cabeçalho clicável dos grupos (Admin/Marketplace) —
-  // evita aninhar um <Link> (que renderiza <a>) dentro do <button> que o HeroUI usa
-  // como trigger do AccordionItem (HTML inválido, dispara toggle + navegação juntos).
-  const [location, setLocation] = useLocation();
+  const [location] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isAdminExpanded, setIsAdminExpanded] = useState(false);
+  const [isUtilitiesExpanded, setIsUtilitiesExpanded] = useState(false);
+  const [isMarketplaceExpanded, setIsMarketplaceExpanded] = useState(false);
   const { isSidebarOpen, isSidebarCollapsed, closeSidebar, toggleCollapse } = useSidebar();
-  const [searchQuery, setSearchQuery] = useState("");
 
-  // Mesma queryKey usada pelo TopBar — o React Query deduplica automaticamente,
-  // então isso não gera uma segunda requisição ao carrinho.
-  const { data: cartItems } = useQuery({
-    queryKey: ["/api/marketplace/cart"],
-    enabled: !!user,
-  });
-  const cartItemCount = Array.isArray(cartItems)
-    ? cartItems.reduce((total: number, item: any) => total + (item.quantity || 1), 0)
-    : 0;
-
+  // Close sidebar on route change (mobile)
   useEffect(() => {
     closeSidebar();
   }, [location]);
@@ -130,15 +87,23 @@ export default function Sidebar() {
       return response.json();
     },
     onSuccess: () => {
-      localStorage.removeItem("auth_token");
+      localStorage.removeItem('auth_token');
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({ title: "Logout realizado com sucesso!", description: "Até logo!" });
+      toast({
+        title: "Logout realizado com sucesso!",
+        description: "Até logo!",
+      });
       window.location.href = "/";
     },
     onError: () => {
-      toast({ title: "Erro ao fazer logout", description: "Tente novamente", variant: "destructive" });
+      toast({
+        title: "Erro ao fazer logout",
+        description: "Tente novamente",
+        variant: "destructive",
+      });
     },
   });
+
 
   const getInitials = (name?: string) => {
     if (!name) return "U";
@@ -149,200 +114,267 @@ export default function Sidebar() {
     return name.charAt(0).toUpperCase();
   };
 
-  // Âncora fixa fora dos grupos — sempre visível, é a página inicial da plataforma.
-  const pinnedNav: NavItem[] = [
-    { name: "Início", href: "/", icon: Home, testId: "nav-timeline" },
+  const mainNav = [
+    {
+      name: "Timeline",
+      href: "/",
+      icon: Home,
+      testId: "nav-timeline"
+    },
+    {
+      name: "Meus PLRs",
+      href: "/plrs",
+      icon: BookOpen,
+      testId: "nav-plrs"
+    },
+    {
+      name: "Ferramentas IA",
+      href: "/ai-tools",
+      icon: Sparkles,
+      testId: "nav-ai-tools"
+    },
+    {
+      name: "Estúdio IA",
+      href: "/ai-studio",
+      icon: Wand2,
+      testId: "nav-ai-studio"
+    },
+    {
+      name: "Criador de Ebooks",
+      href: "/ebooks",
+      icon: BookOpen,
+      testId: "nav-ebooks"
+    },
+    {
+      name: "Quiz Builder",
+      href: "/quiz-builder",
+      icon: MousePointerClick,
+      testId: "nav-quiz-builder"
+    },
+    {
+      name: "Cursos Online",
+      href: "/courses",
+      icon: GraduationCap,
+      testId: "nav-courses"
+    },
+    {
+      name: "White Label",
+      href: "/services",
+      icon: Briefcase,
+      testId: "nav-services"
+    },
   ];
 
-  const criarNav: NavItem[] = [
-    { name: "Meus PLRs", href: "/plrs", icon: BookOpen, testId: "nav-plrs" },
-    { name: "Ferramentas IA", href: "/ai-tools", icon: Sparkles, testId: "nav-ai-tools" },
-    { name: "Estúdio IA", href: "/ai-studio", icon: Wand2, testId: "nav-ai-studio" },
-    { name: "Criador de Ebooks", href: "/ebooks", icon: BookOpen, testId: "nav-ebooks" },
-    { name: "Quiz Builder", href: "/quiz-builder", icon: MousePointerClick, testId: "nav-quiz-builder" },
-    { name: "Cursos Online", href: "/courses", icon: GraduationCap, testId: "nav-courses" },
-    { name: "White Label", href: "/services", icon: Briefcase, testId: "nav-services" },
+  const utilitiesNav = [
+    {
+      name: "Plugins",
+      href: "/plugins",
+      icon: Puzzle,
+      testId: "nav-plugins"
+    },
+    {
+      name: "Páginas e Templates",
+      href: "/templates",
+      icon: FileText,
+      testId: "nav-templates"
+    },
+    {
+      name: "Modelos N8N",
+      href: "/modelos-n8n",
+      icon: Wrench,
+      testId: "nav-modelos-n8n"
+    },
+    {
+      name: "Clonador de Páginas",
+      href: "/clonador",
+      icon: Globe,
+      testId: "nav-clonador"
+    },
+    {
+      name: "Criador de Páginas",
+      href: "/presell-dashboard",
+      icon: Layout,
+      testId: "nav-presell-dashboard"
+    },
+    {
+      name: "Agente de IA",
+      href: null,
+      icon: Sparkles,
+      testId: "nav-agente-ia",
+      badge: "em breve"
+    },
+    {
+      name: "Hack Ads",
+      href: null,
+      icon: Target,
+      testId: "nav-hack-ads",
+      badge: "em breve"
+    },
   ];
 
-  const utilitiesNav: NavItem[] = [
-    { name: "Plugins", href: "/plugins", icon: Puzzle, testId: "nav-plugins" },
-    { name: "Páginas e Templates", href: "/templates", icon: FileText, testId: "nav-templates" },
-    { name: "Modelos N8N", href: "/modelos-n8n", icon: Wrench, testId: "nav-modelos-n8n" },
-    { name: "Clonador de Páginas", href: "/clonador", icon: Globe, testId: "nav-clonador" },
-    { name: "Criador de Páginas", href: "/presell-dashboard", icon: LayoutIcon, testId: "nav-presell-dashboard" },
-    { name: "Agente de IA", href: null, icon: Sparkles, testId: "nav-agente-ia", badge: "em breve" },
-    { name: "Hack Ads", href: null, icon: Target, testId: "nav-hack-ads", badge: "em breve" },
+  const communityNav = [
+    {
+      name: "Fórum",
+      href: "/forum",
+      icon: MessageSquare,
+      testId: "nav-forum"
+    },
+    {
+      name: "Marketplace",
+      href: "/marketplace",
+      icon: ShoppingBag,
+      testId: "nav-marketplace"
+    },
+    {
+      name: "Suporte",
+      href: "/support",
+      icon: HelpCircle,
+      testId: "nav-support"
+    },
   ];
 
-  const marketplaceSubNav: NavItem[] = [
-    { name: "Vitrine", href: "/marketplace/vitrine", icon: ShoppingBag, testId: "nav-marketplace-vitrine" },
-    { name: "Meus Produtos", href: "/marketplace/meus-produtos", icon: Target, testId: "nav-marketplace-meus-produtos" },
-    { name: "Compras", href: "/marketplace/compras", icon: ShoppingCart, testId: "nav-marketplace-compras" },
-    { name: "Financeiro", href: "/marketplace/financeiro", icon: Wallet, testId: "nav-marketplace-financeiro" },
+  const userNav = [
+    {
+      name: "Indicações",
+      href: "/indicacoes",
+      icon: Users,
+      testId: "nav-referrals"
+    },
+    {
+      name: "Assinatura",
+      href: "/assinatura",
+      icon: CreditCard,
+      testId: "nav-assinatura"
+    },
+    {
+      name: "Perfil",
+      href: "/profile",
+      icon: User,
+      testId: "nav-profile"
+    },
   ];
 
-  const communityNav: NavItem[] = [
-    { name: "Fórum", href: "/forum", icon: MessageSquare, testId: "nav-forum" },
-    { name: "Suporte", href: "/support", icon: HelpCircle, testId: "nav-support" },
-  ];
+  const adminSubNav = user?.isAdmin ? [
+    {
+      name: "Analytics",
+      href: "/admin/analytics",
+      icon: BarChart3,
+      testId: "nav-admin-analytics"
+    },
+    {
+      name: "Analytics de Clonagem",
+      href: "/admin/clonagem-analytics",
+      icon: Globe,
+      testId: "nav-admin-cloning"
+    },
+    {
+      name: "Usuários",
+      href: "/admin/usuarios",
+      icon: Users,
+      testId: "nav-admin-users"
+    },
+    {
+      name: "Conteúdo",
+      href: "/admin/conteudo",
+      icon: Database,
+      testId: "nav-admin-content"
+    },
+    {
+      name: "Cursos Online",
+      href: "/admin/cursos",
+      icon: GraduationCap,
+      testId: "nav-admin-courses"
+    },
+    {
+      name: "Marketplace",
+      href: "/admin/marketplace",
+      icon: ShoppingBag,
+      testId: "nav-admin-marketplace"
+    },
+    {
+      name: "Comunidade",
+      href: "/admin/comunidade",
+      icon: MessageCircle,
+      testId: "nav-admin-community"
+    },
+    {
+      name: "White Label e Tools IA",
+      href: "/admin/servicos",
+      icon: Wrench,
+      testId: "nav-admin-services"
+    },
+    {
+      name: "Bugs Reportados",
+      href: "/admin/bugs",
+      icon: Bug,
+      testId: "nav-admin-bugs"
+    },
+    {
+      name: "Financeiro",
+      href: "/admin/financeiro",
+      icon: Wallet,
+      testId: "nav-admin-financeiro"
+    },
+    {
+      name: "Checkouts Abandonados",
+      href: "/admin/checkout-abandonado",
+      icon: ShoppingCart,
+      testId: "nav-admin-checkout-abandonado"
+    },
+    {
+      name: "Afiliados",
+      href: "/admin/afiliados",
+      icon: Users,
+      testId: "nav-admin-afiliados"
+    },
+    {
+      name: "Vendedores",
+      href: "/admin/vendedores",
+      icon: TrendingUp,
+      testId: "nav-admin-vendedores"
+    },
+    {
+      name: "Reembolsos de Assinatura",
+      href: "/admin/subscription-refunds",
+      icon: DollarSign,
+      testId: "nav-admin-subscription-refunds"
+    },
+    {
+      name: "Uso de IA (OpenAI)",
+      href: "/admin/ai-usage",
+      icon: Sparkles,
+      testId: "nav-admin-ai-usage"
+    },
+    {
+      name: "WhatsApp",
+      href: "/admin/whatsapp",
+      icon: Phone,
+      testId: "nav-admin-whatsapp"
+    },
+  ] : [];
 
-  const userNav: NavItem[] = [
-    { name: "Indicações", href: "/indicacoes", icon: Users, testId: "nav-referrals" },
-    { name: "Assinatura", href: "/assinatura", icon: CreditCard, testId: "nav-assinatura" },
-    { name: "Perfil", href: "/profile", icon: User, testId: "nav-profile" },
-  ];
+  const navigation = user?.isAdmin ? [...mainNav, {
+    name: "Painel Admin",
+    href: "/admin", // This is a parent link, sub-items will be handled separately
+    icon: Shield,
+    testId: "nav-admin",
+    subItems: adminSubNav // Pass adminSubNav as subItems
+  }] : mainNav;
 
-  // Painel Admin — subdividido em microclusters (Visão Geral/Gestão/Financeiro/Sistema)
-  // para dar hierarquia visual a quem está explorando, sem alterar nenhum href/testId.
-  const adminSubNav: NavItem[] = user?.isAdmin
-    ? [
-        { name: "Analytics", href: "/admin/analytics", icon: BarChart3, testId: "nav-admin-analytics", cluster: "Visão Geral" },
-        { name: "Analytics de Clonagem", href: "/admin/clonagem-analytics", icon: Globe, testId: "nav-admin-cloning", cluster: "Visão Geral" },
-        { name: "Usuários", href: "/admin/usuarios", icon: Users, testId: "nav-admin-users", cluster: "Visão Geral" },
-        { name: "Conteúdo", href: "/admin/conteudo", icon: Database, testId: "nav-admin-content", cluster: "Gestão" },
-        { name: "Cursos Online", href: "/admin/cursos", icon: GraduationCap, testId: "nav-admin-courses", cluster: "Gestão" },
-        { name: "Marketplace", href: "/admin/marketplace", icon: ShoppingBag, testId: "nav-admin-marketplace", cluster: "Gestão" },
-        { name: "Comunidade", href: "/admin/comunidade", icon: MessageCircle, testId: "nav-admin-community", cluster: "Gestão" },
-        { name: "White Label e Tools IA", href: "/admin/servicos", icon: Wrench, testId: "nav-admin-services", cluster: "Gestão" },
-        { name: "Bugs Reportados", href: "/admin/bugs", icon: Bug, testId: "nav-admin-bugs", cluster: "Gestão" },
-        { name: "Financeiro", href: "/admin/financeiro", icon: Wallet, testId: "nav-admin-financeiro", cluster: "Financeiro" },
-        { name: "Checkouts Abandonados", href: "/admin/checkout-abandonado", icon: ShoppingCart, testId: "nav-admin-checkout-abandonado", cluster: "Financeiro" },
-        { name: "Afiliados", href: "/admin/afiliados", icon: Users, testId: "nav-admin-afiliados", cluster: "Financeiro" },
-        { name: "Vendedores", href: "/admin/vendedores", icon: TrendingUp, testId: "nav-admin-vendedores", cluster: "Financeiro" },
-        { name: "Reembolsos de Assinatura", href: "/admin/subscription-refunds", icon: DollarSign, testId: "nav-admin-subscription-refunds", cluster: "Financeiro" },
-        { name: "Uso de IA (OpenAI)", href: "/admin/ai-usage", icon: Sparkles, testId: "nav-admin-ai-usage", cluster: "Sistema" },
-        { name: "WhatsApp", href: "/admin/whatsapp", icon: Phone, testId: "nav-admin-whatsapp", cluster: "Sistema" },
-        { name: "Recuperação de Conta", href: "/admin/account-recovery", icon: ShieldCheck, testId: "nav-admin-account-recovery", cluster: "Sistema" },
-      ]
-    : [];
 
-  const isNavLinkActive = (href: string | null) => !!href && location === href;
-  const isTimelineActive = location === "/" || location === "/timeline";
-  const isMarketplaceSectionActive = location.startsWith("/marketplace");
-  const isAdminSectionActive = location.startsWith("/admin");
-
-  const groups: NavGroup[] = [
-    { key: "criar", label: "Criar", icon: Sparkles, items: criarNav },
-    ...(user?.isAdmin
-      ? [{ key: "admin", label: "Painel Admin", icon: Shield, items: adminSubNav, headerHref: "/admin/analytics", sectionActive: isAdminSectionActive }]
-      : []),
-    { key: "utilidades", label: "Utilidades", icon: Wrench, items: utilitiesNav },
-    { key: "marketplace", label: "Marketplace", icon: ShoppingBag, items: marketplaceSubNav, headerHref: "/marketplace", sectionActive: isMarketplaceSectionActive },
-    { key: "comunidade", label: "Comunidade", icon: MessageCircle, items: communityNav },
-    { key: "conta", label: "Conta", icon: User, items: userNav },
-  ];
-
-  // Grupos vêm colapsados por padrão — só o grupo que contém a rota atual abre sozinho.
-  const [openKeys, setOpenKeys] = useState<Set<string>>(() => {
-    if (isAdminSectionActive) return new Set(["admin"]);
-    if (isMarketplaceSectionActive) return new Set(["marketplace"]);
-    const activeGroup = groups.find((g) => g.items.some((i) => i.href === location));
-    return activeGroup ? new Set([activeGroup.key]) : new Set();
-  });
-
-  const query = normalize(searchQuery.trim());
-  const matchesQuery = (name: string) => !query || normalize(name).includes(query);
-
-  const visiblePinned = pinnedNav.filter((item) => matchesQuery(item.name));
-  const visibleGroups = groups
-    .map((group) => ({ ...group, items: group.items.filter((item) => matchesQuery(item.name)) }))
-    .filter((group) => !query || group.items.length > 0);
-  const hasResults = visiblePinned.length > 0 || visibleGroups.some((g) => g.items.length > 0);
-
-  // Enquanto o usuário busca, os grupos com resultado abrem automaticamente.
-  const effectiveOpenKeys = query ? new Set(visibleGroups.map((g) => g.key)) : openKeys;
-
-  const handleSelectionChange = (keys: any) => {
-    if (query) return; // seleção controlada pela busca enquanto ela estiver ativa
-    if (keys === "all") {
-      setOpenKeys(new Set(groups.map((g) => g.key)));
-      return;
-    }
-    setOpenKeys(new Set(Array.from(keys as Set<string>).map(String)));
+  const isActive = (href: string) => {
+    if (href === "/" && location === "/") return true;
+    if (href !== "/" && location.startsWith(href)) return true;
+    return false;
   };
 
-  // Linha de navegação — item simples com ícone, usada em todas as seções.
-  function NavRow({
-    name,
-    href,
-    icon: Icon,
-    testId,
-    active,
-    badge,
-    compact = false,
-  }: {
-    name: string;
-    href: string | null;
-    icon: any;
-    testId: string;
-    active: boolean;
-    badge?: string;
-    compact?: boolean;
-  }) {
-    const isComingSoon = href === null;
-    const row = (
-      <div
-        className={cn(
-          "relative flex items-center gap-3 text-sm transition-colors",
-          compact ? "py-2 pl-4 pr-2" : "py-2.5 pl-4 pr-2",
-          isSidebarCollapsed && "justify-center px-0",
-          isComingSoon
-            ? "cursor-default text-default-300"
-            : active
-              ? "text-primary font-medium"
-              : "text-default-600 hover:text-foreground cursor-pointer"
-        )}
-        data-testid={testId}
-        onMouseEnter={() => href && preloadOnHover(href)}
-      >
-        {!isSidebarCollapsed && (
-          <span
-            className={cn(
-              "absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full transition-colors",
-              active ? "bg-primary" : "bg-transparent"
-            )}
-          />
-        )}
-        <Icon className={cn("flex-shrink-0", compact ? "w-4 h-4" : "w-[18px] h-[18px]")} />
-        {!isSidebarCollapsed && <span className="flex-1 truncate">{name}</span>}
-        {!isSidebarCollapsed && badge && (
-          <span className="text-[10px] uppercase tracking-wide text-default-300">{badge}</span>
-        )}
-      </div>
-    );
-
-    const content = isComingSoon ? row : <Link href={href}>{row}</Link>;
-
-    if (isSidebarCollapsed) {
-      return (
-        <Tooltip content={name} placement="right" delay={200} closeDelay={0}>
-          {content}
-        </Tooltip>
-      );
-    }
-    return content;
-  }
-
-  // Selo numérico discreto para cabeçalhos de grupo (ex.: contagem de itens no carrinho).
-  function CountBadge({ count }: { count: number }) {
-    if (count <= 0) return null;
-    return (
-      <span className="ml-auto flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold normal-case tracking-normal">
-        {count > 99 ? "99+" : count}
-      </span>
-    );
-  }
-
-  const accordionItemClasses = {
-    base: "px-0",
-    title: "text-[11px] font-semibold uppercase tracking-wider",
-    trigger: "px-1 py-2 data-[hover=true]:opacity-70 transition-opacity cursor-pointer",
-    content: "pb-1 pt-0.5 pl-1 space-y-0.5",
-    indicator: "text-default-300",
+  const isNavLinkActive = (href: string) => {
+    return location === href;
   };
 
   return (
     <>
+      {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -351,257 +383,422 @@ export default function Sidebar() {
         />
       )}
 
+      {/* Sidebar */}
       <aside
         className={cn(
           "fixed lg:sticky top-0 z-50 lg:z-auto",
           "bg-sidebar border-r border-sidebar-border",
           "flex flex-col h-screen",
           "transition-all duration-300 ease-in-out",
-          isSidebarCollapsed ? "lg:w-[76px]" : "lg:w-72",
-          "w-72",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-          // Defensivo: neutraliza qualquer transform herdado em telas lg+ (evita que o
-          // estado de abertura mobile crie um stacking context indesejado para flyouts
-          // ou tooltips futuros do modo colapsado).
-          "lg:transform-none"
+          isSidebarCollapsed ? "lg:w-20" : "lg:w-72",
+          "w-72", // Mobile always full width
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         data-testid="sidebar"
       >
-        {/* Logo */}
-        <div className="h-16 px-4 flex items-center justify-between shrink-0">
-          <div className={cn("flex items-center", isSidebarCollapsed && "justify-center w-full")}>
-            {!isSidebarCollapsed ? (
-              <img src="/lowfy-logo-dark.webp" alt="Lowfy" className="h-6 w-auto object-contain" loading="eager" />
+      {/* Logo */}
+      <div className="px-4 py-4 border-b border-sidebar-border flex items-center justify-between">
+        <div className={cn("flex items-center", isSidebarCollapsed ? "justify-center w-full" : "")}>
+          {!isSidebarCollapsed ? (
+            <img
+              src="/lowfy-logo-dark.webp"
+              alt="Lowfy"
+              className="h-7 w-auto object-contain"
+              loading="eager"
+            />
+          ) : (
+            <img
+              src="/lowfy-logo-green.webp"
+              alt="Lowfy"
+              className="h-7 w-7 object-contain"
+              loading="eager"
+            />
+          )}
+        </div>
+        {/* Toggle collapse button for desktop */}
+        {!isSidebarCollapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapse}
+            className="hidden lg:flex"
+            data-testid="button-toggle-collapse"
+            title="Recolher sidebar"
+          >
+            <PanelLeftClose className="h-5 w-5" />
+          </Button>
+        )}
+        {/* Close button for mobile */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={closeSidebar}
+          className="lg:hidden"
+          data-testid="button-close-sidebar"
+        >
+          <X className="h-5 w-5" />
+        </Button>
+      </div>
+      
+      {/* Collapse button when collapsed (visible on desktop only) */}
+      {isSidebarCollapsed && (
+        <div className="hidden lg:flex px-2 py-2 justify-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapse}
+            className="w-full"
+            data-testid="button-expand-collapse"
+            title="Expandir sidebar"
+          >
+            <PanelLeftOpen className="h-5 w-5" />
+          </Button>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {/* Section label */}
+        {!isSidebarCollapsed && (
+          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 select-none">
+            Plataforma
+          </p>
+        )}
+        {/* Main Navigation */}
+        {navigation.map((item) => {
+          const Icon = item.icon;
+          const isCurrentLocation = isNavLinkActive(item.href);
+          const isAdminSection = item.name === "Painel Admin";
+
+          return (
+            <div key={item.href}>
+              <Link href={item.href}>
+                <div
+                  className={cn(
+                    "sidebar-link flex items-center rounded-lg text-sm font-medium cursor-pointer",
+                    isSidebarCollapsed ? "justify-center px-2 py-3" : "space-x-3 px-4 py-3",
+                    isCurrentLocation
+                      ? "active"
+                      : "text-sidebar-foreground hover:text-foreground"
+                  )}
+                  data-testid={item.testId}
+                  onMouseEnter={() => !isAdminSection && preloadOnHover(item.href)}
+                  onClick={() => {
+                    if (isAdminSection) {
+                      setIsAdminExpanded(!isAdminExpanded);
+                    }
+                  }}
+                  title={isSidebarCollapsed ? item.name : undefined}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  {!isSidebarCollapsed && (
+                    <>
+                      <span>{item.name}</span>
+                      {isAdminSection && (
+                        <>
+                          {isAdminExpanded ? (
+                            <ChevronDown className="w-4 h-4 ml-auto" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 ml-auto" />
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </Link>
+
+              {/* Render sub-items if it's the admin section and it's expanded */}
+              {isAdminSection && isAdminExpanded && item.subItems && !isSidebarCollapsed && (
+                <div className="ml-4 mt-1 space-y-1">
+                  {item.subItems.map((subItem) => {
+                    const SubIcon = subItem.icon;
+                    return (
+                      <Link key={subItem.href} href={subItem.href}>
+                        <div
+                          className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
+                            isNavLinkActive(subItem.href)
+                              ? "active"
+                              : "text-sidebar-foreground hover:text-foreground"
+                          }`}
+                          data-testid={subItem.testId}
+                        >
+                          <SubIcon className="w-4 h-4" />
+                          <span className="text-xs">{subItem.name}</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Ferramentas Section */}
+        <div className="pt-3 mt-3 border-t border-sidebar-border">
+          <div>
+            <div
+              className={cn(
+                "sidebar-link flex items-center rounded-lg text-sm font-medium cursor-pointer text-sidebar-foreground hover:text-foreground",
+                isSidebarCollapsed ? "justify-center px-2 py-3" : "space-x-3 px-4 py-3"
+              )}
+              onClick={() => setIsUtilitiesExpanded(!isUtilitiesExpanded)}
+              data-testid="nav-utilidades"
+              title={isSidebarCollapsed ? "Utilidades" : undefined}
+            >
+              <Wrench className="w-5 h-5 flex-shrink-0" />
+              {!isSidebarCollapsed && (
+                <>
+                  <span>Utilidades</span>
+                  {isUtilitiesExpanded ? (
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  )}
+                </>
+              )}
+            </div>
+
+            {isUtilitiesExpanded && !isSidebarCollapsed && (
+              <div className="ml-4 mt-1 space-y-1">
+                {utilitiesNav.map((item) => {
+                  const Icon = item.icon;
+                  const isComingSoon = item.href === null;
+                  
+                  const itemContent = (
+                    <div
+                      className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium ${
+                        isComingSoon
+                          ? "cursor-default text-sidebar-foreground/40 opacity-60"
+                          : `cursor-pointer ${
+                              isNavLinkActive(item.href)
+                                ? "active"
+                                : "text-sidebar-foreground hover:text-foreground"
+                            }`
+                      }`}
+                      data-testid={item.testId}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-xs">{item.name}</span>
+                        {(item as any).badge && (
+                          <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4 ml-auto">
+                            {(item as any).badge}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <div key={item.testId}>
+                      {isComingSoon ? (
+                        itemContent
+                      ) : (
+                        <Link href={item.href || "/"}>
+                          {itemContent}
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Community Section */}
+        <div className="pt-3 mt-3 border-t border-sidebar-border">
+          {communityNav.map((item) => {
+            const Icon = item.icon;
+            // Check if the current item is Marketplace
+            const isMarketplaceItem = item.name === "Marketplace";
+            return (
+              <div key={item.href}>
+                <Link href={item.href}>
+                  <div
+                    className={cn(
+                      "sidebar-link flex items-center rounded-lg text-sm font-medium cursor-pointer",
+                      isSidebarCollapsed ? "justify-center px-2 py-3" : "space-x-3 px-4 py-3",
+                      isNavLinkActive(item.href)
+                        ? "active"
+                        : "text-sidebar-foreground hover:text-foreground"
+                    )}
+                    data-testid={item.testId}
+                    onClick={(e) => {
+                      // If it's the marketplace item, toggle its expansion state
+                      if (isMarketplaceItem) {
+                        e.preventDefault(); // Prevent navigation to the marketplace page itself
+                        setIsMarketplaceExpanded(!isMarketplaceExpanded);
+                      }
+                    }}
+                    title={isSidebarCollapsed ? item.name : undefined}
+                  >
+                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        <span>{item.name}</span>
+                        {/* Add dropdown icon for marketplace if it has sub-items or is expandable */}
+                        {isMarketplaceItem && (
+                          <>
+                            {isMarketplaceExpanded ? (
+                              <ChevronDown className="w-4 h-4 ml-auto" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 ml-auto" />
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </Link>
+
+                {/* Render sub-items for Marketplace if expanded */}
+                {isMarketplaceItem && isMarketplaceExpanded && !isSidebarCollapsed && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    <Link href="/marketplace/vitrine">
+                      <div
+                        className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
+                          isNavLinkActive("/marketplace/vitrine")
+                            ? "active"
+                            : "text-sidebar-foreground hover:text-foreground"
+                        }`}
+                        data-testid="nav-marketplace-vitrine"
+                      >
+                        <ShoppingBag className="w-4 h-4" />
+                        <span className="text-xs">Vitrine</span>
+                      </div>
+                    </Link>
+                    <Link href="/marketplace/meus-produtos">
+                      <div
+                        className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
+                          isNavLinkActive("/marketplace/meus-produtos")
+                            ? "active"
+                            : "text-sidebar-foreground hover:text-foreground"
+                        }`}
+                        data-testid="nav-marketplace-meus-produtos"
+                      >
+                        <Target className="w-4 h-4" />
+                        <span className="text-xs">Meus Produtos</span>
+                      </div>
+                    </Link>
+                    <Link href="/marketplace/compras">
+                      <div
+                        className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
+                          isNavLinkActive("/marketplace/compras")
+                            ? "active"
+                            : "text-sidebar-foreground hover:text-foreground"
+                        }`}
+                        data-testid="nav-marketplace-compras"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        <span className="text-xs">Compras</span>
+                      </div>
+                    </Link>
+                    <Link href="/marketplace/financeiro">
+                      <div
+                        className={`sidebar-link flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${
+                          isNavLinkActive("/marketplace/financeiro")
+                            ? "active"
+                            : "text-sidebar-foreground hover:text-foreground"
+                        }`}
+                        data-testid="nav-marketplace-financeiro"
+                      >
+                        <Wallet className="w-4 h-4" />
+                        <span className="text-xs">Financeiro</span>
+                      </div>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* User Section */}
+        <div className="pt-4 mt-4 border-t border-sidebar-border">
+          {userNav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}>
+                <div
+                  className={cn(
+                    "sidebar-link flex items-center rounded-lg text-sm font-medium cursor-pointer",
+                    isSidebarCollapsed ? "justify-center px-2 py-3" : "space-x-3 px-4 py-3",
+                    isNavLinkActive(item.href)
+                      ? "active"
+                      : "text-sidebar-foreground hover:text-foreground"
+                  )}
+                  data-testid={item.testId}
+                  title={isSidebarCollapsed ? item.name : undefined}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  {!isSidebarCollapsed && <span>{item.name}</span>}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* User Profile */}
+      <div className="p-4 border-t border-sidebar-border">
+        <div className={cn(
+          "flex items-center px-4 py-3",
+          isSidebarCollapsed ? "flex-col gap-2" : "space-x-3"
+        )}>
+          <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center flex-shrink-0 ring-1 ring-border">
+            {user?.profileImageUrl ? (
+              <img
+                src={user.profileImageUrl}
+                alt="Profile"
+                className="w-9 h-9 rounded-full object-cover"
+              />
             ) : (
-              <img src="/lowfy-logo-green.webp" alt="Lowfy" className="h-6 w-6 object-contain" loading="eager" />
+              <span className="text-sm font-semibold text-primary" data-testid="user-initials">
+                {getInitials(user?.name)}
+              </span>
             )}
           </div>
           {!isSidebarCollapsed && (
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              radius="full"
-              onPress={toggleCollapse}
-              className="hidden lg:flex text-default-400"
-              data-testid="button-toggle-collapse"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </Button>
-          )}
-          <Button
-            isIconOnly
-            size="sm"
-            variant="light"
-            radius="full"
-            onPress={closeSidebar}
-            className="lg:hidden text-default-400"
-            data-testid="button-close-sidebar"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {isSidebarCollapsed && (
-          <div className="hidden lg:flex px-3 pb-2 justify-center">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              radius="full"
-              onPress={toggleCollapse}
-              className="text-default-400"
-              data-testid="button-expand-collapse"
-            >
-              <PanelLeftOpen className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
-        {/* Busca — filtro em tempo real dos itens do menu */}
-        {!isSidebarCollapsed && (
-          <div className="px-4 pb-3 shrink-0">
-            <Input
-              aria-label="Buscar no menu"
-              value={searchQuery}
-              onValueChange={setSearchQuery}
-              isClearable
-              variant="underlined"
-              color="primary"
-              size="sm"
-              placeholder="Buscar no menu"
-              startContent={<Search className="h-4 w-4 text-default-400" />}
-              classNames={{ inputWrapper: "shadow-none", input: "text-sm" }}
-              data-testid="input-sidebar-search"
-            />
-          </div>
-        )}
-
-        <ScrollShadow className="flex-1 px-3 py-1" hideScrollBar>
-          {isSidebarCollapsed ? (
-            <div className="space-y-4">
-              <div className="space-y-0.5">
-                {pinnedNav.map((item) => (
-                  <NavRow key={item.testId} {...item} active={isTimelineActive} />
-                ))}
-                {criarNav.map((item) => (
-                  <NavRow key={item.testId} {...item} active={isNavLinkActive(item.href)} />
-                ))}
-              </div>
-
-              {user?.isAdmin && (
-                <>
-                  <Divider />
-                  <NavRow name="Painel Admin" href="/admin/analytics" icon={Shield} testId="nav-admin" active={isAdminSectionActive} />
-                </>
-              )}
-
-              <Divider />
-              <div className="space-y-0.5">
-                {utilitiesNav.map((item) => (
-                  <NavRow key={item.testId} {...item} active={isNavLinkActive(item.href)} />
-                ))}
-              </div>
-
-              <Divider />
-              <div className="space-y-0.5">
-                <NavRow name="Marketplace" href="/marketplace" icon={ShoppingBag} testId="nav-marketplace" active={isMarketplaceSectionActive} />
-                {communityNav.map((item) => (
-                  <NavRow key={item.testId} {...item} active={isNavLinkActive(item.href)} />
-                ))}
-              </div>
-
-              <Divider />
-              <div className="space-y-0.5 pb-2">
-                {userNav.map((item) => (
-                  <NavRow key={item.testId} {...item} active={isNavLinkActive(item.href)} />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1 pb-2">
-              {visiblePinned.map((item) => (
-                <NavRow key={item.testId} {...item} active={isTimelineActive} />
-              ))}
-
-              {query && !hasResults && (
-                <p className="px-3 py-8 text-center text-sm text-default-400" data-testid="sidebar-search-empty">
-                  Nenhum item encontrado para "{searchQuery.trim()}"
-                </p>
-              )}
-
-              {visibleGroups.length > 0 && (
-                <Accordion
-                  variant="light"
-                  isCompact
-                  selectionMode="multiple"
-                  showDivider={false}
-                  itemClasses={accordionItemClasses}
-                  selectedKeys={Array.from(effectiveOpenKeys)}
-                  onSelectionChange={handleSelectionChange}
-                >
-                  {visibleGroups.map((group) => (
-                    <AccordionItem
-                      key={group.key}
-                      aria-label={group.label}
-                      title={
-                        group.headerHref ? (
-                          // Elemento clicável (não <Link>) para não aninhar <a> dentro do
-                          // <button> do trigger do AccordionItem — navega programaticamente
-                          // e para a propagação para não também alternar o accordion.
-                          <span
-                            role="link"
-                            className={cn(
-                              "flex items-center gap-3 w-full text-[11px] font-semibold uppercase tracking-wider",
-                              group.sectionActive ? "text-primary" : "text-default-400"
-                            )}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setLocation(group.headerHref!);
-                            }}
-                            onMouseEnter={() => preloadOnHover(group.headerHref!)}
-                          >
-                            <group.icon className="w-4 h-4 flex-shrink-0" />
-                            {group.label}
-                            {group.key === "marketplace" && <CountBadge count={cartItemCount} />}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wider text-default-400">
-                            <group.icon className="w-4 h-4 flex-shrink-0" />
-                            {group.label}
-                          </span>
-                        )
-                      }
-                    >
-                      {group.key === "admin" ? (
-                        <div className="space-y-2">
-                          {groupByCluster(group.items).map((clusterGroup) => (
-                            <div key={clusterGroup.cluster || "geral"}>
-                              {clusterGroup.cluster && (
-                                <p className="px-4 pb-1 text-[10px] font-semibold uppercase tracking-wide text-default-300 select-none">
-                                  {clusterGroup.cluster}
-                                </p>
-                              )}
-                              <div className="space-y-0.5">
-                                {clusterGroup.items.map((item) => (
-                                  <NavRow key={item.testId} {...item} active={isNavLinkActive(item.href)} compact />
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="space-y-0.5">
-                          {group.items.map((item) => (
-                            <NavRow key={item.testId} {...item} active={isNavLinkActive(item.href)} compact />
-                          ))}
-                        </div>
-                      )}
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              )}
-            </div>
-          )}
-        </ScrollShadow>
-
-        {/* Perfil do usuário */}
-        <div className="p-4 border-t border-sidebar-border shrink-0">
-          <div className={cn("flex items-center", isSidebarCollapsed ? "flex-col gap-2" : "gap-3")}>
-            <Avatar
-              src={user?.profileImageUrl || undefined}
-              name={getInitials(user?.name)}
-              size="sm"
-              radius="full"
-              classNames={{ base: "bg-primary/10 ring-1 ring-border", name: "text-primary font-semibold" }}
-              data-testid="user-initials"
-            />
-            {!isSidebarCollapsed && (
+            <>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate" data-testid="user-name">
                   {user?.name || user?.email || "Usuário"}
                 </p>
-                <p className="text-xs text-default-400 truncate" data-testid="user-email">
+                <p className="text-xs text-muted-foreground truncate" data-testid="user-email">
                   {user?.email}
                 </p>
               </div>
-            )}
-            <Tooltip content="Sair" placement={isSidebarCollapsed ? "right" : "top"}>
               <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                radius="full"
-                onPress={() => logoutMutation.mutate()}
-                isDisabled={logoutMutation.isPending}
-                className="text-danger-500 hover:bg-danger-50"
+                variant="ghost"
+                size="icon"
+                onClick={() => logoutMutation.mutate()}
+                className="p-2 hover:bg-red-50 text-muted-foreground hover:text-red-600 rounded-lg transition-colors"
+                title="Sair"
                 data-testid="button-logout"
+                disabled={logoutMutation.isPending}
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-5 h-5 text-red-500 hover:text-red-600" />
               </Button>
-            </Tooltip>
-          </div>
+            </>
+          )}
+          {isSidebarCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => logoutMutation.mutate()}
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
+              title="Sair"
+              data-testid="button-logout"
+              disabled={logoutMutation.isPending}
+            >
+              <LogOut className="w-4 h-4 text-red-500 hover:text-red-600" />
+            </Button>
+          )}
         </div>
+      </div>
       </aside>
     </>
   );

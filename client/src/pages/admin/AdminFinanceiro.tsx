@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -174,16 +173,17 @@ export default function AdminFinanceiro() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <PageHeader
-        title="Financeiro"
-        description="Métricas e análises de assinaturas"
-        testId="page-title"
-      >
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">Financeiro</h1>
+          <p className="text-muted-foreground">Métricas e análises de assinaturas</p>
+        </div>
+        
         <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh">
           <RefreshCw className="w-4 h-4 mr-2" />
           Atualizar
         </Button>
-      </PageHeader>
+      </div>
 
       <Card>
         <CardHeader>

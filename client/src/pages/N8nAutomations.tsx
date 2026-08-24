@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SEO } from "@/components/SEO";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { FeatureLockedOverlay } from "@/components/FeatureLockedOverlay";
-import PageHeader from "@/components/PageHeader";
 
 interface N8nAutomation {
   id: string;
@@ -135,10 +134,13 @@ export default function N8nAutomations() {
         ogDescription="Mais de 150 templates de automação organizados para você usar no N8N!"
       />
       <div className="max-w-7xl mx-auto p-4 md:p-8" data-testid="n8n-page">
-        <PageHeader
-          title="Automações N8N"
-          description="153 templates prontos de automação para usar no N8N. Organize e-mails, integre com Telegram, automatize WordPress e muito mais!"
-        />
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Automações N8N</h1>
+          <p className="text-muted-foreground">
+            153 templates prontos de automação para usar no N8N. 
+            Organize e-mails, integre com Telegram, automatize WordPress e muito mais!
+          </p>
+        </div>
 
         {/* Filtros */}
         <div className="mb-6 space-y-4">

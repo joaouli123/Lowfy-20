@@ -1,7 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -135,7 +134,12 @@ export default function Courses() {
         {JSON.stringify(coursesSchema)}
       </script>
       <div className="max-w-7xl mx-auto p-4 md:p-8" data-testid="courses-page">
-      <PageHeader title="Cursos Online Especializados" description="Acesse nossa biblioteca com mais de 380 cursos de alta qualidade em Marketing Digital, Low Ticket, Afiliados, Inteligência Artificial, YouTube, TikTok e muito mais. Tudo organizado por categorias para facilitar sua aprendizagem." />
+      <div className="mb-6">
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Cursos Online Especializados</h1>
+        <p className="text-muted-foreground text-lg">
+          Acesse nossa biblioteca com mais de 380 cursos de alta qualidade em Marketing Digital, Low Ticket, Afiliados, Inteligência Artificial, YouTube, TikTok e muito mais. Tudo organizado por categorias para facilitar sua aprendizagem.
+        </p>
+      </div>
 
       {/* Filtros */}
       <div className="mb-6 flex flex-col md:flex-row gap-4">

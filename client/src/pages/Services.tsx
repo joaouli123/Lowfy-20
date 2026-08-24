@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import ServiceCard from "@/components/ServiceCard";
-import PageHeader from "@/components/PageHeader";
 import { Briefcase } from "lucide-react";
 import type { Service } from "@shared/schema";
 
@@ -22,10 +21,10 @@ export default function Services() {
 
   return (
     <div className="max-w-7xl mx-auto p-8" data-testid="services-page">
-      <PageHeader
-        title="White Label"
-        description="Não perca tempo criando ou desenvolvendo do zero um sistema, compre pontos e use sua marca muito mais barato e venda como Seu"
-      />
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground mb-2">White Label</h1>
+        <p className="text-muted-foreground">Não perca tempo criando ou desenvolvendo do zero um sistema, compre pontos e use sua marca muito mais barato e venda como Seu</p>
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

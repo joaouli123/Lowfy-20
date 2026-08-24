@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import PageHeader from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -445,7 +444,13 @@ export default function Forum() {
             {/* Header */}
             <Card>
               <CardContent className="p-6">
-                <PageHeader title="Fórum da Comunidade" description="Compartilhe conhecimento e tire suas dúvidas">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
+                  <div>
+                    <h1 className="text-2xl font-bold">Fórum da Comunidade</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Compartilhe conhecimento e tire suas dúvidas
+                    </p>
+                  </div>
                   <Button
                     onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
                     className="gap-2 bg-emerald-600 hover:bg-emerald-700"
@@ -454,7 +459,7 @@ export default function Forum() {
                     {isCreateFormOpen ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                     {isCreateFormOpen ? 'Fechar' : 'Nova Discussão'}
                   </Button>
-                </PageHeader>
+                </div>
 
                 {/* Filtros de ordenação */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-2">

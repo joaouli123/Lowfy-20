@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -127,11 +126,10 @@ interface CSVFieldMapping {
 export default function AdminUsuarios() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <PageHeader
-        title="Gerenciamento de Usuários"
-        description="Gerencie todos os usuários e assinaturas da plataforma"
-        testId="page-title"
-      />
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">Gerenciamento de Usuários</h1>
+        <p className="text-muted-foreground">Gerencie todos os usuários e assinaturas da plataforma</p>
+      </div>
       <UsersManagement />
     </div>
   );

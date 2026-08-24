@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import PageHeader from "@/components/PageHeader";
 import { FileCode, Users, Clock, Globe, Calendar } from "lucide-react";
 import {
   Select,
@@ -146,10 +145,12 @@ export default function AdminClonagemAnalytics() {
 
   return (
     <div className="p-[50px]">
-      <PageHeader
-        title="Analytics de Clonagem"
-        description="Controle completo de páginas clonadas e estatísticas de uso"
-      >
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Analytics de Clonagem</h1>
+          <p className="text-muted-foreground">Controle completo de páginas clonadas e estatísticas de uso</p>
+        </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-muted-foreground" />
@@ -193,7 +194,7 @@ export default function AdminClonagemAnalytics() {
             </span>
           )}
         </div>
-      </PageHeader>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card data-testid="card-total-pages">

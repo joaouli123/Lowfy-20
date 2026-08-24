@@ -4,7 +4,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { MarketplaceProductWithRelations } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -322,23 +321,29 @@ export default function AdminVendedores() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 space-y-6">
-      <PageHeader
-        title="Análise de Vendedores"
-        description="Acompanhe vendas, métricas e desempenho dos vendedores do marketplace"
-        testId="page-title"
-      >
-        <Select value={datePreset} onValueChange={(v) => { setDatePreset(v); setSellersPage(1); setSalesPage(1); }}>
-          <SelectTrigger className="w-[180px]" data-testid="select-date-preset">
-            <Calendar className="w-4 h-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {DATE_PRESETS.map(preset => (
-              <SelectItem key={preset.value} value={preset.value}>{preset.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </PageHeader>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold" data-testid="page-title">
+            Análise de Vendedores
+          </h1>
+          <p className="text-muted-foreground">
+            Acompanhe vendas, métricas e desempenho dos vendedores do marketplace
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={datePreset} onValueChange={(v) => { setDatePreset(v); setSellersPage(1); setSalesPage(1); }}>
+            <SelectTrigger className="w-[180px]" data-testid="select-date-preset">
+              <Calendar className="w-4 h-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DATE_PRESETS.map(preset => (
+                <SelectItem key={preset.value} value={preset.value}>{preset.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {datePreset === "custom" && (
         <Card className="p-4">

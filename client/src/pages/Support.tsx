@@ -3,7 +3,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent } from "@/components/ui/card";
-import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,7 +103,12 @@ export default function Support() {
     <div className="min-h-screen bg-background" data-testid="support-page">
       {/* Header */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <PageHeader title="Central de Suporte" description="Encontre respostas rápidas e suporte personalizado para todas as suas necessidades" />
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-3">Central de Suporte</h1>
+          <p className="text-xl text-muted-foreground">
+            Encontre respostas rápidas e suporte personalizado para todas as suas necessidades
+          </p>
+        </div>
       </div>
 
       {/* Conteúdo */}

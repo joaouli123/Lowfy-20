@@ -1,9 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@heroui/react";
-import { BookOpen, Zap, GraduationCap, Briefcase, Users, TrendingUp, ArrowUpRight } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BookOpen, Zap, GraduationCap, Briefcase, Users, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
 import { useTour } from "@/hooks/useTour";
 import { TourOverlay } from "@/components/ui/tour/TourOverlay";
 import { TourButton } from "@/components/ui/tour/TourButton";
@@ -16,115 +14,90 @@ interface AdminStats {
   monthlyRevenue: number;
 }
 
-// Gera o mesmo slug usado pelo dashboardTour (config/tours.ts) para apontar os steps do tour.
-const slug = (title: string) => title.toLowerCase().replace(/\s+/g, "-");
-
-// Reduz o valor exibido (string ou número) a um número plano só para alimentar o
-// gráfico de panorama — é o mesmo valor já mostrado como texto no card, sem nenhuma
-// métrica nova sendo inventada.
-const toNumericValue = (value: string | number) => {
-  if (typeof value === "number") return value;
-  const parsed = parseInt(String(value).replace(/[^0-9]/g, ""), 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-function ChartTooltip({ active, payload }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-sm">
-      <p className="text-xs text-default-500">{payload[0].payload.name}</p>
-      <p className="text-sm font-semibold text-foreground tabular-nums">{payload[0].value}</p>
-    </div>
-  );
-}
-
 export default function Dashboard() {
-  const { user } = useAuth();
   const { data: stats, isLoading } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
     retry: false,
   });
 
+  // Tour
   const tour = useTour(dashboardTour);
 
-  const firstName = user?.name?.split(" ")[0] || "";
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                <div className="h-8 bg-muted rounded w-1/2"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const quickStats = [
     {
       title: "PLRs Disponíveis",
-      value: stats?.totalPLRs ?? 0,
+      value: stats?.totalPLRs || 0,
       icon: BookOpen,
       href: "/plrs",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
       title: "Ferramentas IA",
       value: "6",
       icon: Zap,
       href: "/ai-tools",
+      color: "text-accent",
+      bgColor: "bg-accent/10",
     },
     {
       title: "Cursos Online",
       value: "12",
       icon: GraduationCap,
       href: "/courses",
+      color: "text-secondary",
+      bgColor: "bg-secondary/10",
     },
     {
       title: "White Label",
-      value: stats?.totalServices ?? 0,
+      value: stats?.totalServices || 0,
       icon: Briefcase,
       href: "/services",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
       title: "Membros",
-      value: stats?.totalUsers ?? 0,
+      value: stats?.totalUsers || 0,
       icon: Users,
       href: "/forum",
+      color: "text-accent",
+      bgColor: "bg-accent/10",
     },
     {
       title: "Crescimento",
       value: "+15%",
       icon: TrendingUp,
       href: "/admin",
-    },
-  ];
-
-  const [primaryStat, ...restStats] = quickStats;
-
-  const chartData = restStats.map((stat) => ({ name: stat.title, value: toNumericValue(stat.value) }));
-
-  const quickActions = [
-    { label: "Explorar PLRs", href: "/plrs", icon: BookOpen, testId: "quick-action-plrs" },
-    { label: "Ferramentas de IA", href: "/ai-tools", icon: Zap, testId: "quick-action-ai-tools" },
-    { label: "Cursos Online", href: "/courses", icon: GraduationCap, testId: "quick-action-courses" },
-    { label: "Suporte", href: "/support", icon: Briefcase, testId: "quick-action-support" },
-  ];
-
-  const announcements = [
-    {
-      title: "Novos PLRs Adicionados",
-      description: "Confira os novos PLRs de Marketing Digital e Saúde & Bem-estar que acabaram de ser adicionados à plataforma.",
-      testId: "announcement-new-plrs",
-    },
-    {
-      title: "Ferramentas de IA Atualizadas",
-      description: "Novas funcionalidades foram adicionadas ao gerador de conteúdo e criador de imagens.",
-      testId: "announcement-ai-tools",
-    },
-    {
-      title: "Fórum da Comunidade",
-      description: "Participe das discussões e conecte-se com outros membros da comunidade.",
-      testId: "announcement-forum",
+      color: "text-secondary",
+      bgColor: "bg-secondary/10",
     },
   ];
 
   return (
-    <div className="max-w-2xl mx-auto" data-testid="dashboard-content">
+    <div className="max-w-7xl mx-auto p-8" data-testid="dashboard-content">
+      {/* Tour Overlay */}
       <TourOverlay
         isActive={tour.isActive}
-        step={tour.getCurrentStep() || { title: "", description: "" }}
-        elementRef={tour.getCurrentElement()}
+        step={tour.getCurrentStep() || { title: '', description: '' }}
+        element={tour.getCurrentElement()}
         currentStep={tour.currentStep}
         totalSteps={tour.totalSteps}
         onNext={tour.next}
@@ -132,135 +105,99 @@ export default function Dashboard() {
         onSkip={tour.skip}
       />
 
-      {/* Saudação — destaque narrativo de abertura */}
-      <header className="mb-14">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Painel Principal</p>
-        <h1 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight leading-[1.1]">
-          {greeting}
-          {firstName ? `, ${firstName}` : ""}
-        </h1>
-        <p className="text-default-500 mt-3 text-base leading-relaxed max-w-md">
-          Aqui está um resumo rápido da sua plataforma de conteúdo digital hoje.
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Painel Principal</h1>
+          <p className="text-muted-foreground">Bem-vindo à sua plataforma de conteúdo digital</p>
+        </div>
         {!tour.isActive && (
-          <div className="mt-6">
-            <TourButton onClick={tour.start} label="Conhecer a plataforma" variant="outline" />
-          </div>
+          <TourButton 
+            onClick={tour.start} 
+            label="Conhecer a plataforma"
+            variant="outline"
+          />
         )}
-      </header>
+      </div>
 
-      {/* Destaque principal — único número grande, sem card, primeiro na rolagem */}
-      <section className="mb-16 pb-14 border-b border-border">
-        <p className="text-sm font-medium text-default-500 mb-4">Comece por aqui</p>
-        <Link href={primaryStat.href}>
-          <div
-            className="group flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 cursor-pointer"
-            data-testid={`card-${slug(primaryStat.title)}`}
-          >
-            <div>
-              <p className="text-sm text-default-500 mb-2">{primaryStat.title} para você</p>
-              {isLoading ? (
-                <Skeleton className="h-14 w-32 rounded-lg" />
-              ) : (
-                <p className="text-6xl sm:text-7xl font-bold text-foreground tracking-tight tabular-nums">
-                  {primaryStat.value}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 text-primary font-medium text-sm pb-2 shrink-0 group-hover:gap-2.5 transition-all">
-              Explorar PLRs
-              <ArrowUpRight className="w-4 h-4" />
-            </div>
-          </div>
-        </Link>
-      </section>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {quickStats.map((stat) => (
+          <Link key={stat.title} href={stat.href}>
+            <Card className="card-hover cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1" data-testid={`card-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
+                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                  </div>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.bgColor}`}>
+                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
 
-      {/* A plataforma em números — faixa compacta e escaneável, com panorama comparativo */}
-      <section className="mb-16">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-default-400 mb-5">
-          A plataforma em números
-        </h2>
-
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
-          {restStats.map((stat) => (
-            <Link key={stat.title} href={stat.href}>
-              <div
-                className="group flex flex-col gap-2 rounded-xl border border-border p-4 h-full cursor-pointer hover:border-primary/40 transition-colors"
-                data-testid={`card-${slug(stat.title)}`}
-              >
-                <stat.icon className="w-4 h-4 text-default-400 group-hover:text-primary transition-colors" />
-                {isLoading ? (
-                  <Skeleton className="h-6 w-12 rounded-md" />
-                ) : (
-                  <span className="text-xl font-semibold text-foreground tabular-nums">{stat.value}</span>
-                )}
-                <span className="text-xs text-default-500 group-hover:text-foreground transition-colors leading-tight">
-                  {stat.title}
-                </span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-foreground">Ações Rápidas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Link href="/plrs">
+              <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer" data-testid="quick-action-plrs">
+                <BookOpen className="w-5 h-5 text-primary" />
+                <span className="text-foreground">Explorar PLRs</span>
               </div>
             </Link>
-          ))}
-        </div>
-
-        <div className="rounded-xl border border-border p-4">
-          <p className="text-xs text-default-400 mb-2">Panorama comparativo</p>
-          <div className="h-28">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="dashboardTrend" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" hide />
-                <RechartsTooltip content={<ChartTooltip />} cursor={{ stroke: "var(--border)", strokeWidth: 1 }} />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="var(--primary)"
-                  strokeWidth={2}
-                  fill="url(#dashboardTrend)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </section>
-
-      {/* Ações rápidas */}
-      <section className="mb-16">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-default-400 mb-5">Ações rápidas</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
-          {quickActions.map((action) => (
-            <Link key={action.href} href={action.href}>
-              <div
-                className="group flex items-center gap-3 py-3 cursor-pointer"
-                data-testid={action.testId}
-              >
-                <action.icon className="w-4 h-4 text-default-400 group-hover:text-primary transition-colors shrink-0" />
-                <span className="text-sm text-default-600 group-hover:text-foreground transition-colors flex-1">
-                  {action.label}
-                </span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-default-300 group-hover:text-primary transition-colors" />
+            <Link href="/ai-tools">
+              <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer" data-testid="quick-action-ai-tools">
+                <Zap className="w-5 h-5 text-accent" />
+                <span className="text-foreground">Ferramentas de IA</span>
               </div>
             </Link>
-          ))}
-        </div>
-      </section>
+            <Link href="/courses">
+              <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer" data-testid="quick-action-courses">
+                <GraduationCap className="w-5 h-5 text-secondary" />
+                <span className="text-foreground">Cursos Online</span>
+              </div>
+            </Link>
+            <Link href="/support">
+              <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer" data-testid="quick-action-support">
+                <Briefcase className="w-5 h-5 text-primary" />
+                <span className="text-foreground">Suporte</span>
+              </div>
+            </Link>
+          </CardContent>
+        </Card>
 
-      {/* Novidades — fecho narrativo da página */}
-      <section>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-default-400 mb-5">Novidades</h2>
-        <div className="space-y-8">
-          {announcements.map((item) => (
-            <div key={item.testId} data-testid={item.testId}>
-              <h3 className="font-semibold text-foreground text-sm mb-1.5">{item.title}</h3>
-              <p className="text-sm text-default-500 leading-relaxed">{item.description}</p>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-foreground">Novidades</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-accent/10 rounded-lg border border-accent/30" data-testid="announcement-new-plrs">
+              <h4 className="font-semibold text-foreground mb-2">Novos PLRs Adicionados</h4>
+              <p className="text-sm text-muted-foreground">
+                Confira os novos PLRs de Marketing Digital e Saúde & Bem-estar que acabaram de ser adicionados à plataforma.
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="p-4 bg-primary/10 rounded-lg border border-primary/30" data-testid="announcement-ai-tools">
+              <h4 className="font-semibold text-foreground mb-2">Ferramentas de IA Atualizadas</h4>
+              <p className="text-sm text-muted-foreground">
+                Novas funcionalidades foram adicionadas ao gerador de conteúdo e criador de imagens.
+              </p>
+            </div>
+            <div className="p-4 bg-secondary/10 rounded-lg border border-secondary/30" data-testid="announcement-forum">
+              <h4 className="font-semibold text-foreground mb-2">Fórum da Comunidade</h4>
+              <p className="text-sm text-muted-foreground">
+                Participe das discussões e conecte-se com outros membros da comunidade.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

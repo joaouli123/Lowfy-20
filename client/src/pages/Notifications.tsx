@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Check, X, Calendar, CheckCheck } from "lucide-react";
@@ -185,10 +184,14 @@ export default function Notifications() {
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
-        <PageHeader
-          title={<span className="flex items-center gap-2"><Bell className="w-6 h-6 text-primary" />Notificações</span>}
-          description="Fique por dentro de tudo que acontece"
-        >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Bell className="w-8 h-8 text-primary" />
+              <h1 className="text-4xl font-bold text-foreground">Notificações</h1>
+            </div>
+            <p className="text-muted-foreground">Fique por dentro de tudo que acontece</p>
+          </div>
           {unreadCount > 0 && (
             <Button
               onClick={() => markAllAsReadMutation.mutate()}
@@ -201,7 +204,7 @@ export default function Notifications() {
               Marcar todas como lidas
             </Button>
           )}
-        </PageHeader>
+        </div>
 
         <div className="flex gap-3 items-center flex-wrap">
           <Select value={filter} onValueChange={(value: any) => setFilter(value)}>

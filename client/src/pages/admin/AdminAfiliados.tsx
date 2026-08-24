@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import PageHeader from "@/components/PageHeader";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -193,20 +192,23 @@ export default function AdminAfiliados() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <PageHeader
-        title="Gestão de Afiliados"
-        description="Gerencie afiliados e comissões da plataforma"
-        testId="page-title"
-      >
-        <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Atualizar
-        </Button>
-        <Button onClick={handleExportCSV} variant="outline" data-testid="button-export-csv">
-          <Download className="w-4 h-4 mr-2" />
-          Exportar CSV
-        </Button>
-      </PageHeader>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">Gestão de Afiliados</h1>
+          <p className="text-muted-foreground">Gerencie afiliados e comissões da plataforma</p>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Atualizar
+          </Button>
+          <Button onClick={handleExportCSV} variant="outline" data-testid="button-export-csv">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar CSV
+          </Button>
+        </div>
+      </div>
 
       <Card>
         <CardHeader>

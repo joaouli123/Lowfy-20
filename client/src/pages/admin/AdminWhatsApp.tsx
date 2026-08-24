@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -585,18 +584,16 @@ export default function AdminWhatsApp() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <PageHeader
-        title={
-          <span className="flex items-center gap-3">
-            <MessageCircle className="h-8 w-8 text-green-500" />
-            WhatsApp
-          </span>
-        }
-        description="Conexão e campanhas de WhatsApp"
-        testId="text-page-title"
-      >
-        <Button
-          variant="outline"
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <MessageCircle className="h-8 w-8 text-green-500" />
+          <div>
+            <h1 className="text-2xl font-bold" data-testid="text-page-title">WhatsApp</h1>
+            <p className="text-muted-foreground">Conexão e campanhas de WhatsApp</p>
+          </div>
+        </div>
+        <Button 
+          variant="outline" 
           size="sm"
           onClick={() => refetch()}
           data-testid="button-refresh-status"
@@ -604,7 +601,7 @@ export default function AdminWhatsApp() {
           <RefreshCw className="h-4 w-4 mr-2" />
           Atualizar
         </Button>
-      </PageHeader>
+      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3 max-w-lg">

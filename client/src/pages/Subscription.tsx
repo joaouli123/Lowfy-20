@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import PageHeader from "@/components/PageHeader";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useForm } from "react-hook-form";
@@ -613,7 +612,10 @@ export default function Subscription() {
   if (!subscription) {
     return (
       <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
-        <PageHeader title="Minha Assinatura" description="Gerencie sua assinatura da plataforma Lowfy" />
+        <div>
+          <h1 className="text-3xl font-bold">Minha Assinatura</h1>
+          <p className="text-muted-foreground mt-1">Gerencie sua assinatura da plataforma Lowfy</p>
+        </div>
 
         {/* Pricing Section for users who never had a subscription */}
         {user?.subscriptionStatus === 'none' && (
@@ -768,7 +770,10 @@ export default function Subscription() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
-      <PageHeader title="Minha Assinatura" description="Gerencie sua assinatura da plataforma Lowfy" testId="text-page-title" />
+      <div>
+        <h1 className="text-2xl font-bold" data-testid="text-page-title">Minha Assinatura</h1>
+        <p className="text-muted-foreground">Gerencie sua assinatura da plataforma Lowfy</p>
+      </div>
 
       {isSubscriptionExpired && (
         <div className="flex items-start gap-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
