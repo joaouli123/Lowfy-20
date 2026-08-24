@@ -1177,7 +1177,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar senha do usuário
       const updateResult = await db
         .update(users)
-        .set({ passwordHash: newPasswordHash, updatedAt: new Date() })
+        .set({
+          passwordHash: newPasswordHash,
+          // Definiu a própria senha → a provisória (se houver) morre aqui.
+          mustChangePassword: false,
+          tempPasswordExpiresAt: null,
+          updatedAt: new Date(),
+        })
         .where(eq(users.id, resetToken.userId))
         .returning({ id: users.id, email: users.email });
 
@@ -1537,12 +1543,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Conta bloqueada. Entre em contato com o suporte." });
       }
 
+      // Senha provisória (recuperação via WhatsApp) tem prazo curto: vencida,
+      // não abre sessão nenhuma, mesmo que a senha esteja correta.
+      if (user.mustChangePassword && user.tempPasswordExpiresAt && user.tempPasswordExpiresAt < new Date()) {
+        logger.warn(`[LOGIN] Senha provisória expirada para: ${user.email}`);
+        return res.status(401).json({
+          message: "Sua senha provisória expirou. Solicite uma nova pelo WhatsApp do suporte.",
+          tempPasswordExpired: true,
+        });
+      }
+
       // ✅ 2FA DESATIVADO - Login bem-sucedido para: ${user.email}
       const sessionId = await createSession(user.id);
       setAuthCookie(res, sessionId);
 
       logger.info(`✅ [LOGIN] Login bem-sucedido para: ${user.email}`);
-      
+
       res.json({
         success: true,
         user: {
@@ -1554,6 +1570,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isAdmin: user.isAdmin,
         },
         sessionId,
+        // O front usa isto para levar direto à troca de senha.
+        mustChangePassword: !!user.mustChangePassword,
         message: "Login bem-sucedido",
       });
       
@@ -3409,7 +3427,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const passwordHash = await hashPassword(newPassword);
-      await storage.updateUser(req.user.id, { passwordHash });
+      // Escolheu a própria senha → encerra a pendência da senha provisória.
+      await storage.updateUser(req.user.id, {
+        passwordHash,
+        mustChangePassword: false,
+        tempPasswordExpiresAt: null,
+      });
 
       // SECURITY: invalidar TODAS as outras sessões do usuário (mantém apenas a atual)
       const currentToken = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.auth_token;
@@ -20193,55 +20216,286 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  whatsappService.setOptOutHandler(async (phone: string, message: string) => {
-    try {
-      const campaigns = await storage.getWhatsappCampaigns();
-      const activeCampaigns = campaigns.filter(c => c.status === 'running' || c.status === 'paused');
-      
-      for (const campaign of activeCampaigns) {
-        const keyword = (campaign.optOutKeyword || 'SAIR').toUpperCase();
-        if (message.includes(keyword)) {
+  // Agente de recuperação de conta (prioridade 10) — consome mensagens de quem
+  // tem sessão ativa ou envia o gatilho de início. Ver server/services/accountRecovery/.
+  whatsappService.registerInboundHandler({
+    name: 'accountRecovery',
+    priority: 10,
+    handle: async (phone: string, rawText: string) => {
+      const { handleRecoveryInbound } = await import('./services/accountRecovery/stateMachine');
+      return await handleRecoveryInbound(phone, rawText);
+    },
+  });
+
+  // Opt-out de campanhas (prioridade 100) — comportamento idêntico ao handler legado.
+  whatsappService.registerInboundHandler({
+    name: 'optOut',
+    priority: 100,
+    handle: async (phone: string, rawText: string) => {
+      const message = rawText.trim().toUpperCase();
+      try {
+        const campaigns = await storage.getWhatsappCampaigns();
+        const activeCampaigns = campaigns.filter(c => c.status === 'running' || c.status === 'paused');
+
+        for (const campaign of activeCampaigns) {
+          const keyword = (campaign.optOutKeyword || 'SAIR').toUpperCase();
+          if (message.includes(keyword)) {
+            const existingOptOut = await storage.getWhatsappOptOut(phone);
+            if (!existingOptOut) {
+              const user = await storage.getUserByPhoneFlexible(phone);
+              await storage.createWhatsappOptOut({
+                phone: phone.replace(/\D/g, ''),
+                userId: user?.id,
+                userName: user?.name,
+                keyword: keyword,
+                sourceCampaignId: campaign.id,
+              });
+
+              await storage.incrementCampaignOptOutCount(campaign.id);
+
+              logger.info(`[WhatsApp Opt-Out] Phone ${phone} opted out from campaign ${campaign.id} with keyword ${keyword}`);
+
+              await whatsappService.sendMessage(phone, '✅ Você foi removido da lista de campanhas. Não receberá mais mensagens promocionais.');
+            }
+            return true;
+          }
+        }
+
+        const allOptOutKeywords = ['SAIR', 'PARAR', 'STOP', 'CANCELAR', 'REMOVER'];
+        if (allOptOutKeywords.some(k => message.includes(k))) {
           const existingOptOut = await storage.getWhatsappOptOut(phone);
           if (!existingOptOut) {
-            const user = await storage.getUserByPhone(phone);
+            const user = await storage.getUserByPhoneFlexible(phone);
             await storage.createWhatsappOptOut({
               phone: phone.replace(/\D/g, ''),
               userId: user?.id,
               userName: user?.name,
-              keyword: keyword,
-              sourceCampaignId: campaign.id,
+              keyword: message,
+              sourceCampaignId: null,
             });
-            
-            await storage.incrementCampaignOptOutCount(campaign.id);
-            
-            logger.info(`[WhatsApp Opt-Out] Phone ${phone} opted out from campaign ${campaign.id} with keyword ${keyword}`);
-            
+
+            logger.info(`[WhatsApp Opt-Out] Phone ${phone} opted out with keyword ${message}`);
+
             await whatsappService.sendMessage(phone, '✅ Você foi removido da lista de campanhas. Não receberá mais mensagens promocionais.');
           }
-          break;
+          return true;
+        }
+      } catch (error) {
+        logger.error('[WhatsApp Opt-Out] Error processing opt-out:', error);
+      }
+      return false;
+    },
+  });
+
+  // ==================== ADMIN: Recuperação de conta via WhatsApp ====================
+
+  // Lista solicitações + contagens por estado
+  app.get('/api/admin/account-recovery', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const state = req.query.state as string | undefined;
+      const [requests, counts] = await Promise.all([
+        storage.listRecoveryRequests(state, 200),
+        storage.countRecoveryRequestsByState(),
+      ]);
+      res.json({ requests, counts });
+    } catch (error: any) {
+      logger.error('[RECOVERY-ADMIN] Erro ao listar:', error);
+      res.status(500).json({ message: 'Erro ao listar solicitações' });
+    }
+  });
+
+  // Config do agente (kill-switch, thresholds, limites)
+  app.get('/api/admin/account-recovery/config', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      res.json(await storage.getRecoveryConfig());
+    } catch (error: any) {
+      res.status(500).json({ message: 'Erro ao buscar configuração' });
+    }
+  });
+
+  app.put('/api/admin/account-recovery/config', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const { enabled, autoApproveEnabled, thresholdAuto, thresholdMin, maxSessionsPerDay,
+        allowWhatsappPassword, tempPasswordTtlMinutes } = req.body || {};
+      const data: any = { updatedBy: req.user.id };
+      if (typeof enabled === 'boolean') data.enabled = enabled;
+      if (typeof autoApproveEnabled === 'boolean') data.autoApproveEnabled = autoApproveEnabled;
+      if (Number.isInteger(thresholdAuto) && thresholdAuto >= 0 && thresholdAuto <= 110) data.thresholdAuto = thresholdAuto;
+      if (Number.isInteger(thresholdMin) && thresholdMin >= 0 && thresholdMin <= 110) data.thresholdMin = thresholdMin;
+      if (Number.isInteger(maxSessionsPerDay) && maxSessionsPerDay >= 1 && maxSessionsPerDay <= 20) data.maxSessionsPerDay = maxSessionsPerDay;
+      // Kill-switch da senha provisória por WhatsApp (último recurso de entrega)
+      if (typeof allowWhatsappPassword === 'boolean') data.allowWhatsappPassword = allowWhatsappPassword;
+      if (Number.isInteger(tempPasswordTtlMinutes) && tempPasswordTtlMinutes >= 10 && tempPasswordTtlMinutes <= 1440) {
+        data.tempPasswordTtlMinutes = tempPasswordTtlMinutes;
+      }
+      const config = await storage.updateRecoveryConfig(data);
+      logger.info(`[RECOVERY-ADMIN] Config atualizada por ${req.user.id}:`, data);
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ message: 'Erro ao atualizar configuração' });
+    }
+  });
+
+  // Detalhe: transcript, match (✓/✗ por campo, sem valores cadastrais), histórico do número
+  app.get('/api/admin/account-recovery/:id', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const request = await storage.getRecoveryRequest(req.params.id);
+      if (!request) return res.status(404).json({ message: 'Solicitação não encontrada' });
+
+      const [matchedUser, changeRequests, phoneHistory] = await Promise.all([
+        request.matchedUserId ? storage.getUser(request.matchedUserId) : Promise.resolve(null),
+        storage.listAccountChangeRequestsByRecovery(request.id),
+        storage.listRecoveryRequestsByPhone(request.phone, 10),
+      ]);
+
+      res.json({
+        request,
+        matchedUser: matchedUser ? {
+          id: matchedUser.id,
+          name: matchedUser.name,
+          email: matchedUser.email,
+          phone: matchedUser.phone,
+          cpf: matchedUser.cpf,
+          phoneVerified: matchedUser.phoneVerified,
+          accountStatus: matchedUser.accountStatus,
+          subscriptionStatus: matchedUser.subscriptionStatus,
+          createdAt: matchedUser.createdAt,
+        } : null,
+        changeRequests,
+        phoneHistory: phoneHistory.filter(h => h.id !== request.id).map(h => ({
+          id: h.id, state: h.state, decision: h.decision, createdAt: h.createdAt,
+        })),
+      });
+    } catch (error: any) {
+      logger.error('[RECOVERY-ADMIN] Erro no detalhe:', error);
+      res.status(500).json({ message: 'Erro ao buscar solicitação' });
+    }
+  });
+
+  // Aprovar (guarda otimista: 2º admin simultâneo recebe 409)
+  app.post('/api/admin/account-recovery/:id/approve', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const request = await storage.getRecoveryRequest(req.params.id);
+      if (!request) return res.status(404).json({ message: 'Solicitação não encontrada' });
+      if (request.state !== 'awaiting_admin') {
+        return res.status(409).json({ message: `Solicitação não está aguardando análise (estado: ${request.state})` });
+      }
+      if (!request.matchedUserId) {
+        return res.status(400).json({ message: 'Sem usuário associado ao pedido — trate manualmente pelo painel de usuários.' });
+      }
+
+      const user = await storage.getUser(request.matchedUserId);
+      if (!user) return res.status(400).json({ message: 'Usuário associado não existe mais' });
+      if (user.accountStatus === 'blocked') {
+        return res.status(400).json({ message: 'Conta bloqueada — desbloqueie antes de aprovar a recuperação.' });
+      }
+
+      const transitioned = await storage.transitionRecoveryRequest(request.id, ['awaiting_admin'], {
+        state: 'approved',
+        decision: 'admin_approved',
+        decisionReason: `Aprovado manualmente por admin`,
+        decidedBy: req.user.id,
+        decidedAt: new Date(),
+      });
+      if (!transitioned) return res.status(409).json({ message: 'Outro admin já decidiu esta solicitação' });
+
+      const { deliverResetLink, createChangeRequest, applyChangeRequest } = await import('./services/accountRecovery/outcomes');
+
+      const results: any = {};
+      const goal = request.goal || 'reset_password';
+
+      if (goal === 'reset_password' || goal === 'combo' || req.body?.sendResetLink) {
+        results.resetLinkDelivered = await deliverResetLink(transitioned, user);
+      }
+      if (goal === 'change_email' && request.requestedNewEmail) {
+        const change = await createChangeRequest(transitioned, user, 'email', request.requestedNewEmail, false);
+        const applied = await applyChangeRequest(change);
+        results.emailChange = applied;
+        if (applied.applied) {
+          try { await whatsappService.sendConversationMessage(request.phone, '✅ Identidade confirmada pela nossa equipe! O e-mail da sua conta foi atualizado.'); results.resetLinkDelivered = true; } catch {}
         }
       }
-      
-      const allOptOutKeywords = ['SAIR', 'PARAR', 'STOP', 'CANCELAR', 'REMOVER'];
-      if (allOptOutKeywords.some(k => message.includes(k))) {
-        const existingOptOut = await storage.getWhatsappOptOut(phone);
-        if (!existingOptOut) {
-          const user = await storage.getUserByPhone(phone);
-          await storage.createWhatsappOptOut({
-            phone: phone.replace(/\D/g, ''),
-            userId: user?.id,
-            userName: user?.name,
-            keyword: message,
-            sourceCampaignId: null,
-          });
-          
-          logger.info(`[WhatsApp Opt-Out] Phone ${phone} opted out with keyword ${message}`);
-          
-          await whatsappService.sendMessage(phone, '✅ Você foi removido da lista de campanhas. Não receberá mais mensagens promocionais.');
+      if (goal === 'change_phone' && request.requestedNewPhone) {
+        const change = await createChangeRequest(transitioned, user, 'phone', request.requestedNewPhone, false);
+        const applied = await applyChangeRequest(change);
+        results.phoneChange = applied;
+        if (applied.applied) {
+          try { await whatsappService.sendConversationMessage(request.phone, '✅ Identidade confirmada pela nossa equipe! O telefone da sua conta foi atualizado.'); results.resetLinkDelivered = true; } catch {}
         }
       }
-    } catch (error) {
-      logger.error('[WhatsApp Opt-Out] Error processing opt-out:', error);
+
+      if (results.resetLinkDelivered) {
+        await storage.updateRecoveryRequest(request.id, { state: 'completed', outcomeDelivered: true });
+      }
+
+      logger.info(`[RECOVERY-ADMIN] ${request.id} aprovada por ${req.user.id}`, results);
+      res.json({ message: 'Solicitação aprovada', results });
+    } catch (error: any) {
+      logger.error('[RECOVERY-ADMIN] Erro no approve:', error);
+      res.status(500).json({ message: 'Erro ao aprovar solicitação' });
+    }
+  });
+
+  // Rejeitar (resposta genérica ao interlocutor — nunca o motivo)
+  app.post('/api/admin/account-recovery/:id/reject', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const request = await storage.getRecoveryRequest(req.params.id);
+      if (!request) return res.status(404).json({ message: 'Solicitação não encontrada' });
+
+      const transitioned = await storage.transitionRecoveryRequest(request.id, ['awaiting_admin', 'collecting', 'awaiting_email_otp'], {
+        state: 'denied',
+        decision: 'admin_rejected',
+        decisionReason: (req.body?.reason || 'Rejeitado por admin').slice(0, 500),
+        decidedBy: req.user.id,
+        decidedAt: new Date(),
+      });
+      if (!transitioned) return res.status(409).json({ message: 'Solicitação já foi decidida' });
+
+      const { MSG } = await import('./services/accountRecovery/prompts');
+      try { await whatsappService.sendConversationMessage(request.phone, MSG.rejected); } catch {}
+
+      logger.info(`[RECOVERY-ADMIN] ${request.id} rejeitada por ${req.user.id}`);
+      res.json({ message: 'Solicitação rejeitada' });
+    } catch (error: any) {
+      logger.error('[RECOVERY-ADMIN] Erro no reject:', error);
+      res.status(500).json({ message: 'Erro ao rejeitar solicitação' });
+    }
+  });
+
+  // Contestação pública de troca de e-mail/telefone (link enviado ao e-mail antigo)
+  app.get('/api/account-changes/contest', async (req: any, res) => {
+    try {
+      const token = String(req.query.token || '');
+      if (!token || token.length < 32) {
+        return res.status(400).send('<html><body style="font-family:sans-serif;text-align:center;padding:48px;"><h2>Link inválido</h2></body></html>');
+      }
+      const { contestChangeRequest } = await import('./services/accountRecovery/outcomes');
+      const result = await contestChangeRequest(token);
+      res.status(result.ok ? 200 : 400).send(
+        `<html><body style="font-family:sans-serif;text-align:center;padding:48px;max-width:480px;margin:0 auto;">` +
+        `<h2 style="color:${result.ok ? '#059669' : '#dc2626'};">${result.ok ? '✅' : '❌'} Lowfy</h2>` +
+        `<p>${result.message}</p></body></html>`
+      );
+    } catch (error: any) {
+      logger.error('[RECOVERY] Erro na contestação:', error);
+      res.status(500).send('<html><body style="font-family:sans-serif;text-align:center;padding:48px;"><h2>Erro ao processar</h2></body></html>');
+    }
+  });
+
+  // DEV ONLY: injeta mensagem no roteador inbound sem WhatsApp real (testes de integração)
+  app.post('/api/dev/recovery/simulate-inbound', async (req: any, res) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ message: 'Not found' });
+    }
+    try {
+      const { phone, text } = req.body || {};
+      if (!phone || !text) return res.status(400).json({ message: 'phone e text são obrigatórios' });
+      const { handleRecoveryInbound } = await import('./services/accountRecovery/stateMachine');
+      const consumed = await handleRecoveryInbound(String(phone).replace(/\D/g, ''), String(text));
+      const session = await storage.getActiveRecoveryRequestByPhone(String(phone).replace(/\D/g, ''));
+      res.json({ consumed, session });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 

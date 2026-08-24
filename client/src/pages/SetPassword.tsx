@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,17 @@ export default function SetPassword() {
   
   // Parse query params from URL
   const searchParams = new URLSearchParams(window.location.search);
-  const email = searchParams.get("email") || "";
   const tempPassword = searchParams.get("temp") || "";
 
+  // Quem chega já logado (senha provisória da recuperação por WhatsApp) não traz
+  // nada na URL — pegamos o e-mail da sessão e pedimos a provisória no formulário.
+  const { data: sessionUser } = useQuery<{ email?: string }>({
+    queryKey: ["/api/auth/user"],
+    enabled: !searchParams.get("email"),
+  });
+  const email = searchParams.get("email") || sessionUser?.email || "";
+
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,17 +41,22 @@ export default function SetPassword() {
         throw new Error("A senha deve ter no mínimo 6 caracteres");
       }
 
+      const oldPassword = tempPassword || currentPassword;
+      if (!oldPassword) {
+        throw new Error("Informe a senha provisória que você recebeu");
+      }
+
       // Fazer login com senha temporária primeiro
       const loginRes = await apiRequest("POST", "/api/auth/login", {
         email,
-        password: tempPassword,
+        password: oldPassword,
       });
 
       // A sessão é mantida via cookie httpOnly definido pelo servidor no login.
 
-      // Atualizar senha (a senha atual é a temporária recebida por email)
+      // Atualizar senha (a senha atual é a temporária recebida por email/WhatsApp)
       await apiRequest("PUT", "/api/auth/change-password", {
-        currentPassword: tempPassword,
+        currentPassword: oldPassword,
         newPassword,
       });
 
@@ -100,6 +113,20 @@ export default function SetPassword() {
                 autoCorrect="off"
               />
             </div>
+
+            {!tempPassword && (
+              <div>
+                <Label>Senha provisória</Label>
+                <Input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="A senha que você recebeu"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+            )}
 
             <div>
               <Label>Nova Senha</Label>

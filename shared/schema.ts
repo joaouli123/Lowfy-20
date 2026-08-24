@@ -27,6 +27,10 @@ export const users = pgTable("users", {
   cpf: varchar("cpf").unique(),
   phoneVerified: boolean("phone_verified").default(false),
   phoneVerifiedAt: timestamp("phone_verified_at"),
+  // Senha provisória entregue pela recuperação via WhatsApp: obriga troca no
+  // primeiro login e expira sozinha (login recusa depois do prazo).
+  mustChangePassword: boolean("must_change_password").default(false),
+  tempPasswordExpiresAt: timestamp("temp_password_expires_at"),
   profileImageUrl: varchar("profile_image_url"),
   profession: varchar("profession"),
   areaAtuacao: varchar("area_atuacao"),
@@ -115,6 +119,102 @@ export const passwordResetTokens = pgTable(
   (table) => [
     index("IDX_password_reset_tokens_user").on(table.userId),
     index("IDX_password_reset_tokens_token").on(table.token),
+  ],
+);
+
+// Account Recovery via WhatsApp AI Agent — estado da conversa + auditoria completa.
+// A LLM só conduz a conversa; toda decisão (match/score/aprovação) é código determinístico.
+export const accountRecoveryRequests = pgTable(
+  "account_recovery_requests",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    phone: varchar("phone").notNull(), // como chega do Baileys (com 55)
+    normalizedPhone: varchar("normalized_phone").notNull(), // 11 dígitos BR sem 55, p/ matching
+    state: varchar("state").notNull().default("collecting"), // collecting | awaiting_email_otp | awaiting_admin | approved | denied | expired | cancelled | completed
+    goal: varchar("goal"), // reset_password | change_email | change_phone | combo
+    collectedName: varchar("collected_name"),
+    collectedEmail: varchar("collected_email"),
+    collectedCpf: varchar("collected_cpf"), // 11 dígitos; no transcript fica mascarado
+    collectedPhone: varchar("collected_phone"),
+    requestedNewEmail: varchar("requested_new_email"),
+    requestedNewPhone: varchar("requested_new_phone"),
+    matchedUserId: varchar("matched_user_id").references(() => users.id), // NUNCA exposto ao interlocutor
+    matchScore: integer("match_score").default(0),
+    matchDetails: jsonb("match_details"), // {cpfMatch, emailMatch, nameSimilarity, phoneMatch, historyMatch, multipleCandidates}
+    possessionFactor: varchar("possession_factor").default("none"), // whatsapp_phone | email_otp | none
+    riskFlags: jsonb("risk_flags").default(sql`'[]'::jsonb`),
+    conversation: jsonb("conversation").default(sql`'[]'::jsonb`), // [{role:'user'|'agent', text, at}] com CPF mascarado
+    messageCount: integer("message_count").default(0),
+    verifyAttempts: integer("verify_attempts").default(0),
+    otpVerificationId: varchar("otp_verification_id"), // FK lógica p/ email_verifications no estado awaiting_email_otp
+    unknownFields: jsonb("unknown_fields").default(sql`'[]'::jsonb`), // campos que a pessoa disse não lembrar
+    tempPasswordSentAt: timestamp("temp_password_sent_at"), // senha provisória entregue pelo WhatsApp
+    deliveryAttempts: integer("delivery_attempts").default(0), // quantas vezes tentamos entregar o desfecho
+    decision: varchar("decision"), // auto_approved | admin_approved | admin_rejected | auto_denied
+    decisionReason: text("decision_reason"),
+    decidedBy: varchar("decided_by").references(() => users.id), // admin
+    decidedAt: timestamp("decided_at"),
+    resetTokenId: varchar("reset_token_id").references(() => passwordResetTokens.id),
+    outcomeDelivered: boolean("outcome_delivered").default(false), // p/ reentrega se WhatsApp cair no desfecho
+    lastMessageAt: timestamp("last_message_at").defaultNow(),
+    expiresAt: timestamp("expires_at").notNull(), // lastMessageAt + 15min (renovado a cada msg)
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    index("IDX_account_recovery_phone_state").on(table.phone, table.state),
+    index("IDX_account_recovery_state").on(table.state),
+    index("IDX_account_recovery_expires").on(table.expiresAt),
+    index("IDX_account_recovery_user").on(table.matchedUserId),
+  ],
+);
+
+// Anti-brute-force persistente por telefone (sobrevive a restart)
+export const accountRecoveryLocks = pgTable("account_recovery_locks", {
+  phone: varchar("phone").primaryKey(), // normalizado, só dígitos
+  failedCount: integer("failed_count").default(0),
+  sessionsToday: integer("sessions_today").default(0),
+  dayBucket: varchar("day_bucket"), // YYYY-MM-DD America/Sao_Paulo
+  lockedUntil: timestamp("locked_until"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Config persistida do agente (single-row, id fixo 'default') — kill-switch e thresholds
+export const accountRecoveryConfig = pgTable("account_recovery_config", {
+  id: varchar("id").primaryKey().default("default"),
+  enabled: boolean("enabled").default(true),
+  autoApproveEnabled: boolean("auto_approve_enabled").default(true), // posse forte + score alto = link automático
+  thresholdAuto: integer("threshold_auto").default(55),
+  thresholdMin: integer("threshold_min").default(40),
+  maxSessionsPerDay: integer("max_sessions_per_day").default(3),
+  // Último recurso: se o link não chegar (e-mail nem WhatsApp), o agente pode
+  // mandar uma senha provisória na própria conversa. Desligável no painel.
+  allowWhatsappPassword: boolean("allow_whatsapp_password").default(true),
+  tempPasswordTtlMinutes: integer("temp_password_ttl_minutes").default(60),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Troca de email/telefone com janela de contestação — nunca aplicada direto pelo agente
+export const accountChangeRequests = pgTable(
+  "account_change_requests",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    recoveryRequestId: varchar("recovery_request_id").references(() => accountRecoveryRequests.id),
+    userId: varchar("user_id").references(() => users.id).notNull(),
+    field: varchar("field").notNull(), // email | phone
+    oldValue: varchar("old_value"),
+    newValue: varchar("new_value").notNull(),
+    status: varchar("status").notNull().default("pending"), // pending | scheduled | applied | rejected | contested
+    contestTokenHash: varchar("contest_token_hash"), // SHA-256 do link enviado ao e-mail ANTIGO
+    contestExpiresAt: timestamp("contest_expires_at"),
+    applyAfter: timestamp("apply_after"), // delay 24h quando aprovado sem admin
+    appliedAt: timestamp("applied_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("IDX_account_change_status_apply").on(table.status, table.applyAfter),
+    index("IDX_account_change_user").on(table.userId),
   ],
 );
 
@@ -1659,6 +1759,13 @@ export type EmailVerification = typeof emailVerifications.$inferSelect;
 export type InsertEmailVerification = z.infer<typeof insertEmailVerificationSchema>;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type AccountRecoveryRequest = typeof accountRecoveryRequests.$inferSelect;
+export type InsertAccountRecoveryRequest = typeof accountRecoveryRequests.$inferInsert;
+export type AccountRecoveryLock = typeof accountRecoveryLocks.$inferSelect;
+export type InsertAccountRecoveryLock = typeof accountRecoveryLocks.$inferInsert;
+export type AccountChangeRequest = typeof accountChangeRequests.$inferSelect;
+export type InsertAccountChangeRequest = typeof accountChangeRequests.$inferInsert;
+export type AccountRecoveryConfig = typeof accountRecoveryConfig.$inferSelect;
 export type CaktoOrder = typeof caktoOrders.$inferSelect;
 export type CaktoSubscription = typeof caktoSubscriptions.$inferSelect;
 export type LowfySubscription = typeof lowfySubscriptions.$inferSelect;

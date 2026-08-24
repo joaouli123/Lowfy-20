@@ -184,6 +184,16 @@ import {
   type InsertWhatsappCampaignRecipient,
   type WhatsappOptOut,
   type InsertWhatsappOptOut,
+  accountRecoveryRequests,
+  accountRecoveryLocks,
+  accountChangeRequests,
+  accountRecoveryConfig,
+  type AccountRecoveryConfig,
+  type AccountRecoveryRequest,
+  type InsertAccountRecoveryRequest,
+  type AccountRecoveryLock,
+  type AccountChangeRequest,
+  type InsertAccountChangeRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, isNull, or, gte, lte, sql, sql as sqlOp, count, inArray, notInArray, ilike } from "drizzle-orm";
@@ -204,6 +214,40 @@ export class DatabaseStorage {
 
   async getUserByPhone(phone: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.phone, phone));
+    return user;
+  }
+
+  // Gera as variantes brasileiras de um número (com/sem DDI 55, com/sem 9º dígito).
+  // O inbound do WhatsApp chega com 55 na frente, mas users.phone costuma ter 10-11 dígitos.
+  static phoneVariants(rawPhone: string): string[] {
+    const digits = String(rawPhone).replace(/\D/g, '');
+    const variants = new Set<string>();
+    const add = (v: string) => { if (v.length >= 10) variants.add(v); };
+
+    add(digits);
+    let local = digits;
+    if ((digits.length === 12 || digits.length === 13) && digits.startsWith('55')) {
+      local = digits.substring(2);
+      add(local);
+    }
+    add('55' + local);
+    // DDD + 9º dígito: 11 dígitos → variante sem o 9; 10 dígitos → variante com o 9
+    if (local.length === 11 && local[2] === '9') {
+      const without9 = local.substring(0, 2) + local.substring(3);
+      add(without9);
+      add('55' + without9);
+    } else if (local.length === 10) {
+      const with9 = local.substring(0, 2) + '9' + local.substring(2);
+      add(with9);
+      add('55' + with9);
+    }
+    return Array.from(variants);
+  }
+
+  async getUserByPhoneFlexible(rawPhone: string): Promise<User | undefined> {
+    const variants = DatabaseStorage.phoneVariants(rawPhone);
+    if (variants.length === 0) return undefined;
+    const [user] = await db.select().from(users).where(inArray(users.phone, variants));
     return user;
   }
 
@@ -6757,6 +6801,226 @@ export class DatabaseStorage {
       if (r.status === 'skipped') stats.skipped = r.count;
     });
     return stats;
+  }
+
+  // ==================== ACCOUNT RECOVERY (WHATSAPP AI AGENT) ====================
+
+  async getActiveRecoveryRequestByPhone(phone: string): Promise<AccountRecoveryRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(accountRecoveryRequests)
+      .where(and(
+        eq(accountRecoveryRequests.phone, phone),
+        inArray(accountRecoveryRequests.state, ['collecting', 'awaiting_email_otp', 'awaiting_admin', 'approved', 'awaiting_delivery']),
+      ))
+      .orderBy(desc(accountRecoveryRequests.createdAt));
+    return request;
+  }
+
+  async getRecoveryRequest(id: string): Promise<AccountRecoveryRequest | undefined> {
+    const [request] = await db.select().from(accountRecoveryRequests).where(eq(accountRecoveryRequests.id, id));
+    return request;
+  }
+
+  async createRecoveryRequest(data: InsertAccountRecoveryRequest): Promise<AccountRecoveryRequest> {
+    const [request] = await db.insert(accountRecoveryRequests).values(data).returning();
+    return request;
+  }
+
+  async updateRecoveryRequest(id: string, data: Partial<AccountRecoveryRequest>): Promise<AccountRecoveryRequest | undefined> {
+    const [request] = await db
+      .update(accountRecoveryRequests)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(accountRecoveryRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  // Transição com guarda otimista: só transiciona se ainda estiver no estado esperado.
+  // Retorna undefined se outra mensagem/admin já transicionou (caller descarta).
+  async transitionRecoveryRequest(
+    id: string,
+    fromStates: string[],
+    data: Partial<AccountRecoveryRequest>,
+  ): Promise<AccountRecoveryRequest | undefined> {
+    const [request] = await db
+      .update(accountRecoveryRequests)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(
+        eq(accountRecoveryRequests.id, id),
+        inArray(accountRecoveryRequests.state, fromStates),
+      ))
+      .returning();
+    return request;
+  }
+
+  async listRecoveryRequests(state?: string, limit = 100): Promise<AccountRecoveryRequest[]> {
+    const base = db.select().from(accountRecoveryRequests);
+    const query = state
+      ? base.where(eq(accountRecoveryRequests.state, state))
+      : base;
+    return await query.orderBy(desc(accountRecoveryRequests.createdAt)).limit(limit);
+  }
+
+  async listRecoveryRequestsByPhone(phone: string, limit = 20): Promise<AccountRecoveryRequest[]> {
+    return await db
+      .select()
+      .from(accountRecoveryRequests)
+      .where(eq(accountRecoveryRequests.phone, phone))
+      .orderBy(desc(accountRecoveryRequests.createdAt))
+      .limit(limit);
+  }
+
+  async countRecoveryRequestsByState(): Promise<Record<string, number>> {
+    const rows = await db
+      .select({ state: accountRecoveryRequests.state, count: sql<number>`COUNT(*)::int` })
+      .from(accountRecoveryRequests)
+      .groupBy(accountRecoveryRequests.state);
+    const result: Record<string, number> = {};
+    for (const row of rows) result[row.state] = row.count;
+    return result;
+  }
+
+  async getExpiredActiveRecoveryRequests(now: Date): Promise<AccountRecoveryRequest[]> {
+    return await db
+      .select()
+      .from(accountRecoveryRequests)
+      .where(and(
+        inArray(accountRecoveryRequests.state, ['collecting', 'awaiting_email_otp', 'awaiting_delivery']),
+        lte(accountRecoveryRequests.expiresAt, now),
+      ));
+  }
+
+  async getUndeliveredApprovedRecoveryRequests(): Promise<AccountRecoveryRequest[]> {
+    return await db
+      .select()
+      .from(accountRecoveryRequests)
+      .where(and(
+        eq(accountRecoveryRequests.state, 'approved'),
+        eq(accountRecoveryRequests.outcomeDelivered, false),
+      ));
+  }
+
+  async countRecentRecoveryRequests(since: Date): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(accountRecoveryRequests)
+      .where(gte(accountRecoveryRequests.createdAt, since));
+    return result[0]?.count || 0;
+  }
+
+  async getRecoveryLock(phone: string): Promise<AccountRecoveryLock | undefined> {
+    const [lock] = await db.select().from(accountRecoveryLocks).where(eq(accountRecoveryLocks.phone, phone));
+    return lock;
+  }
+
+  async upsertRecoveryLock(phone: string, data: Partial<AccountRecoveryLock>): Promise<AccountRecoveryLock> {
+    const [lock] = await db
+      .insert(accountRecoveryLocks)
+      .values({ phone, ...data, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: accountRecoveryLocks.phone,
+        set: { ...data, updatedAt: new Date() },
+      })
+      .returning();
+    return lock;
+  }
+
+  async resetDailyRecoveryLocks(): Promise<void> {
+    const now = new Date();
+    await db
+      .update(accountRecoveryLocks)
+      .set({ sessionsToday: 0, updatedAt: now })
+      .where(sql`${accountRecoveryLocks.sessionsToday} > 0`);
+    await db
+      .delete(accountRecoveryLocks)
+      .where(and(
+        lte(accountRecoveryLocks.lockedUntil, now),
+        eq(accountRecoveryLocks.failedCount, 0),
+      ));
+  }
+
+  async getRecoveryConfig(): Promise<AccountRecoveryConfig> {
+    const [config] = await db.select().from(accountRecoveryConfig).where(eq(accountRecoveryConfig.id, 'default'));
+    if (config) return config;
+    const [created] = await db
+      .insert(accountRecoveryConfig)
+      .values({ id: 'default' })
+      .onConflictDoNothing()
+      .returning();
+    if (created) return created;
+    const [existing] = await db.select().from(accountRecoveryConfig).where(eq(accountRecoveryConfig.id, 'default'));
+    return existing;
+  }
+
+  async updateRecoveryConfig(data: Partial<AccountRecoveryConfig>): Promise<AccountRecoveryConfig> {
+    await this.getRecoveryConfig();
+    const [config] = await db
+      .update(accountRecoveryConfig)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(accountRecoveryConfig.id, 'default'))
+      .returning();
+    return config;
+  }
+
+  async createAccountChangeRequest(data: InsertAccountChangeRequest): Promise<AccountChangeRequest> {
+    const [change] = await db.insert(accountChangeRequests).values(data).returning();
+    return change;
+  }
+
+  async getAccountChangeRequest(id: string): Promise<AccountChangeRequest | undefined> {
+    const [change] = await db.select().from(accountChangeRequests).where(eq(accountChangeRequests.id, id));
+    return change;
+  }
+
+  async getAccountChangeRequestByContestHash(hash: string): Promise<AccountChangeRequest | undefined> {
+    const [change] = await db
+      .select()
+      .from(accountChangeRequests)
+      .where(eq(accountChangeRequests.contestTokenHash, hash));
+    return change;
+  }
+
+  async updateAccountChangeRequest(id: string, data: Partial<AccountChangeRequest>): Promise<AccountChangeRequest | undefined> {
+    const [change] = await db
+      .update(accountChangeRequests)
+      .set(data)
+      .where(eq(accountChangeRequests.id, id))
+      .returning();
+    return change;
+  }
+
+  async listAccountChangeRequestsByRecovery(recoveryRequestId: string): Promise<AccountChangeRequest[]> {
+    return await db
+      .select()
+      .from(accountChangeRequests)
+      .where(eq(accountChangeRequests.recoveryRequestId, recoveryRequestId));
+  }
+
+  async getDueScheduledChangeRequests(now: Date): Promise<AccountChangeRequest[]> {
+    return await db
+      .select()
+      .from(accountChangeRequests)
+      .where(and(
+        eq(accountChangeRequests.status, 'scheduled'),
+        lte(accountChangeRequests.applyAfter, now),
+      ));
+  }
+
+  async anonymizeOldRecoveryRequests(olderThan: Date): Promise<number> {
+    const result = await db
+      .update(accountRecoveryRequests)
+      .set({
+        conversation: sql`'[]'::jsonb`,
+        collectedCpf: null,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        lte(accountRecoveryRequests.createdAt, olderThan),
+        sql`${accountRecoveryRequests.collectedCpf} IS NOT NULL`,
+      ))
+      .returning({ id: accountRecoveryRequests.id });
+    return result.length;
   }
 
   // ==================== WHATSAPP OPT-OUT OPERATIONS ====================

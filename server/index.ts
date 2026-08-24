@@ -669,6 +669,12 @@ if (!isProduction) {
       }).catch(error => {
         logger.error('Session cleanup scheduler error:', error);
       });
+
+      import('./account-recovery-scheduler').then(({ startAccountRecoveryScheduler }) => {
+        startAccountRecoveryScheduler();
+      }).catch(error => {
+        logger.error('Account recovery scheduler error:', error);
+      });
       } catch (error) {
         logger.error('[Schedulers] Falha inesperada ao inicializar schedulers:', error);
       }

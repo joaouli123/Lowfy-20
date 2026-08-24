@@ -307,11 +307,22 @@ export default function Landing() {
           /* sessão mantida via cookie httpOnly (definido pelo servidor) */
         }
         queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+
+        // Senha provisória (recuperação de conta): trocar antes de usar o app.
+        if (data.mustChangePassword) {
+          toast({
+            title: "Defina uma nova senha",
+            description: "Sua senha provisória precisa ser trocada agora.",
+          });
+          window.location.href = '/set-password';
+          return;
+        }
+
         toast({
           title: "Login realizado com sucesso!",
           description: "Bem-vindo de volta.",
         });
-        
+
         // Redirecionar imediatamente para Timeline
         window.location.href = '/timeline';
       } else if (data.requiresVerification) {

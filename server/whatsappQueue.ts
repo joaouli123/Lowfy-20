@@ -1,10 +1,12 @@
 import { logger } from './utils/logger';
 
+export type QueueMessageType = 'verification' | 'conversation' | 'notification' | 'test';
+
 interface QueueJob {
   id: string;
   phone: string;
   message: string;
-  type: 'verification' | 'notification' | 'test';
+  type: QueueMessageType;
   priority: number;
   attempts: number;
   maxAttempts: number;
@@ -35,6 +37,9 @@ interface PerRecipientState {
 const CONFIG = {
   MIN_DELAY_BETWEEN_MESSAGES_MS: 1500,
   PER_RECIPIENT_COOLDOWN_MS: 30000,
+  // Conversa (agente de recuperação) precisa de resposta fluida — só o
+  // cooldown global de 1.5s protege contra ban nesse caso.
+  PER_RECIPIENT_COOLDOWN_MS_CONVERSATION: 2000,
   MAX_ATTEMPTS: 3,
   BASE_RETRY_DELAY_MS: 2000,
   MAX_RETRY_DELAY_MS: 60000,
@@ -84,10 +89,10 @@ class WhatsAppQueueService {
   enqueue(
     phone: string,
     message: string,
-    type: 'verification' | 'notification' | 'test' = 'verification',
+    type: QueueMessageType = 'verification',
     callback?: (success: boolean, error?: string) => void
   ): string {
-    const priority = type === 'verification' ? 1 : type === 'test' ? 2 : 3;
+    const priority = type === 'verification' ? 1 : type === 'conversation' ? 2 : type === 'test' ? 3 : 4;
     
     const job: QueueJob = {
       id: this.generateJobId(),
@@ -164,7 +169,7 @@ class WhatsAppQueueService {
       
       if (job.nextAttemptAt > now) continue;
       
-      if (!this.canSendToRecipient(job.phone)) continue;
+      if (!this.canSendToRecipient(job)) continue;
       
       this.queue.splice(i, 1);
       this.metrics.currentQueueLength = this.queue.length;
@@ -181,12 +186,15 @@ class WhatsAppQueueService {
     return timeSinceLastSend >= CONFIG.MIN_DELAY_BETWEEN_MESSAGES_MS;
   }
 
-  private canSendToRecipient(phone: string): boolean {
-    const state = this.recipientStates.get(phone);
+  private canSendToRecipient(job: QueueJob): boolean {
+    const state = this.recipientStates.get(job.phone);
     if (!state) return true;
-    
+
+    const cooldown = job.type === 'conversation'
+      ? CONFIG.PER_RECIPIENT_COOLDOWN_MS_CONVERSATION
+      : CONFIG.PER_RECIPIENT_COOLDOWN_MS;
     const timeSinceLastSend = Date.now() - state.lastSentAt.getTime();
-    return timeSinceLastSend >= CONFIG.PER_RECIPIENT_COOLDOWN_MS;
+    return timeSinceLastSend >= cooldown;
   }
 
   private isCircuitBreakerOpen(): boolean {

@@ -1,6 +1,7 @@
 import { Switch, Route, useLocation, useSearch } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { HeroUIProvider } from "@heroui/react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
@@ -104,6 +105,7 @@ const AdminVendedores = lazy(() => import("@/pages/admin/AdminVendedores"));
 const AdminSubscriptionRefunds = lazy(() => import("@/pages/admin/AdminSubscriptionRefunds"));
 const AdminAIUsage = lazy(() => import("@/pages/admin/AdminAIUsage"));
 const AdminWhatsApp = lazy(() => import("@/pages/admin/AdminWhatsApp"));
+const AdminAccountRecovery = lazy(() => import("@/pages/admin/AdminAccountRecovery"));
 
 // Content loading component (for pages inside Layout - keeps sidebar visible)
 function ContentLoader() {
@@ -316,6 +318,9 @@ function Router() {
                 <Route path="/admin/whatsapp">
                   {() => <AdminRoute><AdminWhatsApp /></AdminRoute>}
                 </Route>
+                <Route path="/admin/account-recovery">
+                  {() => <AdminRoute><AdminAccountRecovery /></AdminRoute>}
+                </Route>
                 <Route path="/profile" component={Profile} />
                 <Route path="/users/:id" component={Profile} />
                 <Route path="/indicacoes" component={Referrals} />
@@ -366,6 +371,15 @@ function GoogleAnalyticsInitializer() {
   return null;
 }
 
+function HeroUIRouterProvider({ children }: { children: React.ReactNode }) {
+  const [, setLocation] = useLocation();
+  return (
+    <HeroUIProvider navigate={(to: string) => setLocation(to)}>
+      {children}
+    </HeroUIProvider>
+  );
+}
+
 function App() {
   // Domínio/subdomínio próprio do cliente → serve o funil direto na raiz (sem o app).
   if (isCustomQuizHost()) {
@@ -380,20 +394,22 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <SocketProvider>
-          <SidebarProvider>
-            <SubscriptionProvider>
-              <TooltipProvider>
-                <SEOProvider>
-                  <MetaPixelInitializer />
-                  <GoogleAnalyticsInitializer />
-                  <Toaster />
-                  <Router />
-                </SEOProvider>
-              </TooltipProvider>
-            </SubscriptionProvider>
-          </SidebarProvider>
-        </SocketProvider>
+        <HeroUIRouterProvider>
+          <SocketProvider>
+            <SidebarProvider>
+              <SubscriptionProvider>
+                <TooltipProvider>
+                  <SEOProvider>
+                    <MetaPixelInitializer />
+                    <GoogleAnalyticsInitializer />
+                    <Toaster />
+                    <Router />
+                  </SEOProvider>
+                </TooltipProvider>
+              </SubscriptionProvider>
+            </SidebarProvider>
+          </SocketProvider>
+        </HeroUIRouterProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

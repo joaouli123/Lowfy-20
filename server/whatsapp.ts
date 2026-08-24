@@ -17,6 +17,19 @@ interface WhatsAppStatus {
 
 type OptOutHandler = (phone: string, message: string) => Promise<void>;
 
+// Handler de mensagens recebidas. Retorna true se consumiu a mensagem
+// (interrompe a cadeia). Menor priority roda primeiro.
+export interface InboundHandler {
+  name: string;
+  priority: number;
+  handle: (phone: string, rawText: string) => Promise<boolean>;
+}
+
+// Marcador entregue aos handlers quando a mensagem é mídia sem texto legível
+// (áudio, figurinha, foto sem legenda). Quem estiver em atendimento responde;
+// os demais ignoram.
+export const MEDIA_PLACEHOLDER = '__whatsapp_media__';
+
 class WhatsAppService {
   private socket: ReturnType<typeof makeWASocket> | null = null;
   private status: WhatsAppStatus = {
@@ -32,6 +45,8 @@ class WhatsAppService {
   private sessionPath: string;
   private initializationPromise: Promise<void> | null = null;
   private optOutHandler: OptOutHandler | null = null;
+  private inboundHandlers: InboundHandler[] = [];
+  private seenMessageIds: Map<string, number> = new Map();
   
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 10;
@@ -205,8 +220,30 @@ class WhatsAppService {
     return whatsappQueue.getQueueLength();
   }
 
+  /** @deprecated Use registerInboundHandler — mantido por compatibilidade. */
   setOptOutHandler(handler: OptOutHandler) {
     this.optOutHandler = handler;
+  }
+
+  registerInboundHandler(handler: InboundHandler) {
+    this.inboundHandlers = this.inboundHandlers
+      .filter(h => h.name !== handler.name)
+      .concat(handler)
+      .sort((a, b) => a.priority - b.priority);
+  }
+
+  private isDuplicateMessage(messageId: string): boolean {
+    const now = Date.now();
+    const seen = this.seenMessageIds.get(messageId);
+    if (seen && now - seen < 5 * 60 * 1000) return true;
+    this.seenMessageIds.set(messageId, now);
+    // Poda simples para não crescer indefinidamente
+    if (this.seenMessageIds.size > 2000) {
+      for (const [id, at] of this.seenMessageIds) {
+        if (now - at > 5 * 60 * 1000) this.seenMessageIds.delete(id);
+      }
+    }
+    return false;
   }
 
   async initialize(): Promise<void> {
@@ -362,18 +399,50 @@ class WhatsAppService {
           
           for (const msg of m.messages) {
             if (msg.key.fromMe) continue;
-            
-            const text = msg.message?.conversation || 
-                        msg.message?.extendedTextMessage?.text || '';
-            
-            if (!text) continue;
-            
-            const normalizedText = text.trim().toUpperCase();
-            const senderJid = msg.key.remoteJid;
-            const senderPhone = senderJid?.replace('@s.whatsapp.net', '') || '';
-            
-            if (this.optOutHandler && senderPhone) {
-              await this.optOutHandler(senderPhone, normalizedText);
+
+            // Só conversas individuais (exclui grupos @g.us, broadcast, @lid)
+            const senderJid: string = msg.key.remoteJid || '';
+            if (!senderJid.endsWith('@s.whatsapp.net')) continue;
+
+            const senderPhone = senderJid.replace('@s.whatsapp.net', '');
+            if (!/^\d{10,15}$/.test(senderPhone)) continue;
+
+            // Baileys pode reentregar mensagens — dedup por id
+            if (msg.key.id && this.isDuplicateMessage(`${senderJid}:${msg.key.id}`)) continue;
+
+            const text = msg.message?.conversation ||
+                        msg.message?.extendedTextMessage?.text ||
+                        msg.message?.imageMessage?.caption ||
+                        msg.message?.videoMessage?.caption ||
+                        msg.message?.documentMessage?.caption || '';
+
+            // Mídia sem texto (áudio, figurinha, foto sem legenda): não dá para
+            // ler, mas quem está no meio de um atendimento precisa de resposta,
+            // não de silêncio. Handlers recebem um marcador e decidem.
+            const isMedia = !text && !!(
+              msg.message?.audioMessage || msg.message?.imageMessage || msg.message?.videoMessage ||
+              msg.message?.stickerMessage || msg.message?.documentMessage || msg.message?.ptvMessage
+            );
+
+            if (!text && !isMedia) continue;
+
+            // Texto ORIGINAL preservado — cada handler normaliza como precisar
+            const rawText = text ? String(text) : MEDIA_PLACEHOLDER;
+
+            let consumed = false;
+            for (const handler of this.inboundHandlers) {
+              try {
+                consumed = await handler.handle(senderPhone, rawText);
+              } catch (err) {
+                logger.error(`[WhatsApp] Inbound handler '${handler.name}' failed:`, err);
+              }
+              if (consumed) break;
+            }
+
+            // Compat: handler legado registrado via setOptOutHandler
+            // (nunca recebe o marcador de mídia — ele espera texto de campanha)
+            if (!consumed && this.optOutHandler && text) {
+              await this.optOutHandler(senderPhone, rawText.trim().toUpperCase());
             }
           }
         } catch (err) {
@@ -550,6 +619,26 @@ class WhatsAppService {
 
     return new Promise((resolve, reject) => {
       whatsappQueue.enqueue(formattedPhone, message, 'notification', (success, error) => {
+        if (success) {
+          resolve(true);
+        } else {
+          reject(new Error(error || 'Falha ao enviar mensagem'));
+        }
+      });
+    });
+  }
+
+  // Resposta de conversa (agente de recuperação) — prioridade alta e cooldown
+  // curto por destinatário, para o diálogo fluir.
+  async sendConversationMessage(phone: string, message: string): Promise<boolean> {
+    if (!this.isConnected()) {
+      throw new Error('WhatsApp não está conectado');
+    }
+
+    const formattedPhone = this.formatPhone(phone);
+
+    return new Promise((resolve, reject) => {
+      whatsappQueue.enqueue(formattedPhone, message, 'conversation', (success, error) => {
         if (success) {
           resolve(true);
         } else {
