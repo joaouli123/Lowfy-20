@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -295,23 +296,15 @@ export default function PreSellDashboard() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <FileText className="h-8 w-8" />
-              Pre-Sell Builder
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Crie páginas de pré-venda de alta conversão
-            </p>
-          </div>
-          <Button size="lg" onClick={createNewPage} data-testid="button-create-presell">
-            <Plus className="mr-2 h-5 w-5" />
-            Nova Pre-Sell
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={<span className="flex items-center gap-2"><FileText className="h-6 w-6" />Pre-Sell Builder</span>}
+        description="Crie páginas de pré-venda de alta conversão"
+      >
+        <Button size="lg" onClick={createNewPage} data-testid="button-create-presell">
+          <Plus className="mr-2 h-5 w-5" />
+          Nova Pre-Sell
+        </Button>
+      </PageHeader>
 
       {pages.length === 0 ? (
         <>

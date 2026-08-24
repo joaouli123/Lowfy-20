@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import PageHeader from "@/components/PageHeader";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -391,14 +392,11 @@ export default function Referrals() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold" data-testid="page-title">
-          Sistema de Indicações
-        </h1>
-        <p className="text-muted-foreground">
-          Compartilhe seu link e ganhe 50% de comissão recorrente nas assinaturas
-        </p>
-      </div>
+      <PageHeader
+        title="Sistema de Indicações"
+        description="Compartilhe seu link e ganhe 50% de comissão recorrente nas assinaturas"
+        testId="page-title"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-4 gap-1">

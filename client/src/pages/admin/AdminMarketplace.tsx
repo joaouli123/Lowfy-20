@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import PageHeader from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
@@ -271,18 +272,16 @@ export default function AdminMarketplace() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2" data-testid="page-title">Moderação de Produtos</h1>
-          <p className="text-muted-foreground">
-            Gerencie e modere todos os produtos do marketplace
-          </p>
-        </div>
+      <PageHeader
+        title="Moderação de Produtos"
+        description="Gerencie e modere todos os produtos do marketplace"
+        testId="page-title"
+      >
         <Button variant="outline" onClick={() => window.open("/marketplace/politicas", "_blank")} data-testid="button-view-policies">
           <ExternalLink className="w-4 h-4 mr-2" />
           Ver Políticas
         </Button>
-      </div>
+      </PageHeader>
 
       <Card>
         <CardHeader>

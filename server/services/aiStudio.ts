@@ -256,6 +256,47 @@ export async function llmJson(system: string, user: string, temperature = 0.8): 
   throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY ou GEMINI_API_KEY)");
 }
 
+// Variante de llmJson que também devolve o uso de tokens (p/ logTokenUsage nos call sites).
+export async function llmJsonWithUsage(
+  system: string,
+  user: string,
+  temperature = 0.8,
+): Promise<{ data: any; model: string; promptTokens: number; completionTokens: number }> {
+  if (OPENAI_KEY) {
+    const model = process.env.OPENAI_COPY_MODEL || "gpt-4o";
+    const res = await openai().chat.completions.create({
+      model,
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      temperature,
+      response_format: { type: "json_object" },
+    });
+    const data = JSON.parse((res.choices[0]?.message?.content || "{}").replace(/```json|```/g, "").trim());
+    return {
+      data,
+      model,
+      promptTokens: res.usage?.prompt_tokens || 0,
+      completionTokens: res.usage?.completion_tokens || 0,
+    };
+  }
+  if (GEMINI_KEY) {
+    const model = process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash";
+    const res = await gemini().models.generateContent({
+      model,
+      contents: `${system}\n\n${user}`,
+      config: { responseMimeType: "application/json", temperature } as any,
+    });
+    const data = JSON.parse(((res as any).text || "{}").replace(/```json|```/g, "").trim());
+    const usage = (res as any).usageMetadata;
+    return {
+      data,
+      model,
+      promptTokens: usage?.promptTokenCount || 0,
+      completionTokens: usage?.candidatesTokenCount || 0,
+    };
+  }
+  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY ou GEMINI_API_KEY)");
+}
+
 export async function llmText(system: string, user: string, temperature = 0.7): Promise<string> {
   if (OPENAI_KEY) {
     const res = await openai().chat.completions.create({

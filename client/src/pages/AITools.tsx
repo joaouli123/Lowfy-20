@@ -31,6 +31,7 @@ import { useTour } from "@/hooks/useTour";
 import { aiToolsTour } from "@/config/tours";
 import { TourOverlay } from "@/components/ui/tour/TourOverlay";
 import { TourButton } from "@/components/ui/tour/TourButton";
+import PageHeader from "@/components/PageHeader";
 
 
 export default function AITools() {
@@ -182,26 +183,15 @@ export default function AITools() {
       />
       <div className="max-w-7xl mx-auto p-4 md:p-8" data-testid="ai-tools-page">
       {/* Header com Tour Button */}
-      <div className="mb-8">
-        <div className="flex justify-end mb-3 md:hidden">
-          <TourButton
-            onClick={tour.start}
-            label="Conhecer Ferramentas"
-          />
-        </div>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Ferramentas IA Disponíveis</h1>
-            <p className="text-muted-foreground">Acesse mais de 30 ferramentas premium com os logins disponibilizados</p>
-          </div>
-          <div className="hidden md:block">
-            <TourButton
-              onClick={tour.start}
-              label="Conhecer Ferramentas"
-            />
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Ferramentas IA Disponíveis"
+        description="Acesse mais de 30 ferramentas premium com os logins disponibilizados"
+      >
+        <TourButton
+          onClick={tour.start}
+          label="Conhecer Ferramentas"
+        />
+      </PageHeader>
 
       {/* Instruções de Uso */}
       <Card className="mb-8" data-testid="ai-tools-instructions-card">

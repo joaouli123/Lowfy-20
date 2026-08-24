@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Folder, ExternalLink } from "lucide-react";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { FeatureLockedOverlay } from "@/components/FeatureLockedOverlay";
+import PageHeader from "@/components/PageHeader";
 
 const TEMPLATE_COLLECTIONS = [
   {
@@ -39,10 +40,10 @@ export default function Templates() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8" data-testid="templates-page">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Páginas e Templates</h1>
-        <p className="text-muted-foreground">Acesse nossa biblioteca de páginas prontas e templates para seus projetos</p>
-      </div>
+      <PageHeader
+        title="Páginas e Templates"
+        description="Acesse nossa biblioteca de páginas prontas e templates para seus projetos"
+      />
 
       <div className="space-y-2">
         {TEMPLATE_COLLECTIONS.map((collection) => (

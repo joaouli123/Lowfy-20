@@ -19,6 +19,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useAuth } from "@/hooks/useAuth";
 import { SingleImageUpload } from "@/components/ui/single-image-upload";
+import PageHeader from "@/components/PageHeader";
 import {
   LineChart,
   Line,
@@ -161,13 +162,13 @@ export default function Admin() {
 
   return (
     <div className="container mx-auto px-4 lg:px-[50px] pt-[50px] pb-[50px]" data-testid="admin-page">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Painel Administrativo</h1>
-        <p className="text-muted-foreground">Gerencie conteúdos, serviços e usuários</p>
-      </div>
+      <PageHeader
+        title="Painel Administrativo"
+        description="Gerencie conteúdos, serviços e usuários"
+      />
 
       <Tabs defaultValue="management" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8 bg-white">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
           <TabsTrigger value="management" data-testid="tab-management" className="">
             Gestão
           </TabsTrigger>
@@ -179,7 +180,7 @@ export default function Admin() {
 
         <TabsContent value="management" className="space-y-6">
           <Tabs defaultValue="users" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-white">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="users" data-testid="tab-users" className="">
                 <Users className="w-4 h-4 mr-2" />
                 Usuários

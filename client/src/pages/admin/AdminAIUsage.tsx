@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import PageHeader from "@/components/PageHeader";
 import {
   Table,
   TableBody,
@@ -226,16 +227,11 @@ export default function AdminAIUsage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="text-page-title">
-            Uso de IA (OpenAI)
-          </h1>
-          <p className="text-muted-foreground">
-            Acompanhe o consumo de tokens e custos da API OpenAI
-          </p>
-        </div>
-
+      <PageHeader
+        title="Uso de IA (OpenAI)"
+        description="Acompanhe o consumo de tokens e custos da API OpenAI"
+        testId="text-page-title"
+      >
         <div className="flex flex-wrap gap-2">
           <Select
             value={dateRange}
@@ -324,7 +320,7 @@ export default function AdminAIUsage() {
             </div>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card data-testid="card-total-tokens">

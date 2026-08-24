@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import PageHeader from "@/components/PageHeader";
 import { Bug, Trash2, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -122,15 +123,15 @@ export default function AdminBugs() {
 
   return (
     <div className="max-w-7xl mx-auto p-8" data-testid="admin-bugs-page">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
-          <Bug className="h-8 w-8 text-orange-500" />
-          Bugs Reportados
-        </h1>
-        <p className="text-muted-foreground">
-          Gerencie e acompanhe os bugs reportados pelos usuários
-        </p>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Bug className="w-6 h-6 text-orange-500" />
+            Bugs Reportados
+          </span>
+        }
+        description="Gerencie e acompanhe os bugs reportados pelos usuários"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card>

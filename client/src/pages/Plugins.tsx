@@ -5,6 +5,7 @@ import { Puzzle, ExternalLink, Search, Download } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { FeatureLockedOverlay } from "@/components/FeatureLockedOverlay";
+import PageHeader from "@/components/PageHeader";
 
 interface PluginInfo {
   name: string;
@@ -186,10 +187,10 @@ export default function Plugins() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8" data-testid="plugins-page">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Plugins WordPress</h1>
-        <p className="text-muted-foreground">Acesse nossa coleção completa de plugins premium para WordPress</p>
-      </div>
+      <PageHeader
+        title="Plugins WordPress"
+        description="Acesse nossa coleção completa de plugins premium para WordPress"
+      />
 
       {/* Filtro de pesquisa */}
       <div className="mb-6">

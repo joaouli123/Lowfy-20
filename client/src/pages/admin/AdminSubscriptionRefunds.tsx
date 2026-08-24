@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -222,20 +223,20 @@ export default function AdminSubscriptionRefunds() {
 
   return (
     <div className="container mx-auto py-6 space-y-6" data-testid="admin-subscription-refunds">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="page-title">Reembolsos de Assinatura</h1>
-          <p className="text-muted-foreground">Gerencie solicitações de reembolso de assinaturas Lowfy</p>
-        </div>
-        <Button 
-          variant="outline" 
+      <PageHeader
+        title="Reembolsos de Assinatura"
+        description="Gerencie solicitações de reembolso de assinaturas Lowfy"
+        testId="page-title"
+      >
+        <Button
+          variant="outline"
           onClick={() => { refetchStats(); refetchRefunds(); }}
           data-testid="button-refresh"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Atualizar
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card data-testid="stat-pending">

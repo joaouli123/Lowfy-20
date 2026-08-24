@@ -1,18 +1,23 @@
+import type { ReactNode } from "react";
+
 interface PageHeaderProps {
-  title: string;
+  eyebrow?: string;
+  title: ReactNode;
   description?: string;
-  children?: React.ReactNode;
+  testId?: string;
+  children?: ReactNode;
 }
 
-export default function PageHeader({ title, description, children }: PageHeaderProps) {
+export default function PageHeader({ eyebrow, title, description, testId, children }: PageHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        {eyebrow && <p className="t-eyebrow">{eyebrow}</p>}
+        <h1 className="t-display" data-testid={testId}>
           {title}
         </h1>
         {description && (
-          <p className="text-base text-muted-foreground">
+          <p className="t-muted">
             {description}
           </p>
         )}

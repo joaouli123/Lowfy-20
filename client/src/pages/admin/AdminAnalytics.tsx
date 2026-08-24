@@ -1,5 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
+import PageHeader from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,10 +68,7 @@ export default function AdminAnalytics() {
 
   return (
     <div className="p-[50px]">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Analytics</h1>
-        <p className="text-muted-foreground">Visualize métricas e estatísticas da plataforma</p>
-      </div>
+      <PageHeader title="Analytics" description="Visualize métricas e estatísticas da plataforma" />
 
       <div className="space-y-6">
         {/* Analytics Metrics Cards */}
