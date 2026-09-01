@@ -71,7 +71,7 @@ export async function sendEmail({ to, subject, html, retries = 0 }: SendEmailPar
     });
     
     const info = await transporter.sendMail({
-      from: `"${process.env.SMTP_FROM_NAME || 'Plataforma'}" <${process.env.SMTP_USER}>`,
+      from: `"${process.env.SMTP_FROM_NAME || 'Plataforma'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to,
       subject,
       html,
