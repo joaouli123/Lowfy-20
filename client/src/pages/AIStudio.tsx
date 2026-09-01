@@ -56,10 +56,6 @@ const IMG_RATIOS = [
   { v: "9:16", label: "9:16", cls: "aspect-[9/16]" },
   { v: "16:9", label: "16:9", cls: "aspect-video" },
 ];
-const TOM_PRESETS = [
-  "Animado e persuasivo", "Calmo e confiável", "Urgente", "Amigável", "Profissional", "Storytelling",
-];
-
 type Hist = { type: "image" | "audio" | "video"; url: string; label: string };
 
 // ---- helpers de UI ----
@@ -69,6 +65,32 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</Label>
       {children}
       {hint && <p className="text-[11px] text-muted-foreground/70 leading-snug">{hint}</p>}
+    </div>
+  );
+}
+
+function VoiceCard({ active, name, tag, previewUrl, onSelect }: { active: boolean; name: string; tag?: string; previewUrl?: string; onSelect: () => void }) {
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition ${
+        active ? "bg-accent text-accent-foreground border-primary/30 shadow-sm" : "bg-card border-border hover:bg-muted"
+      }`}
+    >
+      {previewUrl && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); try { new Audio(previewUrl).play(); } catch {} }}
+          className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 hover:bg-primary/20 transition"
+          title="Ouvir amostra"
+        >
+          <Volume2 className="w-3.5 h-3.5 text-primary" />
+        </button>
+      )}
+      <button type="button" onClick={onSelect} className="flex-1 min-w-0 text-left">
+        <p className="text-xs font-semibold truncate">{name}</p>
+        {tag && <p className="text-[10px] text-muted-foreground truncate">{tag}</p>}
+      </button>
+      {active && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
     </div>
   );
 }
@@ -204,7 +226,7 @@ export default function AIStudio() {
   });
 
   // ---- Narração (TTS) ----
-  const [tts, setTts] = useState({ text: "", voice: "nova", instructions: "", modelId: "eleven_multilingual_v2", stability: 0.5, similarityBoost: 0.75, style: 0, speed: 1 });
+  const [tts, setTts] = useState({ text: "", voice: "pNInz6obpgDQGcFmaJgB", provider: "elevenlabs", instructions: "", modelId: "eleven_multilingual_v2", stability: 0.5, similarityBoost: 0.75, style: 0, speed: 1 });
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
   const ttsMut = useMutation({
     mutationFn: async () => {
@@ -244,7 +266,7 @@ export default function AIStudio() {
     queryKey: ["/api/ai-studio/voices"],
     queryFn: async () => {
       const r = await apiRequest("GET", "/api/ai-studio/voices");
-      return (await r.json()) as { voices: { voiceId: string; name: string; category?: string }[] };
+      return (await r.json()) as { voices: { voiceId: string; name: string; category?: string; previewUrl?: string }[] };
     },
   });
   const clonedVoices = (voicesData?.voices || []).filter((v) => v.category === "cloned" || v.category === "professional" || v.category === "generated");
@@ -523,16 +545,33 @@ export default function AIStudio() {
               <CardContent className="p-5 space-y-4">
                 <ProviderBadge free="Google TTS pt-BR" premium="ElevenLabs" />
                 <Field label="Texto para narrar *">
-                  <Textarea rows={5} value={tts.text} onChange={(e) => setTts({ ...tts, text: e.target.value })} placeholder="Cole o roteiro/texto da narração…" />
+                  <Textarea rows={5} maxLength={5000} value={tts.text} onChange={(e) => setTts({ ...tts, text: e.target.value })} placeholder="Cole o roteiro/texto da narração…" />
+                  <p className={`text-[10px] text-right mt-1 ${tts.text.length > 4800 ? "text-destructive" : "text-muted-foreground"}`}>{tts.text.length}/5000</p>
                 </Field>
-                <Field label="Voz" hint={clonedVoices.length ? "Inclui suas vozes clonadas." : undefined}>
-                  <div className="flex flex-wrap gap-1.5">
-                    {clonedVoices.map((v) => (
-                      <Chip key={v.voiceId} active={tts.voice === v.voiceId} onClick={() => setTts({ ...tts, voice: v.voiceId })}><AudioWaveform className="w-3.5 h-3.5" />{v.name}</Chip>
-                    ))}
-                    {TTS_VOICES.map((v) => (
-                      <Chip key={v.v} active={tts.voice === v.v} onClick={() => setTts({ ...tts, voice: v.v })}><Volume2 className="w-3.5 h-3.5" />{v.label}</Chip>
-                    ))}
+                <Field label="Voz" hint="Clique no alto-falante pra ouvir a amostra antes de escolher.">
+                  {clonedVoices.length > 0 && (
+                    <div className="mb-2.5 space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground">Suas vozes clonadas</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {clonedVoices.map((v) => (
+                          <VoiceCard key={v.voiceId} active={tts.voice === v.voiceId} name={v.name} previewUrl={v.previewUrl} onSelect={() => setTts({ ...tts, voice: v.voiceId, provider: "elevenlabs" })} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">ElevenLabs · masculinas</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {ELEVEN_VOICES.filter((v) => v.gender === "masc").map((v) => (
+                        <VoiceCard key={v.voiceId} active={tts.voice === v.voiceId} name={v.name} tag={v.tag} previewUrl={v.previewUrl} onSelect={() => setTts({ ...tts, voice: v.voiceId, provider: "elevenlabs" })} />
+                      ))}
+                    </div>
+                    <p className="text-[11px] font-medium text-muted-foreground pt-1">ElevenLabs · femininas</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {ELEVEN_VOICES.filter((v) => v.gender === "fem").map((v) => (
+                        <VoiceCard key={v.voiceId} active={tts.voice === v.voiceId} name={v.name} tag={v.tag} previewUrl={v.previewUrl} onSelect={() => setTts({ ...tts, voice: v.voiceId, provider: "elevenlabs" })} />
+                      ))}
+                    </div>
                   </div>
                 </Field>
                 <Field label="Modelo (ElevenLabs)">
@@ -549,14 +588,6 @@ export default function AIStudio() {
                     <Slider label="Estilo" value={tts.style} min={0} max={1} step={0.05} onChange={(n) => setTts({ ...tts, style: n })} />
                     <Slider label="Velocidade" value={tts.speed} min={0.7} max={1.2} step={0.05} onChange={(n) => setTts({ ...tts, speed: n })} />
                   </div>
-                </Field>
-                <Field label="Tom (emoção)">
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {TOM_PRESETS.map((t) => (
-                      <Chip key={t} active={tts.instructions === t} onClick={() => setTts({ ...tts, instructions: t })}>{t}</Chip>
-                    ))}
-                  </div>
-                  <Input value={tts.instructions} onChange={(e) => setTts({ ...tts, instructions: e.target.value })} placeholder="Ou descreva: animado e persuasivo…" />
                 </Field>
                 <Button className="w-full shadow-sm" disabled={ttsMut.isPending || !tts.text} onClick={() => ttsMut.mutate()}>
                   {ttsMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mic className="w-4 h-4 mr-2" />}

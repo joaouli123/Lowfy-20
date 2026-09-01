@@ -38,7 +38,7 @@ export function aiStudioCapabilities() {
   return {
     image: { ready: true, premium: !!OPENAI_KEY, providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY, free: true } },
     copy: { ready: !!(GEMINI_KEY || OPENAI_KEY), providers: { gemini: !!GEMINI_KEY, openai: !!OPENAI_KEY } },
-    tts: { ready: true, premium: !!(OPENAI_KEY || ELEVENLABS_KEY), providers: { openai: !!OPENAI_KEY, elevenlabs: !!ELEVENLABS_KEY, free: true } },
+    tts: { ready: true, premium: !!ELEVENLABS_KEY, providers: { elevenlabs: !!ELEVENLABS_KEY, free: true } },
     voiceClone: { ready: !!ELEVENLABS_KEY, provider: "elevenlabs" },
     avatar: { ready: true, premium: !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY, free: true } },
     video: { ready: true, premium: !!process.env.FAL_KEY, providers: { fal: !!process.env.FAL_KEY, seedance: "2.0", free: true } },
@@ -403,49 +403,35 @@ export interface GenerateTTSParams {
 }
 
 export async function generateNarration(params: GenerateTTSParams): Promise<{ buffer: Buffer; mime: string }> {
-  // Premium 1: ElevenLabs (melhor realismo + clonagem) — quando a chave existe.
-  if (ELEVENLABS_KEY && params.provider !== "openai") {
-    try {
-      const voiceId = params.voice || process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
-      const vs: any = {};
-      if (params.stability != null) vs.stability = params.stability;
-      if (params.similarityBoost != null) vs.similarity_boost = params.similarityBoost;
-      if (params.style != null) vs.style = params.style;
-      if (params.speed != null) vs.speed = params.speed;
-      vs.use_speaker_boost = true;
-      const body: any = {
-        text: params.text,
-        model_id: params.modelId || process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
-        voice_settings: vs,
-      };
-      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
-        method: "POST",
-        headers: { "xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json", Accept: "audio/mpeg" },
-        body: JSON.stringify(body),
-      });
-      if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), mime: "audio/mpeg" };
-      logger.warn(`[AI Studio] ElevenLabs indisponível (${r.status}), tentando próximo provedor.`);
-    } catch (e: any) {
-      logger.warn(`[AI Studio] ElevenLabs falhou (${e?.message?.slice(0, 60)}), tentando próximo provedor.`);
-    }
+  // Narração é ElevenLabs-only (decisão do produto: OpenAI fica restrito a copy/criativos).
+  if (!ELEVENLABS_KEY) {
+    throw new Error("Narração premium requer a chave ElevenLabs configurada.");
   }
 
-  // Premium 2: OpenAI TTS (steerable) — quando a chave é válida.
-  if (OPENAI_KEY) {
-    try {
-      const res = await openai().audio.speech.create({
-        model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
-        voice: (params.voice as any) || "alloy",
-        input: params.text,
-        ...(params.instructions ? { instructions: params.instructions } : {}),
-      } as any);
-      return { buffer: Buffer.from(await res.arrayBuffer()), mime: "audio/mpeg" };
-    } catch (e: any) {
-      throw new Error(`Falha na narração premium (OpenAI TTS): ${e?.message?.slice(0, 90)}`);
-    }
+  const voiceId = params.voice || process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
+  const vs: any = {};
+  if (params.stability != null) vs.stability = params.stability;
+  if (params.similarityBoost != null) vs.similarity_boost = params.similarityBoost;
+  if (params.style != null) vs.style = params.style;
+  if (params.speed != null) vs.speed = params.speed;
+  vs.use_speaker_boost = true;
+  const body: any = {
+    text: params.text,
+    model_id: params.modelId || process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
+    voice_settings: vs,
+  };
+  try {
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+      method: "POST",
+      headers: { "xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json", Accept: "audio/mpeg" },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), mime: "audio/mpeg" };
+    const errText = await r.text().catch(() => "");
+    throw new Error(`ElevenLabs (${r.status}): ${errText.slice(0, 120)}`);
+  } catch (e: any) {
+    throw new Error(`Falha na narração (ElevenLabs): ${e?.message?.slice(0, 120)}`);
   }
-
-  throw new Error("Narração premium requer a chave ElevenLabs (recomendado) ou OpenAI configurada.");
 }
 
 // ---------- Clonagem de voz (ElevenLabs Instant Voice Cloning) ----------
