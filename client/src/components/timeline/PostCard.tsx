@@ -69,7 +69,8 @@ function convertToEmbedUrl(url: string): string {
     const hostname = urlObj.hostname;
 
     if (hostname.includes('youtube.com')) {
-      const videoId = urlObj.searchParams.get('v');
+      const videoId = urlObj.searchParams.get('v')
+        || urlObj.pathname.match(/^\/(?:shorts|embed|live|v)\/([\w-]+)/)?.[1];
       if (videoId) return `https://www.youtube.com/embed/${videoId}`;
     } else if (hostname.includes('youtu.be')) {
       const videoId = urlObj.pathname.substring(1);
@@ -84,7 +85,7 @@ function convertToEmbedUrl(url: string): string {
   } catch (e) {
   }
 
-  return url;
+  return '';
 }
 
 // Helper function to render content with clickable hashtags
@@ -970,7 +971,12 @@ export function PostCard({ post, currentUser, onOpenComments, onOpenReactions }:
               )}
 
               {/* Display Video Link */}
-              {post.videoLink && !post.sharedPost && (
+              {post.videoLink && !post.sharedPost && !convertToEmbedUrl(post.videoLink) && (
+                <a href={post.videoLink} target="_blank" rel="noopener noreferrer" className="mt-3 block rounded-lg border border-border p-3 text-sm text-primary hover:bg-muted/50 break-all">
+                  Assistir vídeo: {post.videoLink}
+                </a>
+              )}
+              {post.videoLink && !post.sharedPost && convertToEmbedUrl(post.videoLink) && (
                 <div className="mt-3 rounded-lg overflow-hidden border border-border aspect-video" data-testid={`video-link-${post.id}`}>
                   <iframe
                     src={convertToEmbedUrl(post.videoLink)}
@@ -1083,7 +1089,12 @@ export function PostCard({ post, currentUser, onOpenComments, onOpenReactions }:
                   )}
 
                   {/* Shared post video link */}
-                  {post.sharedPost.videoLink && (
+                  {post.sharedPost.videoLink && !convertToEmbedUrl(post.sharedPost.videoLink) && (
+                    <a href={post.sharedPost.videoLink} target="_blank" rel="noopener noreferrer" className="mt-3 block text-sm text-primary break-all">
+                      Assistir vídeo: {post.sharedPost.videoLink}
+                    </a>
+                  )}
+                  {post.sharedPost.videoLink && convertToEmbedUrl(post.sharedPost.videoLink) && (
                     <div className="mt-3 rounded-lg overflow-hidden border border-border aspect-video">
                       <iframe
                         src={convertToEmbedUrl(post.sharedPost.videoLink)}

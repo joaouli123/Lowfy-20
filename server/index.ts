@@ -48,7 +48,7 @@ if (isProduction) {
         imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         connectSrc: ["'self'", "https://googleads.g.doubleclick.net", "https://www.googleadservices.com", "https://www.google-analytics.com", "https://www.googletagmanager.com", "https://connect.facebook.net", "https://www.facebook.com", "https:", "wss:", "ws:"],
-        frameSrc: ["'self'", "https://www.youtube.com", "https://player.vimeo.com", "https://www.facebook.com"],
+        frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com", "https://www.dailymotion.com", "https://player.vimeo.com", "https://www.facebook.com"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
         formAction: ["'self'", "https://www.facebook.com", "https://connect.facebook.net"],
