@@ -313,3 +313,17 @@ export function FullscreenButton({ url }: { url: string | null }) {
     </Button>
   );
 }
+
+/** Bloco numerado do formulário (1, 2, 3…): agrupa campos do mesmo assunto. */
+export function FormSection({ n, title, right, children }: { n: number; title: string; right?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border bg-card p-4 space-y-3.5 min-w-0">
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center flex-shrink-0">{n}</span>
+        <h3 className="text-sm font-semibold flex-1 min-w-0">{title}</h3>
+        {right}
+      </div>
+      {children}
+    </section>
+  );
+}

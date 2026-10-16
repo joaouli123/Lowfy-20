@@ -489,6 +489,11 @@ export interface GenerateTTSParams {
 }
 
 export async function generateNarration(params: GenerateTTSParams): Promise<{ buffer: Buffer; mime: string }> {
+  // ElevenLabs direto primeiro: todas as vozes da conta (inclusive clonadas). Kie como reserva.
+  if (ELEVENLABS_KEY) {
+    try { return await elevenNarration(params); }
+    catch (e: any) { if (!kie.kieReady()) throw e; logger.warn(`[TTS] ElevenLabs falhou, usando Kie: ${e?.message}`); }
+  }
   const r = await narrationUrl(params);
   if (r) return kie.kieDownload(r);
   return elevenNarration(params);
@@ -585,8 +590,8 @@ export async function cloneVoice(input: CloneVoiceInput): Promise<{ voiceId: str
 
 /** Lista as vozes disponíveis na conta ElevenLabs (incluindo clonadas). */
 export async function listVoices(): Promise<{ voices: { voiceId: string; name: string; category?: string }[] }> {
-  // Com a Kie, só as vozes da lista dela funcionam na narração.
-  if (kie.kieReady()) {
+  // Sem ElevenLabs direto, só as vozes da lista da Kie funcionam na narração.
+  if (!ELEVENLABS_KEY && kie.kieReady()) {
     return { voices: kie.KIE_VOICES.map((v) => ({ voiceId: v.voiceId, name: v.name, category: "premade", gender: v.gender, tag: v.tag, previewUrl: kie.kieVoicePreview(v.voiceId) })) };
   }
   if (!ELEVENLABS_KEY) return { voices: [] };
@@ -594,7 +599,13 @@ export async function listVoices(): Promise<{ voices: { voiceId: string; name: s
     const r = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": ELEVENLABS_KEY } });
     if (!r.ok) return { voices: [] };
     const j: any = await r.json();
-    return { voices: (j.voices || []).map((v: any) => ({ voiceId: v.voice_id, name: v.name, category: v.category, previewUrl: v.preview_url })) };
+    return {
+      voices: (j.voices || []).map((v: any) => ({
+        voiceId: v.voice_id, name: v.name, category: v.category, previewUrl: v.preview_url,
+        // Gênero e descrição curta: a página de Narração filtra por Feminina/Masculina.
+        gender: v.labels?.gender, tag: [v.labels?.descriptive || v.labels?.description, v.labels?.use_case].filter(Boolean).join(", ").replace(/_/g, " "),
+      })),
+    };
   } catch { return { voices: [] }; }
 }
 
@@ -789,7 +800,14 @@ export interface GenerateAvatarParams {
 export async function generateTalkingAvatar(params: GenerateAvatarParams): Promise<{ buffer: Buffer; mime: string }> {
   // Kie.ai — Kling AI Avatar: foto + áudio (narração gerada antes) → vídeo com lip-sync.
   if (kie.kieReady()) {
-    const audio = params.audioUrl || (await narrationUrl({ text: params.text || "", voice: params.voice } as GenerateTTSParams));
+    let audio = params.audioUrl || null;
+    if (!audio && ELEVENLABS_KEY) {
+      try {
+        const a = await elevenNarration({ text: params.text || "", voice: params.voice } as GenerateTTSParams);
+        audio = await kie.kieFileUrl(a.buffer, { mime: a.mime, folder: "avatar", name: `fala-${Date.now()}.mp3` });
+      } catch (e: any) { logger.warn(`[Avatar] ElevenLabs falhou, usando Kie: ${e?.message}`); }
+    }
+    if (!audio) audio = await narrationUrl({ text: params.text || "", voice: params.voice } as GenerateTTSParams);
     if (!audio) throw new Error("Não foi possível gerar a fala do avatar");
     const image = await kie.kieFileUrl(params.imageUrl, { folder: "avatar" });
     const model = process.env.KIE_AVATAR_MODEL || "kling/ai-avatar-standard";

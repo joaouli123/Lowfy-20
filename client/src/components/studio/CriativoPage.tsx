@@ -5,14 +5,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
-  Sparkles, SquarePen, Crop, Palette, Image as ImageIcon, Droplets, FileText, Eye, Plus, X, GalleryHorizontal,
-  ChevronLeft, ChevronRight, Download, Loader2, AlertCircle, Layers,
+  Sparkles, SquarePen, Image as ImageIcon, Eye, Plus, X, GalleryHorizontal,
+  ChevronLeft, ChevronRight, ChevronDown, Download, Loader2, AlertCircle, Layers,
 } from "lucide-react";
 import { useStudio } from "./store";
 import { RATIOS, ratioSpec } from "./types";
 import type { RatioId } from "./types";
 import {
-  FieldLabel, FormFooter, FormPanel, MissingHint, OptionCard, PageGrid, PageHeader, Pill, PillGroup, PreviewLoading, PreviewPanel,
+  FieldLabel, FormFooter, FormPanel, FormSection, MissingHint, PageGrid, PageHeader, Pill, PillGroup, PreviewLoading, PreviewPanel,
   DownloadButton, FullscreenButton, UploadBox, missingOf, selectCls, useLocalForm,
 } from "./page-kit";
 
@@ -87,6 +87,13 @@ export default function CriativoPage() {
     }
   };
 
+  const [textMode, setTextModeState] = useState<"ia" | "eu">(() => (brief.headline || o.texto || o.cta ? "eu" : "ia"));
+  const setTextMode = (m: "ia" | "eu") => {
+    setTextModeState(m);
+    // "A IA escreve": não manda textos antigos que ficaram escondidos.
+    if (m === "ia") { patchBrief({ headline: "" }); patchOpts("image", { texto: "", cta: "" }); }
+  };
+
   const missing = isCar
     ? missingOf([["sobre o que é o carrossel", car.tema]])
     : missingOf([["produto ou serviço", brief.produto]]);
@@ -100,6 +107,7 @@ export default function CriativoPage() {
     }
     patchBrief({ produto: "Tênis esportivo branco", publico: "Homens e mulheres de 25 a 40 anos que treinam", headline: "VÁ MAIS LONGE", estilo: "Fotográfico", ratio: "4:5" });
     patchOpts("image", { objetivo: "Divulgar promoção", texto: "Conforto e tecnologia com 50% OFF só hoje", cta: "Comprar agora" });
+    setTextModeState("eu");
   };
 
   const clear = () => {
@@ -168,112 +176,166 @@ export default function CriativoPage() {
               </div>
             }
           >
-            {isCar && (
-              <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-[1fr_auto] [&>*]:min-w-0">
-                <div>
-                  <FieldLabel required>Sobre o que é o carrossel?</FieldLabel>
-                  <Input value={car.tema} onChange={(e) => patchCar({ tema: e.target.value })} placeholder="Ex.: 5 erros que fazem você perder vendas no Instagram" />
-                </div>
-                <div>
-                  <FieldLabel>Quantos slides</FieldLabel>
-                  <PillGroup options={QTD_SLIDES} value={car.slides} onChange={(v) => patchCar({ slides: v })} />
-                  <p className="text-[11px] text-muted-foreground mt-1.5">Capa + {Number(car.slides) - 2} de conteúdo + chamada final</p>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
-              <div>
-                <FieldLabel required={!isCar} optional={isCar}>{isCar ? "Produto ou marca" : "Produto ou serviço"}</FieldLabel>
-                <Input value={brief.produto} onChange={(e) => patchBrief({ produto: e.target.value })} placeholder="Ex.: tênis esportivo, curso de marketing, suplemento..." />
-              </div>
-              <div>
-                <FieldLabel optional>Objetivo</FieldLabel>
-                <select value={o.objetivo} onChange={(e) => patchOpts("image", { objetivo: e.target.value })} className={selectCls}>
-                  <option value="">Deixa a IA decidir</option>
-                  {OBJETIVOS.map((x) => <option key={x}>{x}</option>)}
-                </select>
-              </div>
-              <div>
-                <FieldLabel optional>Público-alvo</FieldLabel>
-                <Input value={brief.publico} onChange={(e) => patchBrief({ publico: e.target.value })} placeholder="Ex.: homens de 25 a 40 anos, iniciantes em academia..." />
-              </div>
-              {!isCar && (
-                <div>
-                  <FieldLabel optional>Texto de apoio</FieldLabel>
-                  <Textarea value={o.texto} onChange={(e) => patchOpts("image", { texto: e.target.value })} placeholder="Ex.: Conforto e tecnologia com 50% OFF" className="min-h-[72px] md:min-h-[40px] md:h-10 resize-y" />
+            {/* 1 — O que anunciar */}
+            <FormSection n={1} title={isCar ? "Sobre o que é o carrossel" : "O que você vai anunciar"}>
+              {isCar && (
+                <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-[1fr_auto] [&>*]:min-w-0">
+                  <div>
+                    <FieldLabel required>Tema do carrossel</FieldLabel>
+                    <Input value={car.tema} onChange={(e) => patchCar({ tema: e.target.value })} placeholder="Ex.: 5 erros que fazem você perder vendas no Instagram" />
+                  </div>
+                  <div>
+                    <FieldLabel>Quantos slides</FieldLabel>
+                    <PillGroup options={QTD_SLIDES} value={car.slides} onChange={(v) => patchCar({ slides: v })} />
+                    <p className="text-[11px] text-muted-foreground mt-1.5">Capa + {Number(car.slides) - 2} de conteúdo + chamada final</p>
+                  </div>
                 </div>
               )}
-              {!isCar && (
+              <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-3 [&>*]:min-w-0">
                 <div>
-                  <FieldLabel optional>Título na imagem</FieldLabel>
-                  <Input value={brief.headline} onChange={(e) => patchBrief({ headline: e.target.value })} placeholder="Ex.: VÁ MAIS LONGE (vazio = a IA cria)" />
+                  <FieldLabel required={!isCar} optional={isCar}>{isCar ? "Produto ou marca" : "Produto ou serviço"}</FieldLabel>
+                  <Input value={brief.produto} onChange={(e) => patchBrief({ produto: e.target.value })} placeholder="Ex.: tênis esportivo branco" />
                 </div>
-              )}
-              <div>
-                <FieldLabel optional>{isCar ? "Chamada do último slide" : "Botão (CTA)"}</FieldLabel>
-                <select value={o.cta} onChange={(e) => patchOpts("image", { cta: e.target.value })} className={selectCls}>
-                  <option value="">{isCar ? "A IA decide" : "Sem botão / a IA decide"}</option>
-                  {CTAS.map((x) => <option key={x}>{x}</option>)}
-                </select>
+                <div>
+                  <FieldLabel optional>Para quem</FieldLabel>
+                  <Input value={brief.publico} onChange={(e) => patchBrief({ publico: e.target.value })} placeholder="Ex.: mulheres de 25 a 40 anos" />
+                </div>
+                <div>
+                  <FieldLabel optional>Objetivo</FieldLabel>
+                  <select value={o.objetivo} onChange={(e) => patchOpts("image", { objetivo: e.target.value })} className={selectCls}>
+                    <option value="">A IA decide</option>
+                    {OBJETIVOS.map((x) => <option key={x}>{x}</option>)}
+                  </select>
+                </div>
               </div>
-            </div>
+            </FormSection>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 [&>*]:min-w-0">
-              <OptionCard icon={Crop} title="Tamanho e formato" sub={isCar ? "Carrossel do Instagram: 1:1 ou 4:5." : "Escolha a proporção da sua imagem."}>
-                <div className={`grid gap-2 ${isCar ? "grid-cols-2" : "grid-cols-4"}`}>
-                  {(isCar ? CAROUSEL_RATIOS : RATIOS).map((r) => (
-                    <Pill key={r.id} active={ratio === r.id} onClick={() => patchBrief({ ratio: r.id })} className="px-0">{r.id}</Pill>
-                  ))}
-                </div>
-              </OptionCard>
-
-              <OptionCard icon={Palette} title="Estilo visual" sub="Defina o estilo do seu criativo.">
-                <div className="flex flex-wrap gap-1.5">
-                  {ESTILOS.map((e) => (
-                    <Pill key={e} active={brief.estilo === e} onClick={() => patchBrief({ estilo: brief.estilo === e ? "" : e })} className="h-8 px-3">{e}</Pill>
-                  ))}
-                </div>
-              </OptionCard>
-
-              <OptionCard icon={Droplets} title="Cores da marca" sub={o.cores.length ? "Clique numa cor para remover." : "Sem cores, a IA escolhe a paleta."} optional>
-                <div className="flex flex-wrap items-center gap-2">
-                  {o.cores.map((c, i) => (
+            {/* 2 — Textos */}
+            <FormSection
+              n={2}
+              title={isCar ? "Textos dos slides" : "Textos da imagem"}
+              right={!isCar && (
+                <div className="inline-flex rounded-lg border p-0.5 gap-0.5">
+                  {([["ia", "A IA escreve"], ["eu", "Eu escrevo"]] as const).map(([v, label]) => (
                     <button
-                      key={`${c}-${i}`}
+                      key={v}
                       type="button"
-                      onClick={() => patchOpts("image", { cores: o.cores.filter((_, j) => j !== i) })}
-                      className="group relative w-8 h-8 rounded-full border shadow-sm"
-                      style={{ background: c }}
-                      title={`${c} — clique para remover`}
+                      onClick={() => setTextMode(v)}
+                      className={`h-7 px-3 rounded-md text-xs font-medium transition ${textMode === v ? "bg-[color-mix(in_srgb,var(--accent)_100%,transparent)] text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
-                      <X className="w-3.5 h-3.5 absolute inset-0 m-auto text-white opacity-0 group-hover:opacity-100 drop-shadow" />
+                      {label}
                     </button>
                   ))}
-                  {o.cores.length < 6 && (
-                    <button type="button" onClick={() => colorRef.current?.click()} className="w-8 h-8 rounded-full border border-dashed flex items-center justify-center hover:bg-muted" title="Adicionar cor">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  )}
-                  <input ref={colorRef} type="color" className="sr-only" onChange={(e) => patchOpts("image", { cores: [...o.cores, e.target.value] })} />
                 </div>
-              </OptionCard>
-            </div>
+              )}
+            >
+              {isCar ? (
+                <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 [&>*]:min-w-0">
+                  <p className="text-[13px] text-muted-foreground leading-snug md:pt-6">A IA escreve o título e o texto de cada slide a partir do tema.</p>
+                  <div>
+                    <FieldLabel optional>Chamada do último slide</FieldLabel>
+                    <select value={o.cta} onChange={(e) => patchOpts("image", { cta: e.target.value })} className={selectCls}>
+                      <option value="">A IA decide</option>
+                      {CTAS.map((x) => <option key={x}>{x}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ) : textMode === "ia" ? (
+                <p className="text-[13px] text-muted-foreground leading-snug">
+                  A IA cria um título curto e chamativo para a imagem. Quer escrever o seu? Clique em <span className="font-medium text-foreground">Eu escrevo</span>.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-3 [&>*]:min-w-0">
+                  <div>
+                    <FieldLabel>Título</FieldLabel>
+                    <Input value={brief.headline} onChange={(e) => patchBrief({ headline: e.target.value })} placeholder="Ex.: VÁ MAIS LONGE" />
+                  </div>
+                  <div>
+                    <FieldLabel optional>Texto menor</FieldLabel>
+                    <Input value={o.texto} onChange={(e) => patchOpts("image", { texto: e.target.value })} placeholder="Ex.: 50% OFF só hoje" />
+                  </div>
+                  <div>
+                    <FieldLabel optional>Botão</FieldLabel>
+                    <select value={o.cta} onChange={(e) => patchOpts("image", { cta: e.target.value })} className={selectCls}>
+                      <option value="">Sem botão</option>
+                      {CTAS.map((x) => <option key={x}>{x}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </FormSection>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-              <OptionCard icon={ImageIcon} title="Referência" sub={isCar ? "Foto do produto ou de um post que você gosta (guia o visual)." : "Envie uma imagem de referência para guiar o estilo."} optional>
-                <UploadBox
-                  accept="image/png,image/jpeg,image/webp"
-                  hint="PNG, JPG ou WEBP (máx. 5MB)"
-                  maxMb={5}
-                  value={o.referencia ? [{ data: o.referencia, type: "image/png", name: "Imagem de referência" }] : []}
-                  onChange={(f) => patchOpts("image", { referencia: f[0]?.data || "" })}
-                />
-              </OptionCard>
-              <OptionCard icon={FileText} title="Observações" sub="Adicione informações extras para um resultado ainda melhor." optional>
-                <Textarea value={o.observacoes} onChange={(e) => patchOpts("image", { observacoes: e.target.value })} placeholder="Ex.: incluir logo, destacar preço, usar um tom mais sério..." className="min-h-[64px]" />
-              </OptionCard>
-            </div>
+            {/* 3 — Visual */}
+            <FormSection n={3} title="Visual">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
+                <div>
+                  <FieldLabel>Formato</FieldLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {(isCar ? CAROUSEL_RATIOS : RATIOS).map((r) => (
+                      <Pill key={r.id} active={ratio === r.id} onClick={() => patchBrief({ ratio: r.id })}>
+                        {r.id} <span className="text-[10px] opacity-70">· {r.sub}</span>
+                      </Pill>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <FieldLabel optional>Estilo</FieldLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {ESTILOS.map((e) => (
+                      <Pill key={e} active={brief.estilo === e} onClick={() => patchBrief({ estilo: brief.estilo === e ? "" : e })}>{e}</Pill>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <FieldLabel optional>Cores da marca</FieldLabel>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {o.cores.map((c, i) => (
+                      <button
+                        key={`${c}-${i}`}
+                        type="button"
+                        onClick={() => patchOpts("image", { cores: o.cores.filter((_, j) => j !== i) })}
+                        className="group relative w-8 h-8 rounded-full border shadow-sm"
+                        style={{ background: c }}
+                        title={`${c} — clique para remover`}
+                      >
+                        <X className="w-3.5 h-3.5 absolute inset-0 m-auto text-white opacity-0 group-hover:opacity-100 drop-shadow" />
+                      </button>
+                    ))}
+                    {o.cores.length < 6 && (
+                      <button type="button" onClick={() => colorRef.current?.click()} className="h-8 px-3 rounded-full border border-dashed flex items-center gap-1.5 text-xs text-muted-foreground hover:bg-muted" title="Adicionar cor">
+                        <Plus className="w-3.5 h-3.5" /> {o.cores.length ? "" : "Adicionar cor"}
+                      </button>
+                    )}
+                    <input ref={colorRef} type="color" className="sr-only" onChange={(e) => patchOpts("image", { cores: [...o.cores, e.target.value] })} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">{o.cores.length ? "Clique numa cor para remover." : "Sem cores, a IA escolhe a paleta."}</p>
+                </div>
+                <div>
+                  <FieldLabel optional>Imagem de referência</FieldLabel>
+                  <UploadBox
+                    accept="image/png,image/jpeg,image/webp"
+                    hint="Foto do produto ou um post que você gosta"
+                    label="Enviar imagem (PNG, JPG ou WEBP, até 5MB)"
+                    maxMb={5}
+                    value={o.referencia ? [{ data: o.referencia, type: "image/png", name: "Imagem de referência" }] : []}
+                    onChange={(f) => patchOpts("image", { referencia: f[0]?.data || "" })}
+                  />
+                </div>
+              </div>
+            </FormSection>
+
+            {/* 4 — Extras */}
+            <details className="group rounded-xl border bg-card" open={!!o.observacoes}>
+              <summary className="flex items-center gap-2.5 px-4 py-3 cursor-pointer list-none select-none">
+                <span className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-[11px] font-bold flex items-center justify-center">4</span>
+                <span className="text-sm font-semibold">Detalhes extras</span>
+                <span className="text-xs text-muted-foreground">(opcional)</span>
+                <ChevronDown className="w-4 h-4 ml-auto text-muted-foreground transition group-open:rotate-180" />
+              </summary>
+              <div className="px-4 pb-4">
+                <Textarea value={o.observacoes} onChange={(e) => patchOpts("image", { observacoes: e.target.value })} placeholder="Ex.: colocar pétalas de rosa ao redor, destacar o preço, fundo mais escuro..." className="min-h-[64px]" />
+              </div>
+            </details>
           </FormPanel>
         }
         preview={
