@@ -17,19 +17,34 @@ import {
 } from "./page-kit";
 
 const OBJETIVOS = ["Vender um produto", "Gerar leads", "Divulgar promoção", "Lançamento", "Reconhecimento de marca", "Tráfego para o site"];
-const CTAS = ["Comprar agora", "Saiba mais", "Garanta o seu", "Cadastre-se", "Fale conosco", "Aproveite a oferta", "Arraste para o lado", "Siga para mais dicas"];
+const CTAS = ["Comprar agora", "Agende sua avaliação", "Saiba mais", "Garanta o seu", "Cadastre-se", "Fale conosco", "Aproveite a oferta", "Arraste para o lado", "Siga para mais dicas"];
 const ESTILOS = ["Minimalista", "Fotográfico", "Moderno", "Elegante", "Vibrante"];
 const QTD_SLIDES = [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "7", label: "7" }, { v: "10", label: "10" }];
 const CAROUSEL_RATIOS = RATIOS.filter((r) => r.id === "1:1" || r.id === "4:5");
 
 // Exemplos reais gerados pelo Estúdio: aparecem no preview vazio para a pessoa ver o resultado antes de gastar crédito.
+// Cada exemplo guarda os campos exatos que geraram a imagem: "Usar exemplo" preenche igual.
+const POST_EXAMPLES = [
+  {
+    img: "/studio-examples/post-fone-4x5.webp", ratio: "4:5" as RatioId,
+    brief: { produto: "Fone de ouvido bluetooth preto", publico: "", headline: "Fone Bluetooth", estilo: "" },
+    opts: { objetivo: "Divulgar promoção", texto: "De R$ 199 por R$ 99", cta: "Comprar agora", cores: [] as string[], observacoes: "" },
+  },
+  {
+    img: "/studio-examples/post-perfume-1x1.webp", ratio: "1:1" as RatioId,
+    brief: { produto: "Perfume feminino floral em frasco de vidro", publico: "Mulheres de 25 a 45 anos", headline: "Dia das Mães", estilo: "Elegante" },
+    opts: { objetivo: "Divulgar promoção", texto: "30% OFF em toda a linha", cta: "Comprar agora", cores: ["#7a1f3d", "#f4e1d2"], observacoes: "Colocar pétalas de rosa ao redor do frasco" },
+  },
+];
 const EXEMPLO_POST: Record<string, string> = {
-  "4:5": "/studio-examples/post-tenis-4x5.webp",
-  "9:16": "/studio-examples/post-tenis-4x5.webp",
-  "1:1": "/studio-examples/post-perfume-1x1.webp",
-  "16:9": "/studio-examples/post-perfume-1x1.webp",
+  "4:5": POST_EXAMPLES[0].img, "9:16": POST_EXAMPLES[0].img, "1:1": POST_EXAMPLES[1].img, "16:9": POST_EXAMPLES[1].img,
 };
-const EXEMPLO_CARROSSEL = [1, 2, 3].map((i) => `/studio-examples/carrossel-${i}.webp`);
+const CAROUSEL_EXAMPLE = {
+  tema: "3 hábitos que fazem sua pele envelhecer mais rápido", slides: "5",
+  brief: { produto: "Clínica de estética facial", publico: "Mulheres de 30 a 50 anos", estilo: "Elegante", ratio: "4:5" as RatioId },
+  opts: { objetivo: "Gerar leads", cta: "Agende sua avaliação", cores: ["#c8a27a", "#2b2b2b", "#f6f1eb"], observacoes: "" },
+};
+const EXEMPLO_CARROSSEL = [1, 2, 3, 4, 5].map((i) => `/studio-examples/carrossel-${i}.webp`);
 
 function ExampleBadge() {
   return (
@@ -124,15 +139,20 @@ export default function CriativoPage() {
     ? missingOf([["sobre o que é o carrossel", car.tema]])
     : missingOf([["produto ou serviço", brief.produto]]);
 
+  // Alterna entre os exemplos a cada clique (fone ↔ perfume), sem gastar IA.
+  const exampleIdx = useRef(0);
   const example = () => {
     if (isCar) {
-      patchCar({ tema: "5 erros que fazem você perder vendas no Instagram", slides: "5" });
-      patchBrief({ produto: "Mentoria de marketing digital", publico: "Empreendedores iniciantes", estilo: "Moderno", ratio: "4:5" });
-      patchOpts("image", { objetivo: "Gerar leads", cta: "Siga para mais dicas" });
+      patchCar({ tema: CAROUSEL_EXAMPLE.tema, slides: CAROUSEL_EXAMPLE.slides });
+      patchBrief(CAROUSEL_EXAMPLE.brief);
+      patchOpts("image", CAROUSEL_EXAMPLE.opts);
+      setExSlide(0);
       return;
     }
-    patchBrief({ produto: "Tênis esportivo branco", publico: "Homens e mulheres de 25 a 40 anos que treinam", headline: "VÁ MAIS LONGE", estilo: "Fotográfico", ratio: "4:5" });
-    patchOpts("image", { objetivo: "Divulgar promoção", texto: "Conforto e tecnologia com 50% OFF só hoje", cta: "Comprar agora" });
+    const ex = POST_EXAMPLES[exampleIdx.current % POST_EXAMPLES.length];
+    exampleIdx.current++;
+    patchBrief({ ...ex.brief, ratio: ex.ratio });
+    patchOpts("image", ex.opts);
     setTextModeState("eu");
   };
 
