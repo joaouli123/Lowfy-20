@@ -276,7 +276,8 @@ export function useLocalForm<T extends object>(key: string, defaults: T) {
     const next = { ...f, ...p };
     try {
       // Arquivos (data URL) não vão pro localStorage: estouram a cota.
-      const light = Object.fromEntries(Object.entries(next).filter(([, v]) => !(Array.isArray(v) && v.some((x: any) => x?.data))));
+      const light = Object.fromEntries(Object.entries(next).filter(([, v]) =>
+        !(Array.isArray(v) && v.some((x: any) => x?.data)) && !(typeof v === "string" && v.startsWith("data:"))));
       localStorage.setItem(storageKey, JSON.stringify(light));
     } catch { /* sem persistência */ }
     return next;

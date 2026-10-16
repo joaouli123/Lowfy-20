@@ -6544,13 +6544,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/ai-studio/copy-kit', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
       const b = req.body || {};
-      if (!b.produto) return res.status(400).json({ message: 'Informe o produto ou serviço' });
+      if (!b.produto && !String(b.descricao || '').trim()) return res.status(400).json({ message: 'Conte o que você precisa ou informe o produto' });
       const result = await aiStudio.generateCopyKit({
-        produto: String(b.produto), objetivo: b.objetivo, publico: b.publico, oferta: b.oferta, beneficios: b.beneficios,
+        descricao: b.descricao ? String(b.descricao).slice(0, 3000) : undefined,
+        produto: String(b.produto || ''), objetivo: b.objetivo, publico: b.publico, oferta: b.oferta, beneficios: b.beneficios,
         tom: b.tom, canal: b.canal, cta: b.cta, tamanho: b.tamanho, observacoes: b.observacoes, idioma: b.idioma,
       });
       const text = [result.headline, result.subheadline, result.texto, result.cta].filter(Boolean).join('\n\n');
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'copy', text, title: String(b.produto).slice(0, 80), prompt: String(b.canal || '') });
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'copy', text, title: String(b.produto || b.descricao || 'Copy').slice(0, 80), prompt: String(b.canal || '') });
       res.json(result);
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar copy-kit:', error?.message);

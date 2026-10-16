@@ -27,6 +27,7 @@ const TAMANHOS = [{ v: "curto", label: "Curto" }, { v: "medio", label: "Médio" 
 interface CopyKit { headline: string; subheadline: string; texto: string; cta: string; variacoes: string[] }
 
 const DEFAULTS = {
+  modo: "simples" as "simples" | "detalhado", descricao: "",
   produto: "", objetivo: "", publico: "", oferta: "", beneficios: "", cta: "", observacoes: "",
   tom: "direto" as string, canal: "instagram" as string, tamanho: "curto" as string,
 };
@@ -47,9 +48,13 @@ export default function CopyPage() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const missing = missingOf([["produto ou serviço", f.produto]]);
+  const simples = f.modo === "simples";
+  const missing = simples ? missingOf([["o que você precisa", f.descricao]]) : missingOf([["produto ou serviço", f.produto]]);
 
-  const example = () => patch({
+  const example = () => simples ? patch({
+    descricao: "Quero vender meu curso online de inglês para iniciantes, para adultos de 25 a 45 anos que travam na hora de falar. Está com 50% de desconto e tem 7 dias de garantia. As aulas são curtas, de 15 minutos, e a pessoa conversa desde o primeiro dia.",
+    canal: "instagram", tamanho: "medio",
+  }) : patch({
     produto: "Curso online de inglês para iniciantes", objetivo: "Vender um produto", publico: "Adultos de 25 a 45 anos que travam na hora de falar",
     oferta: "50% de desconto + 7 dias de garantia", beneficios: "Aulas curtas de 15 min, conversação desde o 1º dia, certificado", cta: "Garanta o seu agora!",
     tom: "direto", canal: "instagram", tamanho: "medio",
@@ -58,10 +63,14 @@ export default function CopyPage() {
   const run = async () => {
     setBusy(true);
     try {
-      const r = await apiRequest("POST", "/api/ai-studio/copy-kit", { ...f, idioma: brief.lang });
+      // No modo simples só vai a descrição livre: os campos detalhados escondidos não interferem.
+      const body = simples
+        ? { descricao: f.descricao, canal: f.canal, tamanho: f.tamanho, idioma: brief.lang }
+        : { ...f, descricao: undefined, idioma: brief.lang };
+      const r = await apiRequest("POST", "/api/ai-studio/copy-kit", body);
       const d = (await r.json()) as CopyKit;
       setOut(d);
-      addAsset({ kind: "copy", text: fullText(d), label: f.produto || "Copy", from: "Copy" });
+      addAsset({ kind: "copy", text: fullText(d), label: (simples ? f.descricao : f.produto).slice(0, 40) || "Copy", from: "Copy" });
     } catch (e: any) {
       toast({ title: "Erro ao gerar copy", description: e?.message || "Tente novamente", variant: "destructive" });
     } finally {
@@ -83,7 +92,7 @@ export default function CopyPage() {
       ? `# ${shown.headline}\n\n_${shown.subheadline}_\n\n${shown.texto}\n\n**${shown.cta}**\n\n## Variações de headline\n${shown.variacoes.map((v) => `- ${v}`).join("\n")}\n`
       : fullText(shown);
     const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: `copy-${(f.produto || "lowfy").slice(0, 30)}.${ext}` });
+    const a = Object.assign(document.createElement("a"), { href: url, download: `copy-${((simples ? f.descricao : f.produto) || "lowfy").slice(0, 30).replace(/[^\w-]+/g, "-")}.${ext}` });
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -102,7 +111,7 @@ export default function CopyPage() {
           <FormPanel
             icon={FileText}
             title="Informações da copy"
-            sub="Só o produto é obrigatório. Quanto mais detalhes, melhor a copy."
+            sub={simples ? "Escreva do seu jeito: o que é, para quem e o que você quer." : "Só o produto é obrigatório. Quanto mais detalhes, melhor a copy."}
             onExample={example}
             footer={
               <div className="space-y-3">
@@ -111,6 +120,46 @@ export default function CopyPage() {
               </div>
             }
           >
+            <div className="inline-flex rounded-xl border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)] p-1 gap-1 w-full sm:w-auto">
+              {([["simples", "Simples", "1 campo"], ["detalhado", "Detalhado", "todos os campos"]] as const).map(([v, label, hint]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => patch({ modo: v })}
+                  className={`flex-1 sm:flex-none h-9 px-4 rounded-lg text-sm font-medium transition ${f.modo === v ? "bg-card text-foreground shadow-sm border" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {label} <span className="text-[11px] font-normal text-muted-foreground">· {hint}</span>
+                </button>
+              ))}
+            </div>
+
+            {simples ? (
+              <div className="space-y-4">
+                <div>
+                  <FieldLabel required>O que você precisa?</FieldLabel>
+                  <Textarea
+                    value={f.descricao}
+                    onChange={(e) => patch({ descricao: e.target.value })}
+                    placeholder={"Conte com suas palavras: o que você vende, para quem, qual a oferta e o que quer com o texto.\nEx.: Quero vender meu curso de inglês para adultos que travam na hora de falar. Está com 50% de desconto e 7 dias de garantia."}
+                    className="min-h-[140px]"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Quanto mais detalhes você contar, melhor fica a copy. Quer mais controle? Use o modo{" "}
+                    <button type="button" className="underline font-medium text-foreground" onClick={() => patch({ modo: "detalhado" })}>Detalhado</button>.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
+                  <div>
+                    <FieldLabel>Onde vai usar</FieldLabel>
+                    <PillGroup options={[...CANAIS]} value={f.canal} onChange={(v) => patch({ canal: v })} />
+                  </div>
+                  <div>
+                    <FieldLabel>Tamanho do texto</FieldLabel>
+                    <PillGroup options={[...TAMANHOS]} value={f.tamanho} onChange={(v) => patch({ tamanho: v })} />
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
               <div>
                 <FieldLabel required>Produto ou serviço</FieldLabel>
@@ -159,6 +208,7 @@ export default function CopyPage() {
                 <Textarea value={f.observacoes} onChange={(e) => patch({ observacoes: e.target.value })} placeholder="Ex.: mencionar cor, tamanho, garantia, etc..." className="min-h-[64px]" />
               </div>
             </div>
+            )}
           </FormPanel>
         }
         preview={

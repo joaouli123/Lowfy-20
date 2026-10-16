@@ -916,6 +916,8 @@ async function premiumTalkingAvatar(params: GenerateAvatarParams): Promise<{ buf
 // ---------- Página de Copy: kit estruturado ----------
 
 export interface CopyKitParams {
+  /** Modo simples: tudo o que a pessoa escreveu com as próprias palavras. */
+  descricao?: string;
   produto: string; objetivo?: string; publico?: string; oferta?: string; beneficios?: string;
   tom?: string; canal?: string; cta?: string; tamanho?: string; observacoes?: string; idioma?: string;
 }
@@ -925,7 +927,8 @@ const TAMANHO_LABEL: Record<string, string> = { curto: "curto (2 a 3 frases)", m
 
 export async function generateCopyKit(p: CopyKitParams): Promise<{ headline: string; subheadline: string; texto: string; cta: string; variacoes: string[] }> {
   const user = `Escreva a copy de um(a) ${CANAL_LABEL[p.canal || ""] || "anúncio"}.
-- Produto/serviço: ${p.produto}
+${p.descricao ? `- O que o cliente precisa (nas palavras dele; extraia daqui produto, público, oferta e objetivo): ${p.descricao}` : ""}
+${p.produto ? `- Produto/serviço: ${p.produto}` : ""}
 ${p.objetivo ? `- Objetivo: ${p.objetivo}` : ""}
 ${p.publico ? `- Público-alvo: ${p.publico}` : ""}
 ${p.oferta ? `- Oferta: ${p.oferta}` : ""}

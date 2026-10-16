@@ -68,10 +68,27 @@ export default function CriativoPage() {
   const o = opts.image;
   const colorRef = useRef<HTMLInputElement>(null);
 
-  const [car, patchCar] = useLocalForm("carrossel", { mode: "post" as Mode, tema: "", slides: "5" });
+  // O carrossel tem os PRÓPRIOS campos: mudar de modo não leva cores/produto de um para o outro.
+  const [car, patchCar] = useLocalForm("carrossel", {
+    mode: "post" as Mode, tema: "", slides: "5",
+    produto: "", publico: "", objetivo: "", estilo: "", cores: [] as string[], cta: "", observacoes: "", referencia: "", ratio: "4:5" as RatioId,
+  });
   const mode = car.mode;
   const isCar = mode === "carrossel";
-  const ratio: RatioId = isCar && brief.ratio !== "1:1" ? "4:5" : brief.ratio;
+  // Campos comuns aos dois modos, lidos/gravados no lugar certo conforme o modo.
+  type Shared = { produto: string; publico: string; objetivo: string; estilo: string; cores: string[]; cta: string; observacoes: string; referencia: string; ratio: RatioId };
+  const v: Shared = isCar
+    ? { produto: car.produto, publico: car.publico, objetivo: car.objetivo, estilo: car.estilo, cores: car.cores, cta: car.cta, observacoes: car.observacoes, referencia: car.referencia, ratio: car.ratio }
+    : { produto: brief.produto, publico: brief.publico, objetivo: o.objetivo, estilo: brief.estilo, cores: o.cores, cta: o.cta, observacoes: o.observacoes, referencia: o.referencia, ratio: brief.ratio };
+  const setV = (p: Partial<Shared>) => {
+    if (isCar) return patchCar(p);
+    const { produto, publico, estilo, ratio: r, objetivo, cores, cta, observacoes, referencia } = p;
+    const b = Object.fromEntries(Object.entries({ produto, publico, estilo, ratio: r }).filter(([, x]) => x !== undefined));
+    const op = Object.fromEntries(Object.entries({ objetivo, cores, cta, observacoes, referencia }).filter(([, x]) => x !== undefined));
+    if (Object.keys(b).length) patchBrief(b);
+    if (Object.keys(op).length) patchOpts("image", op);
+  };
+  const ratio: RatioId = isCar && v.ratio !== "1:1" ? "4:5" : v.ratio;
   const spec = ratioSpec(ratio);
 
   // ---- carrossel: job em segundo plano + polling ----
@@ -118,8 +135,8 @@ export default function CriativoPage() {
     try {
       const r = await apiRequest("POST", "/api/ai-studio/carousel", {
         tema: car.tema, slides: Number(car.slides), aspect: ratio,
-        produto: brief.produto, publico: brief.publico, objetivo: o.objetivo, estilo: brief.estilo, cores: o.cores,
-        cta: o.cta, observacoes: o.observacoes, referencia: o.referencia || undefined, idioma: brief.lang,
+        produto: car.produto, publico: car.publico, objetivo: car.objetivo, estilo: car.estilo, cores: car.cores,
+        cta: car.cta, observacoes: car.observacoes, referencia: car.referencia || undefined, idioma: brief.lang,
       });
       setJobId(((await r.json()) as { id: string }).id);
     } catch (e: any) {
@@ -137,15 +154,13 @@ export default function CriativoPage() {
 
   const missing = isCar
     ? missingOf([["sobre o que é o carrossel", car.tema]])
-    : missingOf([["produto ou serviço", brief.produto]]);
+    : missingOf([["produto ou serviço", v.produto]]);
 
   // Alterna entre os exemplos a cada clique (fone ↔ perfume), sem gastar IA.
   const exampleIdx = useRef(0);
   const example = () => {
     if (isCar) {
-      patchCar({ tema: CAROUSEL_EXAMPLE.tema, slides: CAROUSEL_EXAMPLE.slides });
-      patchBrief(CAROUSEL_EXAMPLE.brief);
-      patchOpts("image", CAROUSEL_EXAMPLE.opts);
+      patchCar({ tema: CAROUSEL_EXAMPLE.tema, slides: CAROUSEL_EXAMPLE.slides, ...CAROUSEL_EXAMPLE.brief, ...CAROUSEL_EXAMPLE.opts });
       setExSlide(0);
       return;
     }
@@ -157,9 +172,13 @@ export default function CriativoPage() {
   };
 
   const clear = () => {
+    if (isCar) {
+      patchCar({ tema: "", produto: "", publico: "", objetivo: "", estilo: "", cores: [], cta: "", observacoes: "", referencia: "" });
+      setJob(null);
+      return;
+    }
     patchBrief({ produto: "", publico: "", headline: "", estilo: "" });
-    patchOpts("image", { objetivo: "", texto: "", cta: "", observacoes: "", referencia: "" });
-    if (isCar) { patchCar({ tema: "" }); setJob(null); }
+    patchOpts("image", { objetivo: "", texto: "", cta: "", cores: [], observacoes: "", referencia: "" });
   };
 
   const slides = job?.slides || [];
@@ -240,15 +259,15 @@ export default function CriativoPage() {
               <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-3 [&>*]:min-w-0">
                 <div>
                   <FieldLabel required={!isCar} optional={isCar}>{isCar ? "Produto ou marca" : "Produto ou serviço"}</FieldLabel>
-                  <Input value={brief.produto} onChange={(e) => patchBrief({ produto: e.target.value })} placeholder="Ex.: tênis esportivo branco" />
+                  <Input value={v.produto} onChange={(e) => setV({ produto: e.target.value })} placeholder="Ex.: tênis esportivo branco" />
                 </div>
                 <div>
                   <FieldLabel optional>Para quem</FieldLabel>
-                  <Input value={brief.publico} onChange={(e) => patchBrief({ publico: e.target.value })} placeholder="Ex.: mulheres de 25 a 40 anos" />
+                  <Input value={v.publico} onChange={(e) => setV({ publico: e.target.value })} placeholder="Ex.: mulheres de 25 a 40 anos" />
                 </div>
                 <div>
                   <FieldLabel optional>Objetivo</FieldLabel>
-                  <select value={o.objetivo} onChange={(e) => patchOpts("image", { objetivo: e.target.value })} className={selectCls}>
+                  <select value={v.objetivo} onChange={(e) => setV({ objetivo: e.target.value })} className={selectCls}>
                     <option value="">A IA decide</option>
                     {OBJETIVOS.map((x) => <option key={x}>{x}</option>)}
                   </select>
@@ -280,7 +299,7 @@ export default function CriativoPage() {
                   <p className="text-[13px] text-muted-foreground leading-snug md:pt-6">A IA escreve o título e o texto de cada slide a partir do tema.</p>
                   <div>
                     <FieldLabel optional>Chamada do último slide</FieldLabel>
-                    <select value={o.cta} onChange={(e) => patchOpts("image", { cta: e.target.value })} className={selectCls}>
+                    <select value={v.cta} onChange={(e) => setV({ cta: e.target.value })} className={selectCls}>
                       <option value="">A IA decide</option>
                       {CTAS.map((x) => <option key={x}>{x}</option>)}
                     </select>
@@ -302,7 +321,7 @@ export default function CriativoPage() {
                   </div>
                   <div>
                     <FieldLabel optional>Botão</FieldLabel>
-                    <select value={o.cta} onChange={(e) => patchOpts("image", { cta: e.target.value })} className={selectCls}>
+                    <select value={v.cta} onChange={(e) => setV({ cta: e.target.value })} className={selectCls}>
                       <option value="">Sem botão</option>
                       {CTAS.map((x) => <option key={x}>{x}</option>)}
                     </select>
@@ -318,7 +337,7 @@ export default function CriativoPage() {
                   <FieldLabel>Formato</FieldLabel>
                   <div className="flex flex-wrap gap-2">
                     {(isCar ? CAROUSEL_RATIOS : RATIOS).map((r) => (
-                      <Pill key={r.id} active={ratio === r.id} onClick={() => patchBrief({ ratio: r.id })}>
+                      <Pill key={r.id} active={ratio === r.id} onClick={() => setV({ ratio: r.id })}>
                         {r.id} <span className="text-[10px] opacity-70">· {r.sub}</span>
                       </Pill>
                     ))}
@@ -328,18 +347,18 @@ export default function CriativoPage() {
                   <FieldLabel optional>Estilo</FieldLabel>
                   <div className="flex flex-wrap gap-2">
                     {ESTILOS.map((e) => (
-                      <Pill key={e} active={brief.estilo === e} onClick={() => patchBrief({ estilo: brief.estilo === e ? "" : e })}>{e}</Pill>
+                      <Pill key={e} active={v.estilo === e} onClick={() => setV({ estilo: v.estilo === e ? "" : e })}>{e}</Pill>
                     ))}
                   </div>
                 </div>
                 <div>
                   <FieldLabel optional>Cores da marca</FieldLabel>
                   <div className="flex flex-wrap items-center gap-2">
-                    {o.cores.map((c, i) => (
+                    {v.cores.map((c, i) => (
                       <button
                         key={`${c}-${i}`}
                         type="button"
-                        onClick={() => patchOpts("image", { cores: o.cores.filter((_, j) => j !== i) })}
+                        onClick={() => setV({ cores: v.cores.filter((_, j) => j !== i) })}
                         className="group relative w-8 h-8 rounded-full border shadow-sm"
                         style={{ background: c }}
                         title={`${c} — clique para remover`}
@@ -347,14 +366,14 @@ export default function CriativoPage() {
                         <X className="w-3.5 h-3.5 absolute inset-0 m-auto text-white opacity-0 group-hover:opacity-100 drop-shadow" />
                       </button>
                     ))}
-                    {o.cores.length < 6 && (
+                    {v.cores.length < 6 && (
                       <button type="button" onClick={() => colorRef.current?.click()} className="h-8 px-3 rounded-full border border-dashed flex items-center gap-1.5 text-xs text-muted-foreground hover:bg-muted" title="Adicionar cor">
-                        <Plus className="w-3.5 h-3.5" /> {o.cores.length ? "" : "Adicionar cor"}
+                        <Plus className="w-3.5 h-3.5" /> {v.cores.length ? "" : "Adicionar cor"}
                       </button>
                     )}
-                    <input ref={colorRef} type="color" className="sr-only" onChange={(e) => patchOpts("image", { cores: [...o.cores, e.target.value] })} />
+                    <input ref={colorRef} type="color" className="sr-only" onChange={(e) => setV({ cores: [...v.cores, e.target.value] })} />
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1.5">{o.cores.length ? "Clique numa cor para remover." : "Sem cores, a IA escolhe a paleta."}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">{v.cores.length ? "Clique numa cor para remover." : "Sem cores, a IA escolhe a paleta."}</p>
                 </div>
                 <div>
                   <FieldLabel optional>Imagem de referência</FieldLabel>
@@ -363,15 +382,15 @@ export default function CriativoPage() {
                     hint="Foto do produto ou um post que você gosta"
                     label="Enviar imagem (PNG, JPG ou WEBP, até 5MB)"
                     maxMb={5}
-                    value={o.referencia ? [{ data: o.referencia, type: "image/png", name: "Imagem de referência" }] : []}
-                    onChange={(f) => patchOpts("image", { referencia: f[0]?.data || "" })}
+                    value={v.referencia ? [{ data: v.referencia, type: "image/png", name: "Imagem de referência" }] : []}
+                    onChange={(f) => setV({ referencia: f[0]?.data || "" })}
                   />
                 </div>
               </div>
             </FormSection>
 
             {/* 4 — Extras */}
-            <details className="group rounded-xl border bg-card" open={!!o.observacoes}>
+            <details className="group rounded-xl border bg-card" open={!!v.observacoes}>
               <summary className="flex items-center gap-2.5 px-4 py-3 cursor-pointer list-none select-none">
                 <span className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-[11px] font-bold flex items-center justify-center">4</span>
                 <span className="text-sm font-semibold">Detalhes extras</span>
@@ -379,7 +398,7 @@ export default function CriativoPage() {
                 <ChevronDown className="w-4 h-4 ml-auto text-muted-foreground transition group-open:rotate-180" />
               </summary>
               <div className="px-4 pb-4">
-                <Textarea value={o.observacoes} onChange={(e) => patchOpts("image", { observacoes: e.target.value })} placeholder="Ex.: colocar pétalas de rosa ao redor, destacar o preço, fundo mais escuro..." className="min-h-[64px]" />
+                <Textarea value={v.observacoes} onChange={(e) => setV({ observacoes: e.target.value })} placeholder="Ex.: colocar pétalas de rosa ao redor, destacar o preço, fundo mais escuro..." className="min-h-[64px]" />
               </div>
             </details>
           </FormPanel>
