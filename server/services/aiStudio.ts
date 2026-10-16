@@ -99,9 +99,19 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
       const [w, h] = aspect.split(":").map(Number);
       const ratio = w && h ? w / h : 1;
       const size = Math.abs(ratio - 1) < 0.05 ? "1024x1024" : ratio > 1 ? "1536x1024" : "1024x1536";
+      // A imagem sai em 1:1/3:2/2:3 e depois é recortada: avisa onde fica a área útil.
+      const [sw, sh] = size.split("x").map(Number);
+      const corta = Math.abs(sw / sh - ratio) > 0.02;
+      const faixa = corta
+        ? (ratio > sw / sh
+          ? `IMPORTANTE: a imagem será recortada para ${aspect}: cerca de ${Math.round((1 - (sw / ratio) / sh) * 50)}% de cima e de baixo serão cortados. Coloque TODOS os textos, o produto e o botão dentro da faixa central, com margem de sobra; use as faixas de cima e de baixo só como continuação do fundo.`
+          : `IMPORTANTE: a imagem será recortada para ${aspect}: cerca de ${Math.round((1 - (sh * ratio) / sw) * 50)}% de cada lateral serão cortados. Coloque TODOS os textos, o produto e o botão dentro da faixa central, com margem de sobra; use as laterais só como continuação do fundo.`)
+        : "";
       const body: any = {
         model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
-        prompt: params.prompt,
+        prompt: faixa ? `${params.prompt}
+
+${faixa}` : params.prompt,
         size,
         quality: params.quality || "high",
         output_format: fmt,
