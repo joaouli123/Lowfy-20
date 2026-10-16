@@ -40,10 +40,15 @@ const POST_EXAMPLES = [
     brief: { produto: "Fone de ouvido bluetooth preto", publico: "", headline: "Fone Bluetooth", estilo: "" },
     opts: { objetivo: "Divulgar promoção", texto: "De R$ 199 por R$ 99", cta: "Comprar agora", cores: [] as string[], observacoes: "" },
   },
+  {
+    img: "/studio-examples/post-perfume-16x9.webp", ratio: "16:9" as RatioId,
+    brief: { produto: "Perfume feminino floral em frasco de vidro", publico: "Mulheres de 25 a 45 anos", headline: "Dia das Mães", estilo: "Elegante" },
+    opts: { objetivo: "Divulgar promoção", texto: "30% OFF em toda a linha", cta: "Comprar agora", cores: ["#7a1f3d", "#f4e1d2"], observacoes: "Colocar pétalas de rosa ao redor do frasco" },
+  },
 ];
 // Exemplo nativo por formato. Sem exemplo do formato, o preview mostra só a moldura (nunca imagem esticada).
 const EXEMPLO_POST: Record<string, string | undefined> = {
-  "4:5": POST_EXAMPLES[0].img, "9:16": POST_EXAMPLES[2].img, "1:1": POST_EXAMPLES[1].img,
+  "4:5": POST_EXAMPLES[0].img, "9:16": POST_EXAMPLES[2].img, "1:1": POST_EXAMPLES[1].img, "16:9": POST_EXAMPLES[3].img,
 };
 const CAROUSEL_EXAMPLE = {
   tema: "3 hábitos que fazem sua pele envelhecer mais rápido", slides: "5",
