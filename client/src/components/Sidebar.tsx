@@ -60,6 +60,7 @@ import {
   UserSquare2,
   Video,
   AudioWaveform,
+  Clapperboard,
   Library
 } from "lucide-react";
 import type { Notification } from "@shared/schema";
@@ -153,6 +154,7 @@ export default function Sidebar() {
         { name: "Narração", href: "/ai-studio/narracao", icon: Mic, testId: "nav-studio-narracao" },
         { name: "Avatar", href: "/ai-studio/avatar", icon: UserSquare2, testId: "nav-studio-avatar" },
         { name: "Vídeo", href: "/ai-studio/video", icon: Video, testId: "nav-studio-video" },
+        { name: "Motion", href: "/ai-studio/motion", icon: Clapperboard, testId: "nav-studio-motion" },
         { name: "Clone de voz", href: "/ai-studio/clone-de-voz", icon: AudioWaveform, testId: "nav-studio-vozes" },
         { name: "Histórico", href: "/ai-studio/historico", icon: Library, testId: "nav-studio-historico" },
       ],

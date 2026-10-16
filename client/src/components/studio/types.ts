@@ -14,6 +14,7 @@ export type ToolId =
   | "narracao"
   | "avatar"
   | "video"
+  | "motion"
   | "vozes"
   | "biblioteca";
 

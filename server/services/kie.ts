@@ -210,3 +210,26 @@ export async function kieChat(system: string, user: string, opts: { json?: boole
   }
   throw new Error(`Kie.ai (texto) indisponível: ${lastErr?.message || "sem detalhe"}`);
 }
+
+/** Claude pela Kie (API no formato da Anthropic). Usado para gerar código de animação (Motion). */
+export async function kieClaude(system: string, user: string, opts: { model?: string; maxTokens?: number } = {}): Promise<string> {
+  const r = await fetch(`${API}/claude/v1/messages`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      model: opts.model || process.env.KIE_MOTION_MODEL || "claude-opus-5-5",
+      max_tokens: opts.maxTokens ?? 16000,
+      stream: false,
+      system,
+      messages: [{ role: "user", content: user }],
+    }),
+    signal: AbortSignal.timeout(5 * 60_000),
+  });
+  const j: any = await r.json().catch(() => ({}));
+  const text = Array.isArray(j?.content) ? j.content.map((c: any) => c?.text || "").join("") : "";
+  if (!text) {
+    if (j?.code === 402) throw new Error("Créditos da Kie.ai esgotados. Recarregue em kie.ai/billing.");
+    throw new Error(`Claude (Kie) não respondeu: ${String(j?.msg || j?.error?.message || `HTTP ${r.status}`).slice(0, 160)}`);
+  }
+  return text;
+}

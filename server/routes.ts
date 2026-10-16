@@ -72,6 +72,7 @@ import fs from "fs";
 import axios from "axios";
 import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
 import * as aiStudio from "./services/aiStudio";
+import * as motionService from "./services/motion";
 import { generateEbook } from "./services/ebookStudio";
 import * as ebookStore from "./ebookStore";
 import * as aiGenStore from "./aiGenStore";
@@ -6403,7 +6404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { produto, estilo, headline, formato, publico, prompt, size, quality, provider, background, format, compression, objetivo, texto, cta, cores, observacoes, referencia } = req.body || {};
       const reference = typeof referencia === 'string' && referencia.startsWith('data:image/') && referencia.length < 14_000_000 ? referencia : undefined;
-      const finalPrompt = prompt || aiStudio.buildAdImagePrompt({ produto, estilo, headline, formato, publico, idioma: req.body?.idioma, objetivo, texto, cta, cores: Array.isArray(cores) ? cores.slice(0, 6).map(String) : undefined, observacoes, temReferencia: !!reference });
+      const finalPrompt = prompt || aiStudio.buildAdImagePrompt({ produto, estilo, headline, formato, publico, idioma: req.body?.idioma, objetivo, texto, cta, cores: Array.isArray(cores) ? cores.slice(0, 6).map(String) : undefined, observacoes, temReferencia: !!reference, aspect: typeof req.body?.aspect === 'string' ? req.body.aspect : undefined });
       if (!finalPrompt || finalPrompt.trim().length < 3) {
         return res.status(400).json({ message: 'Descreva o produto/criativo' });
       }
@@ -6488,6 +6489,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!job || job.userId !== req.user.id) return res.status(404).json({ message: 'Carrossel não encontrado' });
     const { userId, createdAt, ...pub } = job;
     res.json(pub);
+  });
+
+  // ==================== MOTION (roteiro → dublagem → animação) ====================
+  app.post('/api/ai-studio/motion/script', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const b = req.body || {};
+      const ideia = String(b.ideia || '').trim();
+      if (ideia.length < 5) return res.status(400).json({ message: 'Conte sobre o que é o vídeo' });
+      const cenas = await motionService.motionScript({ ideia: ideia.slice(0, 2000), duracao: Number(b.duracao) || 30, idioma: b.idioma, anterior: Array.isArray(b.anterior) ? b.anterior : undefined });
+      res.json({ cenas });
+    } catch (error: any) {
+      logger.error('[Motion] roteiro:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar roteiro' });
+    }
+  });
+
+  app.post('/api/ai-studio/motion/voice', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const cenas = (Array.isArray(req.body?.cenas) ? req.body.cenas : [])
+        .map((c: any) => ({ texto: String(c?.texto || '').slice(0, 600), visual: String(c?.visual || '').slice(0, 600) }))
+        .filter((c: any) => c.texto.trim());
+      if (!cenas.length) return res.status(400).json({ message: 'O roteiro está vazio' });
+      const r = await motionService.motionVoice({ cenas, voice: req.body?.voice });
+      const url = await new ObjectStorageService().uploadBuffer(r.audio, 'ai-audio', r.mime, 'mp3');
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'audio', url, title: 'Dublagem do Motion', prompt: cenas.map((c: any) => c.texto).join(' ').slice(0, 500) });
+      res.json({ audioUrl: url, words: r.words, scenes: r.scenes, duration: r.duration });
+    } catch (error: any) {
+      logger.error('[Motion] dublagem:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar a dublagem' });
+    }
+  });
+
+  app.post('/api/ai-studio/motion/animate', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const b = req.body || {};
+      const scenes = Array.isArray(b.scenes) ? b.scenes.slice(0, 12) : [];
+      if (!scenes.length || !(Number(b.duration) > 0)) return res.status(400).json({ message: 'Gere a dublagem antes da animação' });
+      const html = await motionService.motionAnimate({
+        scenes, duration: Number(b.duration), formato: String(b.formato || '9:16'), estilo: String(b.estilo || 'bold'),
+        cores: Array.isArray(b.cores) ? b.cores.slice(0, 6).map(String) : undefined, idioma: b.idioma,
+        instrucao: b.instrucao ? String(b.instrucao).slice(0, 800) : undefined,
+        htmlAnterior: b.instrucao && typeof b.htmlAnterior === 'string' ? b.htmlAnterior.slice(0, 120_000) : undefined,
+      });
+      res.json({ html });
+    } catch (error: any) {
+      logger.error('[Motion] animação:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar a animação' });
+    }
   });
 
   // Gerar copy persuasiva

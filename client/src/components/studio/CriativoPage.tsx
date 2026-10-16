@@ -35,9 +35,15 @@ const POST_EXAMPLES = [
     brief: { produto: "Perfume feminino floral em frasco de vidro", publico: "Mulheres de 25 a 45 anos", headline: "Dia das Mães", estilo: "Elegante" },
     opts: { objetivo: "Divulgar promoção", texto: "30% OFF em toda a linha", cta: "Comprar agora", cores: ["#7a1f3d", "#f4e1d2"], observacoes: "Colocar pétalas de rosa ao redor do frasco" },
   },
+  {
+    img: "/studio-examples/post-fone-9x16.webp", ratio: "9:16" as RatioId,
+    brief: { produto: "Fone de ouvido bluetooth preto", publico: "", headline: "Fone Bluetooth", estilo: "" },
+    opts: { objetivo: "Divulgar promoção", texto: "De R$ 199 por R$ 99", cta: "Comprar agora", cores: [] as string[], observacoes: "" },
+  },
 ];
+// Um exemplo nativo por formato (16:9 ainda usa o 1:1 até gerarmos o dele).
 const EXEMPLO_POST: Record<string, string> = {
-  "4:5": POST_EXAMPLES[0].img, "9:16": POST_EXAMPLES[0].img, "1:1": POST_EXAMPLES[1].img, "16:9": POST_EXAMPLES[1].img,
+  "4:5": POST_EXAMPLES[0].img, "9:16": POST_EXAMPLES[2].img, "1:1": POST_EXAMPLES[1].img, "16:9": POST_EXAMPLES[1].img,
 };
 const CAROUSEL_EXAMPLE = {
   tema: "3 hábitos que fazem sua pele envelhecer mais rápido", slides: "5",

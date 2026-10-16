@@ -170,6 +170,14 @@ const OBJETIVO_CRIATIVO: Record<string, string> = {
 // Sem objetivo escolhido: criativo de venda, que é o caso mais comum.
 const OBJETIVO_PADRAO = OBJETIVO_CRIATIVO["Vender um produto"];
 
+// Zonas seguras do Instagram/Facebook por formato (onde a interface do app cobre a imagem).
+export function safeZone(aspect?: string): string {
+  if (aspect === "9:16") return "ZONA SEGURA (Stories/Reels 9:16): NADA importante (textos, produto, botão) nos 14% de cima nem nos 20% de baixo da imagem — ali ficam o perfil e os botões do Instagram. Margem lateral mínima de 6%. Concentre tudo na faixa central.";
+  if (aspect === "16:9") return "ZONA SEGURA (16:9): margem mínima de 5% em todas as bordas; título no terço superior ou à esquerda, produto bem enquadrado sem encostar nas bordas.";
+  if (aspect === "4:5") return "ZONA SEGURA (Feed 4:5): margem mínima de 6% em todas as bordas; nada de texto encostado nos cantos; o botão fica acima dos 8% inferiores.";
+  return "ZONA SEGURA (Feed 1:1): margem mínima de 6% em todas as bordas; nada de texto ou produto cortado ou encostado nos cantos.";
+}
+
 export function buildAdImagePrompt(opts: {
   produto: string;
   estilo?: string;
@@ -183,6 +191,7 @@ export function buildAdImagePrompt(opts: {
   cores?: string[];
   observacoes?: string;
   temReferencia?: boolean;
+  aspect?: string;
 }): string {
   const lang = langName(opts.idioma);
   const estilo = ESTILO_CRIATIVO[(opts.estilo || "").toLowerCase()] || (opts.estilo ? `Estilo visual: ${opts.estilo}.` : ESTILO_CRIATIVO.moderno);
@@ -210,6 +219,7 @@ export function buildAdImagePrompt(opts: {
       ? `TEXTOS NA IMAGEM — escreva exatamente estes, em ${lang}, com ortografia e acentuação corretas, perfeitamente legíveis, e NÃO adicione nenhum outro texto (no máximo o percentual de desconto calculado a partir dos preços informados): ${textos.join(" | ")}.`
       : `Crie um título curto e chamativo (até 5 palavras) em ${lang}, com ortografia e acentuação corretas, e não adicione outros textos.`,
     opts.observacoes ? `Instruções extras do cliente (siga à risca): ${opts.observacoes}.` : "",
+    safeZone(opts.aspect),
     "Hierarquia visual clara: produto em destaque, título fácil de ler no celular, respiro nas margens (nada colado na borda). Sem marcas d'água, sem logotipos inventados.",
   ];
   return partes.filter(Boolean).join(" ");
@@ -1064,6 +1074,7 @@ export function buildCarouselSlidePrompt(p: CarouselParams, s: CarouselSlide, i:
     `Mostre um pequeno indicador "${i + 1}/${total}" discreto no canto.`,
     i === 0 && !temBase ? "Inclua uma seta ou sinal sutil indicando para arrastar para o lado." : "",
     p.observacoes ? `Instruções extras do cliente (siga à risca): ${p.observacoes}.` : "",
+    safeZone(p.aspect),
     "Respiro nas margens, hierarquia clara, nada colado na borda. Sem marcas d'água.",
   ].filter(Boolean).join(" ");
 }

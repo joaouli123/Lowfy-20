@@ -439,6 +439,7 @@ export const LABELS: Record<ToolId, string> = {
   narracao: "Narração",
   avatar: "Avatar",
   video: "Vídeo",
+  motion: "Motion",
   vozes: "Vozes",
   biblioteca: "Biblioteca",
 };

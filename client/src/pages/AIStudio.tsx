@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Sparkles, Image as ImageIcon, Type, Mic, Video, UserSquare2, AudioWaveform,
+  Sparkles, Clapperboard, Image as ImageIcon, Type, Mic, Video, UserSquare2, AudioWaveform,
   Library, RotateCcw, Languages, Cpu, Check,
 } from "lucide-react";
 import { StudioProvider, useStudio } from "@/components/studio/store";
@@ -19,6 +19,7 @@ import CopyPage from "@/components/studio/CopyPage";
 import NarracaoPage from "@/components/studio/NarracaoPage";
 import AvatarPage from "@/components/studio/AvatarPage";
 import VideoPage from "@/components/studio/VideoPage";
+import MotionPage from "@/components/studio/MotionPage";
 
 // Ferramentas com página própria (cabeçalho + formulário + preview).
 const FULL_PAGES: Partial<Record<ToolId, () => JSX.Element>> = {
@@ -27,6 +28,7 @@ const FULL_PAGES: Partial<Record<ToolId, () => JSX.Element>> = {
   narracao: NarracaoPage,
   avatar: AvatarPage,
   video: VideoPage,
+  motion: MotionPage,
 };
 
 /** Cada ferramenta do Estúdio é uma página própria (submenu no sidebar). */
@@ -36,6 +38,7 @@ export const STUDIO_PAGES: { id: ToolId; slug: string; label: string; icon: any 
   { id: "narracao", slug: "narracao", label: "Narração", icon: Mic },
   { id: "avatar", slug: "avatar", label: "Avatar", icon: UserSquare2 },
   { id: "video", slug: "video", label: "Vídeo", icon: Video },
+  { id: "motion", slug: "motion", label: "Motion", icon: Clapperboard },
   { id: "vozes", slug: "clone-de-voz", label: "Clone de voz", icon: AudioWaveform },
   { id: "biblioteca", slug: "historico", label: "Histórico", icon: Library },
 ];
