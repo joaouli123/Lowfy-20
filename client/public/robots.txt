@@ -1,30 +1,30 @@
-# Otimização SEO - Crawler Rules
+# Lowfy — regras para robôs de busca e de IA
 User-agent: *
 Allow: /
-Allow: /assinatura/
-Allow: /ai-tools/
-Allow: /clonador/
-Allow: /plrs/
-Allow: /courses/
-Allow: /forum/
-Allow: /marketplace/
-
-# Impedir indexação de páginas administrativas
+Disallow: /admin
 Disallow: /api/
-Disallow: /admin/
-Disallow: /user/
-Disallow: /dashboard/
-Disallow: /settings/
-
-# Impedir crawling de parâmetros desnecessários
-Disallow: /*?*
-Disallow: /*&*
+Disallow: /checkout
 Disallow: /*.pdf$
-Disallow: /node_modules/
 
-# Rate limiting para bots
-Crawl-delay: 1
-Request-rate: 30/1m
+# Robôs de IA (ChatGPT, Perplexity, Claude, Google IA): podem ler as páginas públicas
+User-agent: GPTBot
+Allow: /
+Disallow: /admin
+Disallow: /api/
 
-# Sitemap
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
 Sitemap: https://lowfy.com.br/sitemap.xml

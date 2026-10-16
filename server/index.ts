@@ -13,6 +13,7 @@ import { db } from "./db";
 import { customDomainMappings } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { acquireSchedulerLeadership } from "./utils/scheduler-lock";
+import { seoRedirects, renderIndexHtml } from "./seo";
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -29,6 +30,9 @@ app.use(compression({
 }));
 
 app.set('trust proxy', 1);
+
+// SEO: 301 de www, http, URLs antigas e barra no final (só no domínio principal).
+app.use(seoRedirects);
 app.set('etag', false);
 
 declare module 'http' {
@@ -573,19 +577,27 @@ if (!isProduction) {
       throw new Error(`Build directory not found: ${distPublicPath}`);
     }
     
-    // Serve static assets with caching
+    // Arquivos com hash no nome (/assets) nunca mudam: cache de 1 ano. O resto, 1 dia.
+    app.use('/assets', express.static(path.join(distPublicPath, 'assets'), {
+      maxAge: '365d',
+      immutable: true,
+      index: false
+    }));
     app.use(express.static(distPublicPath, {
       maxAge: '1d',
       etag: true,
       index: false
     }));
     
-    // SPA fallback - serve index.html for all non-API routes
+    // SPA fallback: index.html com título/descrição/canônica da página e 404 real para o que não existe.
+    const indexHtml = fs.readFileSync(path.join(distPublicPath, 'index.html'), 'utf-8');
     app.get('*', (req, res) => {
       if (req.path.startsWith('/api') || req.path.startsWith('/socket')) {
         return res.status(404).json({ message: 'Not found' });
       }
-      res.sendFile(path.join(distPublicPath, 'index.html'));
+      const page = renderIndexHtml(indexHtml, req.path);
+      res.setHeader('Cache-Control', 'no-cache');
+      res.status(page.status).type('html').send(page.html);
     });
     
     logger.info('[Production] Static file serving configured successfully');

@@ -319,18 +319,7 @@ Regras: 4 a 6 etapas (boas-vindas; 2-3 perguntas com pontuação relevante ao te
 
 /** Gera a estrutura de um funil de quiz a partir de um tema (texto livre). */
 export async function generateQuizFunnel(prompt: string): Promise<any> {
-  if (!OPENAI_KEY) throw new Error("OPENAI_API_KEY não configurada");
-  const res = await openai().chat.completions.create({
-    model: process.env.OPENAI_COPY_MODEL || "gpt-4o",
-    messages: [
-      { role: "system", content: QUIZ_GEN_SYSTEM },
-      { role: "user", content: `Tema do funil: ${prompt}` },
-    ],
-    temperature: 0.8,
-    response_format: { type: "json_object" },
-  });
-  const raw = res.choices[0]?.message?.content || "{}";
-  return JSON.parse(raw.replace(/```json|```/g, "").trim());
+  return llmJson(QUIZ_GEN_SYSTEM, `Tema do funil: ${prompt}`, 0.8);
 }
 
 // ============================================================
@@ -338,26 +327,28 @@ export async function generateQuizFunnel(prompt: string): Promise<any> {
 // Fallback OpenAI → Gemini para maximizar disponibilidade.
 // ============================================================
 
+// Fornecedores de texto em cadeia: se um falhar (chave inválida, cota, fora do ar), tenta o próximo.
+// Uma chave recusada (401/403) fica "de castigo" por 10 min para não atrasar toda chamada.
+const providerDown: Record<string, number> = {};
+const usable = (name: string, key: string) => !!key && (providerDown[name] || 0) < Date.now();
+function markDown(name: string, e: any) {
+  const st = e?.status ?? e?.response?.status;
+  if (st === 401 || st === 403 || st === 429) providerDown[name] = Date.now() + 10 * 60_000;
+  logger.warn(`[LLM] ${name} falhou (${st || "erro"}): ${String(e?.message || e).slice(0, 120)}`);
+}
+const parseJson = (t: string) => JSON.parse((t || "{}").replace(/```json|```/g, "").trim());
+
+async function llmChain<T>(steps: { name: string; key: string; run: () => Promise<T> }[]): Promise<T> {
+  let last: any;
+  for (const st of steps) {
+    if (!usable(st.name, st.key)) continue;
+    try { return await st.run(); } catch (e) { last = e; markDown(st.name, e); }
+  }
+  throw new Error(last ? `IA de texto indisponível: ${String(last?.message || last).slice(0, 140)}` : "Nenhuma chave de IA configurada (OPENAI_API_KEY, GEMINI_API_KEY ou KIE_API_KEY)");
+}
+
 export async function llmJson(system: string, user: string, temperature = 0.8): Promise<any> {
-  if (OPENAI_KEY) {
-    const res = await openai().chat.completions.create({
-      model: process.env.OPENAI_COPY_MODEL || "gpt-4o",
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      temperature,
-      response_format: { type: "json_object" },
-    });
-    return JSON.parse((res.choices[0]?.message?.content || "{}").replace(/```json|```/g, "").trim());
-  }
-  if (GEMINI_KEY) {
-    const res = await gemini().models.generateContent({
-      model: process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash",
-      contents: `${system}\n\n${user}`,
-      config: { responseMimeType: "application/json", temperature } as any,
-    });
-    return JSON.parse(((res as any).text || "{}").replace(/```json|```/g, "").trim());
-  }
-  if (kie.kieReady()) return kie.kieChat(system, user, { json: true, temperature });
-  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY, GEMINI_API_KEY ou KIE_API_KEY)");
+  return (await llmJsonWithUsage(system, user, temperature)).data;
 }
 
 // Variante de llmJson que também devolve o uso de tokens (p/ logTokenUsage nos call sites).
@@ -366,61 +357,51 @@ export async function llmJsonWithUsage(
   user: string,
   temperature = 0.8,
 ): Promise<{ data: any; model: string; promptTokens: number; completionTokens: number }> {
-  if (OPENAI_KEY) {
-    const model = process.env.OPENAI_COPY_MODEL || "gpt-4o";
-    const res = await openai().chat.completions.create({
-      model,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      temperature,
-      response_format: { type: "json_object" },
-    });
-    const data = JSON.parse((res.choices[0]?.message?.content || "{}").replace(/```json|```/g, "").trim());
-    return {
-      data,
-      model,
-      promptTokens: res.usage?.prompt_tokens || 0,
-      completionTokens: res.usage?.completion_tokens || 0,
-    };
-  }
-  if (GEMINI_KEY) {
-    const model = process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash";
-    const res = await gemini().models.generateContent({
-      model,
-      contents: `${system}\n\n${user}`,
-      config: { responseMimeType: "application/json", temperature } as any,
-    });
-    const data = JSON.parse(((res as any).text || "{}").replace(/```json|```/g, "").trim());
-    const usage = (res as any).usageMetadata;
-    return {
-      data,
-      model,
-      promptTokens: usage?.promptTokenCount || 0,
-      completionTokens: usage?.candidatesTokenCount || 0,
-    };
-  }
-  if (kie.kieReady()) return { data: await kie.kieChat(system, user, { json: true, temperature }), model: "kie/gemini-3-8-flash", promptTokens: 0, completionTokens: 0 };
-  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY, GEMINI_API_KEY ou KIE_API_KEY)");
+  return llmChain([
+    {
+      name: "openai", key: OPENAI_KEY, run: async () => {
+        const model = process.env.OPENAI_COPY_MODEL || "gpt-4o";
+        const res = await openai().chat.completions.create({
+          model, temperature, response_format: { type: "json_object" },
+          messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        });
+        return { data: parseJson(res.choices[0]?.message?.content || "{}"), model, promptTokens: res.usage?.prompt_tokens || 0, completionTokens: res.usage?.completion_tokens || 0 };
+      },
+    },
+    {
+      name: "gemini", key: GEMINI_KEY, run: async () => {
+        const model = process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash";
+        const res = await gemini().models.generateContent({ model, contents: `${system}
+
+${user}`, config: { responseMimeType: "application/json", temperature } as any });
+        const usage = (res as any).usageMetadata;
+        return { data: parseJson((res as any).text || "{}"), model, promptTokens: usage?.promptTokenCount || 0, completionTokens: usage?.candidatesTokenCount || 0 };
+      },
+    },
+    {
+      name: "kie", key: kie.kieKey(), run: async () => ({ data: await kie.kieChat(system, user, { json: true, temperature }), model: "kie", promptTokens: 0, completionTokens: 0 }),
+    },
+  ]);
 }
 
 export async function llmText(system: string, user: string, temperature = 0.7): Promise<string> {
-  if (OPENAI_KEY) {
-    const res = await openai().chat.completions.create({
-      model: process.env.OPENAI_COPY_MODEL || "gpt-4o",
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      temperature,
-    });
-    return res.choices[0]?.message?.content || "";
-  }
-  if (GEMINI_KEY) {
-    const res = await gemini().models.generateContent({
-      model: process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash",
-      contents: `${system}\n\n${user}`,
-      config: { temperature } as any,
-    });
-    return (res as any).text || "";
-  }
-  if (kie.kieReady()) return kie.kieChat(system, user, { temperature });
-  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY, GEMINI_API_KEY ou KIE_API_KEY)");
+  return llmChain([
+    {
+      name: "openai", key: OPENAI_KEY, run: async () => {
+        const res = await openai().chat.completions.create({ model: process.env.OPENAI_COPY_MODEL || "gpt-4o", temperature, messages: [{ role: "system", content: system }, { role: "user", content: user }] });
+        return res.choices[0]?.message?.content || "";
+      },
+    },
+    {
+      name: "gemini", key: GEMINI_KEY, run: async () => {
+        const res = await gemini().models.generateContent({ model: process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash", contents: `${system}
+
+${user}`, config: { temperature } as any });
+        return (res as any).text || "";
+      },
+    },
+    { name: "kie", key: kie.kieKey(), run: () => kie.kieChat(system, user, { temperature }) },
+  ]);
 }
 
 const LANDING_BLOCKS_SYSTEM = `Você é um web designer de páginas de pré-venda (advertorial/landing) de alta conversão. Gere uma página COMPLETA a partir da descrição do usuário.

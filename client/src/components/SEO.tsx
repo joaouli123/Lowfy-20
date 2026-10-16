@@ -17,7 +17,7 @@ const defaultMeta = {
   description: 'Acesse milhares de PLRs, cursos online, ferramentas de IA, templates e automações. Sua plataforma completa para marketing digital e vendas online.',
   keywords: 'PLR, conteúdo digital, cursos online, ferramentas IA, marketing digital, ebooks, templates, automações',
   ogType: 'website',
-  ogImage: '/og-image.svg',
+  ogImage: '/og-image.png',
 };
 
 export const seoConfig = {

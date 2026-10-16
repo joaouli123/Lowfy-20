@@ -41,9 +41,9 @@ const POST_EXAMPLES = [
     opts: { objetivo: "Divulgar promoção", texto: "De R$ 199 por R$ 99", cta: "Comprar agora", cores: [] as string[], observacoes: "" },
   },
 ];
-// Um exemplo nativo por formato (16:9 ainda usa o 1:1 até gerarmos o dele).
-const EXEMPLO_POST: Record<string, string> = {
-  "4:5": POST_EXAMPLES[0].img, "9:16": POST_EXAMPLES[2].img, "1:1": POST_EXAMPLES[1].img, "16:9": POST_EXAMPLES[1].img,
+// Exemplo nativo por formato. Sem exemplo do formato, o preview mostra só a moldura (nunca imagem esticada).
+const EXEMPLO_POST: Record<string, string | undefined> = {
+  "4:5": POST_EXAMPLES[0].img, "9:16": POST_EXAMPLES[2].img, "1:1": POST_EXAMPLES[1].img,
 };
 const CAROUSEL_EXAMPLE = {
   tema: "3 hábitos que fazem sua pele envelhecer mais rápido", slides: "5",
@@ -515,11 +515,18 @@ export default function CriativoPage() {
                   {imageUrl ? (
                     <img src={imageUrl} alt="Criativo gerado" className="w-full h-full object-cover" />
                   ) : (
-                    <>
-                      <img src={EXEMPLO_POST[ratio]} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60" />
-                      <img src={EXEMPLO_POST[ratio]} alt="Exemplo de criativo" className="relative w-full h-full object-contain" />
-                      <ExampleBadge />
-                    </>
+                    EXEMPLO_POST[ratio] ? (
+                      <>
+                        <img src={EXEMPLO_POST[ratio]} alt="Exemplo de criativo" className="w-full h-full object-cover" />
+                        <ExampleBadge />
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center p-4">
+                        <ImageIcon className="w-8 h-8 text-[color-mix(in_srgb,var(--muted-foreground)_60%,transparent)]" />
+                        <p className="text-sm font-semibold">{spec.id} · {spec.label}</p>
+                        <p className="text-xs text-muted-foreground">{spec.sub} — seu criativo aparece aqui</p>
+                      </div>
+                    )
                   )}
                   {busy.image && <PreviewLoading label="Criando seu criativo…" sub="Costuma levar cerca de 1 minuto" />}
                 </div>

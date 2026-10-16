@@ -1,23 +1,30 @@
+# Lowfy — regras para robôs de busca e de IA
 User-agent: *
 Allow: /
 Disallow: /admin
-Disallow: /api
+Disallow: /api/
 Disallow: /checkout
-Disallow: /assinatura
 Disallow: /*.pdf$
-Crawl-delay: 1
-Request-rate: 1/5
 
-# Google-specific
-User-agent: Googlebot
+# Robôs de IA (ChatGPT, Perplexity, Claude, Google IA): podem ler as páginas públicas
+User-agent: GPTBot
 Allow: /
-Crawl-delay: 0
+Disallow: /admin
+Disallow: /api/
 
-# Bing-specific
-User-agent: Bingbot
+User-agent: OAI-SearchBot
 Allow: /
-Crawl-delay: 1
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
 
 Sitemap: https://lowfy.com.br/sitemap.xml
-Sitemap: https://lowfy.com.br/sitemap-index.xml
-Sitemap: https://lowfy.com.br/sitemap-products.xml

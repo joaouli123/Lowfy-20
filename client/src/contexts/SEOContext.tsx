@@ -195,9 +195,8 @@ export function SEOProvider({ children }: SEOProviderProps) {
 
   const config = getConfigForRoute(location);
   
-  const currentHost = typeof window !== 'undefined' 
-    ? window.location.origin 
-    : 'https://lowfy.com.br';
+  // Canônica sempre no domínio principal (www, http e domínios de teste não viram páginas duplicadas).
+  const currentHost = 'https://lowfy.com.br';
 
   return (
     <SEOContext.Provider value={null}>
@@ -206,7 +205,7 @@ export function SEOProvider({ children }: SEOProviderProps) {
         description={config.description}
         keywords={config.keywords}
         ogType={config.ogType}
-        ogImage={config.ogImage || '/og-image.svg'}
+        ogImage={config.ogImage || '/og-image.png'}
         canonicalUrl={`${currentHost}${location}`}
       />
       {children}

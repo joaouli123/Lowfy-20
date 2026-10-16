@@ -1,12 +1,9 @@
 // Initialize Google Analytics with User ID if authenticated
+// A propriedade GA4 do lowfy.com.br é G-73K8LBZ07H (configurada no index.html).
+// Aqui só associamos o usuário logado: "set" não dispara um page_view extra como um novo "config" faria.
 export function initGoogleAnalytics(userId?: string) {
-  if (window.gtag) {
-    if (userId) {
-      // Send User ID to GA4 for authenticated users
-      window.gtag('config', 'G-96JB3QFM0Z', { 'user_id': userId });
-    } else {
-      window.gtag('config', 'G-96JB3QFM0Z');
-    }
+  if (window.gtag && userId) {
+    window.gtag('set', { user_id: userId });
   }
 }
 
@@ -42,7 +39,7 @@ export function trackPurchase(transactionId: string, value: number, currency: st
 // Track user login
 export function trackUserLogin(userId: string) {
   if (window.gtag) {
-    window.gtag('config', 'G-96JB3QFM0Z', { 'user_id': userId });
+    window.gtag('set', { user_id: userId });
     window.gtag('event', 'login', { method: 'email' });
   }
 }

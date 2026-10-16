@@ -1,0 +1,31 @@
+# Lowfy
+
+> Lowfy (https://lowfy.com.br) é uma plataforma brasileira de marketing digital por assinatura. Reúne um Estúdio de IA para criar criativos, copies, narrações, vídeos e motions; uma biblioteca de PLRs (produtos com direito de revenda) em 7 idiomas; cursos online; clonador de páginas de vendas; templates, plugins e automações; e uma comunidade de empreendedores digitais. Assinatura a partir de R$ 99/mês, com 7 dias de garantia incondicional.
+
+## O que a Lowfy oferece
+
+- **Estúdio IA**: gera criativos e carrosséis para Instagram/Facebook (respeitando a zona segura de cada formato), copies para redes sociais, Meta Ads, WhatsApp, landing pages e e-mail, narrações com vozes realistas e clonagem de voz, avatares falantes, vídeos curtos e motions animados com legenda.
+- **PLRs**: produtos digitais prontos (e-books, cursos, templates) em português, inglês, espanhol, francês, árabe, chinês e hindi, que o assinante pode editar e vender com os direitos inclusos.
+- **Cursos online**: mais de 380 cursos em português sobre marketing digital, afiliados, IA, Facebook Ads e Google Ads.
+- **Clonador de páginas**: copia páginas de vendas, remove pixels de rastreamento de terceiros e publica em domínio próprio com SSL.
+- **Ferramentas premium**: 39 ferramentas de marketing incluídas na assinatura (criação de páginas, quiz interativo, templates, plugins WordPress, modelos de automação N8N).
+- **Marketplace e comunidade**: compra e venda de produtos digitais entre membros, fórum e timeline.
+
+## Para quem é
+
+Empreendedores digitais, infoprodutores, afiliados, gestores de tráfego e pequenos negócios brasileiros que querem produzir conteúdo e vender pela internet sem depender de várias ferramentas pagas separadas.
+
+## Planos e garantia
+
+- Assinatura a partir de R$ 99 por mês.
+- Garantia incondicional de 7 dias: reembolso de 100% do valor.
+- Página de assinatura: https://lowfy.com.br/assinatura/checkout
+
+## Links
+
+- Site: https://lowfy.com.br/
+- Assinar: https://lowfy.com.br/assinatura/checkout
+- Entrar: https://lowfy.com.br/login
+- Termos de uso: https://lowfy.com.br/termos
+- Privacidade: https://lowfy.com.br/privacidade
+- Licença dos PLRs: https://lowfy.com.br/licenca-plr
