@@ -52,6 +52,7 @@ export const genImage = (brief: Brief, p: ImageParams) =>
     headline: p.headline ?? brief.headline,
     publico: brief.publico,
     size: ratioSpec(brief.ratio).imageSize,
+    aspect: brief.ratio,
     quality: p.quality,
     format: p.format,
     background: p.background,

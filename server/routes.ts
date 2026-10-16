@@ -6407,7 +6407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!finalPrompt || finalPrompt.trim().length < 3) {
         return res.status(400).json({ message: 'Descreva o produto/criativo' });
       }
-      const { buffer, mime } = await aiStudio.generateAdImage({ prompt: finalPrompt, size, quality, provider, background, format, compression, reference });
+      const { buffer, mime } = await aiStudio.generateAdImage({ prompt: finalPrompt, size, quality, provider, background, format, compression, reference, aspect: typeof req.body?.aspect === 'string' ? req.body.aspect : undefined });
       const ext = mime.includes('webp') ? 'webp' : mime.includes('jpeg') ? 'jpg' : 'png';
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-criativos', mime, ext);
@@ -6447,7 +6447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const { buffer, mime } = await aiStudio.generateNarration({ text, voice, provider, instructions, modelId, stability, similarityBoost, style, speed, idioma: req.body?.idioma });
       const objectStorageService = new ObjectStorageService();
-      const url = await objectStorageService.uploadBuffer(buffer, 'ai-audio', mime, 'mp3');
+      const url = await objectStorageService.uploadBuffer(buffer, 'ai-audio', mime, mime.includes('wav') ? 'wav' : 'mp3');
       void aiGenStore.saveGen({ userId: req.user.id, type: 'audio', url, title: 'Narração', prompt: String(text).slice(0, 80) });
       res.json({ url });
     } catch (error: any) {

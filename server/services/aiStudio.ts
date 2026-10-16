@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from "openai";
 import { GoogleGenAI } from "@google/genai";
 import { logger } from "../utils/logger";
+import * as kie from "./kie";
 import { spawn } from "child_process";
 import { promises as fsp } from "fs";
 import os from "os";
@@ -35,13 +36,15 @@ function gemini(): GoogleGenAI {
 }
 
 export function aiStudioCapabilities() {
+  const K = kie.kieReady();
   return {
-    image: { ready: true, premium: !!OPENAI_KEY, providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY, free: true } },
+    kie: { ready: K },
+    image: { ready: true, premium: K || !!OPENAI_KEY, providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY, free: true } },
     copy: { ready: !!(GEMINI_KEY || OPENAI_KEY), providers: { gemini: !!GEMINI_KEY, openai: !!OPENAI_KEY } },
-    tts: { ready: true, premium: !!ELEVENLABS_KEY, providers: { elevenlabs: !!ELEVENLABS_KEY, free: true } },
+    tts: { ready: true, premium: K || !!ELEVENLABS_KEY, providers: { elevenlabs: !!ELEVENLABS_KEY, free: true } },
     voiceClone: { ready: !!ELEVENLABS_KEY, provider: "elevenlabs" },
-    avatar: { ready: true, premium: !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY, free: true } },
-    video: { ready: true, premium: !!process.env.FAL_KEY, providers: { fal: !!process.env.FAL_KEY, seedance: "2.0", free: true } },
+    avatar: { ready: true, premium: K || !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY, free: true } },
+    video: { ready: true, premium: K || !!process.env.FAL_KEY, providers: { fal: !!process.env.FAL_KEY, seedance: "2.0", free: true } },
     canva: { ready: !!(process.env.CANVA_CLIENT_ID && process.env.CANVA_CLIENT_SECRET) },
   };
 }
@@ -60,6 +63,8 @@ export interface GenerateImageParams {
   provider?: "openai" | "gemini";
   /** Imagem de referência (data URL) para guiar estilo/composição. */
   reference?: string;
+  /** Proporção exata (ex.: "4:5"). Sem ela, deriva do size. */
+  aspect?: string;
 }
 
 /**
@@ -68,6 +73,20 @@ export interface GenerateImageParams {
  * de texto-em-imagem (Ideogram / FLUX.2 / Recraft) habilitam ao configurar a chave.
  */
 export async function generateAdImage(params: GenerateImageParams): Promise<{ buffer: Buffer; mime: string }> {
+  // Kie.ai (GPT Image 2) — bem mais barato que a OpenAI direto.
+  if (kie.kieReady()) {
+    const ref = params.reference ? await kie.kieFileUrl(params.reference, { folder: "referencias" }) : null;
+    const input: Record<string, any> = {
+      prompt: params.prompt.slice(0, 20000),
+      aspect_ratio: kie.kieAspect(params.aspect || params.size),
+      resolution: "1K",
+    };
+    if (params.background && params.background !== "auto") input.background = params.background;
+    if (ref) input.input_urls = [ref];
+    const r = await kie.kieRun(ref ? "gpt-image-2-image-to-image" : "gpt-image-2-text-to-image", input, { timeoutMs: 4 * 60_000 });
+    return kie.kieDownload(r.urls[0]);
+  }
+
   // Ideogram (melhor texto-em-imagem) se configurado
   if (process.env.IDEOGRAM_API_KEY && (params.provider as any) === "ideogram") {
     throw new Error("Integração Ideogram pronta para implementar (IDEOGRAM_API_KEY detectada).");
@@ -428,6 +447,39 @@ export interface GenerateTTSParams {
 }
 
 export async function generateNarration(params: GenerateTTSParams): Promise<{ buffer: Buffer; mime: string }> {
+  const r = await narrationUrl(params);
+  if (r) return kie.kieDownload(r);
+  return elevenNarration(params);
+}
+
+/** Narração pela Kie (ElevenLabs Multilingual v2). Devolve a URL do MP3 ou null se a Kie não estiver configurada. */
+export async function narrationUrl(params: GenerateTTSParams): Promise<string | null> {
+  if (!kie.kieReady()) return null;
+  const input: Record<string, any> = {
+    text: String(params.text || "").slice(0, 5000),
+    voice: kie.kieVoice(params.voice),
+  };
+  if (params.stability != null) input.stability = params.stability;
+  if (params.similarityBoost != null) input.similarity_boost = params.similarityBoost;
+  if (params.style != null) input.style = params.style;
+  if (params.speed != null) input.speed = Math.max(0.7, Math.min(1.2, params.speed));
+  try {
+    const r = await kie.kieRun("elevenlabs/text-to-speech-multilingual-v2", input, { timeoutMs: 3 * 60_000, intervalMs: 2500 });
+    return r.urls[0];
+  } catch (e: any) {
+    // ElevenLabs da Kie fora do ar: cai no TTS do Gemini (também na Kie) com voz do mesmo gênero.
+    logger.warn(`[Kie] ElevenLabs falhou, usando Gemini TTS: ${e?.message}`);
+    const fem = kie.KIE_VOICES.find((v) => v.voiceId === input.voice)?.gender !== "masc";
+    const r = await kie.kieRun("google/gemini-3-1-flash-tts", {
+      sample_context: `Locução comercial em ${langName(params.idioma)}, tom natural, claro e confiante.`,
+      speakers: [{ speaker_id: "Speaker 1", voice_name: fem ? "Aoede" : "Charon" }],
+      dialogue_turns: [{ speaker_id: "Speaker 1", text: input.text.replace(/<break[^>]*>/g, " ") }],
+    }, { timeoutMs: 3 * 60_000, intervalMs: 2500 });
+    return r.urls[0];
+  }
+}
+
+async function elevenNarration(params: GenerateTTSParams): Promise<{ buffer: Buffer; mime: string }> {
   // Narração é ElevenLabs-only (decisão do produto: OpenAI fica restrito a copy/criativos).
   if (!ELEVENLABS_KEY) {
     throw new Error("Narração premium requer a chave ElevenLabs configurada.");
@@ -491,6 +543,10 @@ export async function cloneVoice(input: CloneVoiceInput): Promise<{ voiceId: str
 
 /** Lista as vozes disponíveis na conta ElevenLabs (incluindo clonadas). */
 export async function listVoices(): Promise<{ voices: { voiceId: string; name: string; category?: string }[] }> {
+  // Com a Kie, só as vozes da lista dela funcionam na narração.
+  if (kie.kieReady()) {
+    return { voices: kie.KIE_VOICES.map((v) => ({ voiceId: v.voiceId, name: v.name, category: "premade", gender: v.gender, tag: v.tag, previewUrl: kie.kieVoicePreview(v.voiceId) })) };
+  }
   if (!ELEVENLABS_KEY) return { voices: [] };
   try {
     const r = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": ELEVENLABS_KEY } });
@@ -647,6 +703,23 @@ export interface GenerateVideoParams {
  * Free: imagem (gerada ou fornecida) + narração → MP4 com movimento Ken Burns.
  */
 export async function generateAdVideo(params: GenerateVideoParams): Promise<{ buffer: Buffer; mime: string }> {
+  // Kie.ai — Seedance 2.0 (Fast por padrão, mais barato).
+  if (kie.kieReady()) {
+    const aspect = params.size === "1080x1920" ? "9:16" : params.size === "1920x1080" ? "16:9" : "1:1";
+    const dur = Math.max(4, Math.min(15, parseInt(String(params.duration || "5"), 10) || 5));
+    const input: Record<string, any> = {
+      prompt: String(params.prompt || "").slice(0, 20000),
+      aspect_ratio: aspect,
+      resolution: "720p",
+      duration: dur,
+      generate_audio: params.generateAudio !== false,
+    };
+    if (params.imageUrl) input.first_frame_url = await kie.kieFileUrl(params.imageUrl, { folder: "video-base" });
+    const model = process.env.KIE_VIDEO_MODEL || "bytedance/seedance-2-fast";
+    const r = await kie.kieRun(model, input, { timeoutMs: 10 * 60_000, intervalMs: 6000 });
+    return kie.kieDownload(r.urls[0]);
+  }
+
   // Premium: fal.ai (Seedance 2.0 — melhor para anúncios). Async com polling.
   if (FAL_KEY) {
     try {
@@ -672,6 +745,20 @@ export interface GenerateAvatarParams {
  * Free: foto + narração → MP4 de apresentação narrada (zoom sutil), sem lip-sync.
  */
 export async function generateTalkingAvatar(params: GenerateAvatarParams): Promise<{ buffer: Buffer; mime: string }> {
+  // Kie.ai — Kling AI Avatar: foto + áudio (narração gerada antes) → vídeo com lip-sync.
+  if (kie.kieReady()) {
+    const audio = params.audioUrl || (await narrationUrl({ text: params.text || "", voice: params.voice } as GenerateTTSParams));
+    if (!audio) throw new Error("Não foi possível gerar a fala do avatar");
+    const image = await kie.kieFileUrl(params.imageUrl, { folder: "avatar" });
+    const model = process.env.KIE_AVATAR_MODEL || "kling/ai-avatar-standard";
+    const r = await kie.kieRun(model, {
+      image_url: image,
+      audio_url: await kie.kieFileUrl(audio, { folder: "avatar" }),
+      prompt: "Apresentador(a) falando de forma natural e confiante, olhando para a câmera, gestos sutis, câmera estável.",
+    }, { timeoutMs: 12 * 60_000, intervalMs: 6000 });
+    return kie.kieDownload(r.urls[0]);
+  }
+
   // Premium: HeyGen / D-ID (lip-sync real). Async com polling.
   if (process.env.HEYGEN_API_KEY || process.env.DID_API_KEY) {
     try {
