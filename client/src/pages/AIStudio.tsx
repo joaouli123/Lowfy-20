@@ -5,13 +5,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Sparkles, Workflow, Image as ImageIcon, Type, Mic, Video, UserSquare2, AudioWaveform,
+  Sparkles, Image as ImageIcon, Type, Mic, Video, UserSquare2, AudioWaveform,
   Library, RotateCcw, Languages, Cpu, Check,
 } from "lucide-react";
 import { StudioProvider, useStudio } from "@/components/studio/store";
 import type { ToolId } from "@/components/studio/types";
 import BriefBar from "@/components/studio/BriefBar";
-import FlowBoard from "@/components/studio/FlowBoard";
 import AssetDock from "@/components/studio/AssetDock";
 import VoicesPanel from "@/components/studio/VoicesPanel";
 import LibraryPanel from "@/components/studio/LibraryPanel";
@@ -38,7 +37,6 @@ export const STUDIO_PAGES: { id: ToolId; slug: string; label: string; icon: any 
   { id: "avatar", slug: "avatar", label: "Avatar", icon: UserSquare2 },
   { id: "video", slug: "video", label: "Vídeo", icon: Video },
   { id: "vozes", slug: "clone-de-voz", label: "Clone de voz", icon: AudioWaveform },
-  { id: "fluxo", slug: "fluxos", label: "Fluxos", icon: Workflow },
   { id: "biblioteca", slug: "historico", label: "Histórico", icon: Library },
 ];
 
@@ -103,7 +101,6 @@ function StudioShell() {
 
       {current !== "biblioteca" && current !== "vozes" && <BriefBar />}
 
-      {current === "fluxo" && <FlowBoard />}
       {current === "vozes" && <VoicesPanel />}
       {current === "biblioteca" && <LibraryPanel />}
 

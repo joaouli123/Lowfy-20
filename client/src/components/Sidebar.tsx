@@ -60,7 +60,6 @@ import {
   UserSquare2,
   Video,
   AudioWaveform,
-  Workflow,
   Library
 } from "lucide-react";
 import type { Notification } from "@shared/schema";
@@ -155,7 +154,6 @@ export default function Sidebar() {
         { name: "Avatar", href: "/ai-studio/avatar", icon: UserSquare2, testId: "nav-studio-avatar" },
         { name: "Vídeo", href: "/ai-studio/video", icon: Video, testId: "nav-studio-video" },
         { name: "Clone de voz", href: "/ai-studio/clone-de-voz", icon: AudioWaveform, testId: "nav-studio-vozes" },
-        { name: "Fluxos", href: "/ai-studio/fluxos", icon: Workflow, testId: "nav-studio-fluxos" },
         { name: "Histórico", href: "/ai-studio/historico", icon: Library, testId: "nav-studio-historico" },
       ],
     },
