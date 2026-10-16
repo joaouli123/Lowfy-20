@@ -12,7 +12,7 @@ import { genTts } from "./runners";
 import { playPreview, useVoices } from "./ui";
 import type { StudioVoice } from "./ui";
 import {
-  CharCount, FieldLabel, FormFooter, FormPanel, MissingHint, PageGrid, PageHeader, PillGroup, PreviewPanel,
+  CharCount, FieldLabel, FormFooter, FormPanel, MissingHint, PageGrid, PageHeader, PillGroup, PreviewPanel, DownloadButton, FullscreenButton,
   UploadBox, missingOf, selectCls, useLocalForm,
 } from "./page-kit";
 import type { UploadedFile } from "./page-kit";
@@ -135,7 +135,7 @@ export default function NarracaoPage() {
               <CharCount value={f.texto} max={MAX} />
             </div>
 
-            <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
               <div>
                 <FieldLabel required>Objetivo</FieldLabel>
                 <select value={f.objetivo} onChange={(e) => patch({ objetivo: e.target.value })} className={selectCls}>
@@ -208,6 +208,7 @@ export default function NarracaoPage() {
         }
         preview={
           <PreviewPanel
+            busy={busy}
             icon={Play}
             sub={url ? "Sua narração está pronta." : "Ouça como sua narração poderá ficar."}
             actions={
@@ -215,9 +216,7 @@ export default function NarracaoPage() {
                 <Button variant="outline" className="h-10" onClick={() => playPreview(voice?.previewUrl)} disabled={!voice?.previewUrl}>
                   <Play className="w-4 h-4 mr-2" /> Ouvir amostra
                 </Button>
-                <Button variant="outline" className="h-10" disabled={!url} asChild={!!url}>
-                  {url ? <a href={url} download><Download className="w-4 h-4 mr-2" /> Baixar áudio</a> : <span><Download className="w-4 h-4 mr-2" /> Baixar áudio</span>}
-                </Button>
+                <DownloadButton url={url} label="Baixar áudio" />
               </>
             }
           >

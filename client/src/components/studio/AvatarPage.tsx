@@ -10,7 +10,7 @@ import { ratioSpec } from "./types";
 import type { RatioId } from "./types";
 import {
   CharCount, FieldLabel, FormFooter, FormPanel, MissingHint, OptionCard, PageGrid, PageHeader, PillGroup, PreviewLoading,
-  PreviewPanel, UploadBox, missingOf, selectCls, useLocalForm,
+  PreviewPanel, DownloadButton, FullscreenButton, UploadBox, missingOf, selectCls, useLocalForm,
 } from "./page-kit";
 import type { UploadedFile } from "./page-kit";
 
@@ -87,7 +87,7 @@ export default function AvatarPage() {
               </div>
             }
           >
-            <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
               <div className="space-y-4">
                 <div>
                   <FieldLabel required>Objetivo</FieldLabel>
@@ -125,7 +125,7 @@ export default function AvatarPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr_1.3fr]">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_0.9fr_1.3fr] [&>*]:min-w-0">
               <OptionCard icon={User} title="Estilo do avatar">
                 <PillGroup options={[...ESTILOS]} value={f.estilo} onChange={(v) => patch({ estilo: v })} />
               </OptionCard>
@@ -137,7 +137,7 @@ export default function AvatarPage() {
               </OptionCard>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <OptionCard icon={ImageIcon} title="Referência" sub="Envie a foto de uma pessoa para ser o avatar. Sem foto, a IA cria um apresentador." optional>
                 <UploadBox accept="image/png,image/jpeg,image/webp" hint="PNG, JPG ou WEBP (máx. 5MB)" maxMb={5} value={f.foto} onChange={(v) => patch({ foto: v })} />
               </OptionCard>
@@ -149,16 +149,13 @@ export default function AvatarPage() {
         }
         preview={
           <PreviewPanel
+            busy={busy}
             icon={Eye}
             sub="Veja como seu avatar poderá aparecer."
             actions={
               <>
-                <Button variant="outline" className="h-10" disabled={!url} asChild={!!url}>
-                  {url ? <a href={url} download><Download className="w-4 h-4 mr-2" /> Baixar</a> : <span><Download className="w-4 h-4 mr-2" /> Baixar</span>}
-                </Button>
-                <Button variant="outline" className="h-10" disabled={!url} onClick={() => url && window.open(url, "_blank")}>
-                  <Maximize2 className="w-4 h-4 mr-2" /> Abrir em tela cheia
-                </Button>
+                <DownloadButton url={url} label="Baixar" />
+                <FullscreenButton url={url} />
               </>
             }
           >

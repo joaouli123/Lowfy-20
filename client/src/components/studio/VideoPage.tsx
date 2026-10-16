@@ -9,7 +9,7 @@ import { useStudio } from "./store";
 import { ratioSpec } from "./types";
 import type { RatioId } from "./types";
 import {
-  FieldLabel, FormFooter, FormPanel, MissingHint, PageGrid, PageHeader, PillGroup, PreviewLoading, PreviewPanel,
+  FieldLabel, FormFooter, FormPanel, MissingHint, PageGrid, PageHeader, PillGroup, PreviewLoading, PreviewPanel, DownloadButton, FullscreenButton,
   UploadBox, missingOf, selectCls, useLocalForm,
 } from "./page-kit";
 import type { UploadedFile } from "./page-kit";
@@ -88,7 +88,7 @@ export default function VideoPage() {
               </div>
             }
           >
-            <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
               <div>
                 <FieldLabel upper required>Produto ou oferta</FieldLabel>
                 <Input value={f.produto} onChange={(e) => patch({ produto: e.target.value })} placeholder="Ex.: tênis esportivo branco premium" />
@@ -149,16 +149,13 @@ export default function VideoPage() {
         }
         preview={
           <PreviewPanel
+            busy={busy}
             icon={Eye}
             sub="Veja uma prévia do seu vídeo antes de gerar."
             actions={
               <>
-                <Button variant="outline" className="h-10" disabled={!url} asChild={!!url}>
-                  {url ? <a href={url} download><Download className="w-4 h-4 mr-2" /> Baixar</a> : <span><Download className="w-4 h-4 mr-2" /> Baixar</span>}
-                </Button>
-                <Button variant="outline" className="h-10" disabled={!url} onClick={() => url && window.open(url, "_blank")}>
-                  <Maximize2 className="w-4 h-4 mr-2" /> Abrir em tela cheia
-                </Button>
+                <DownloadButton url={url} label="Baixar" />
+                <FullscreenButton url={url} />
               </>
             }
           >

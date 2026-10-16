@@ -7,7 +7,7 @@ import { useStudio } from "./store";
 import { RATIOS, ratioSpec } from "./types";
 import type { RatioId } from "./types";
 import {
-  FieldLabel, FormFooter, FormPanel, MissingHint, OptionCard, PageGrid, PageHeader, Pill, PreviewLoading, PreviewPanel,
+  FieldLabel, FormFooter, FormPanel, MissingHint, OptionCard, PageGrid, PageHeader, Pill, PreviewLoading, PreviewPanel, DownloadButton, FullscreenButton,
   UploadBox, missingOf, selectCls,
 } from "./page-kit";
 
@@ -57,7 +57,7 @@ export default function CriativoPage() {
               </div>
             }
           >
-            <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
               <div>
                 <FieldLabel required>Produto ou serviço</FieldLabel>
                 <Input value={brief.produto} onChange={(e) => patchBrief({ produto: e.target.value })} placeholder="Ex.: tênis esportivo, curso de marketing, suplemento..." />
@@ -75,7 +75,7 @@ export default function CriativoPage() {
               </div>
               <div>
                 <FieldLabel required>Texto principal</FieldLabel>
-                <Textarea value={o.texto} onChange={(e) => patchOpts("image", { texto: e.target.value })} placeholder="Descreva o texto principal do seu anúncio..." className="min-h-[40px] h-10 resize-y" />
+                <Textarea value={o.texto} onChange={(e) => patchOpts("image", { texto: e.target.value })} placeholder="Descreva o texto principal do seu anúncio..." className="min-h-[72px] md:min-h-[40px] md:h-10 resize-y" />
               </div>
               <div>
                 <FieldLabel required>Headline</FieldLabel>
@@ -90,7 +90,7 @@ export default function CriativoPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 [&>*]:min-w-0">
               <OptionCard icon={Crop} title="Tamanho e formato" sub="Escolha a proporção da sua imagem.">
                 <div className="grid grid-cols-4 gap-2">
                   {RATIOS.map((r) => (
@@ -131,7 +131,7 @@ export default function CriativoPage() {
               </OptionCard>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <OptionCard icon={ImageIcon} title="Referência" sub="Envie uma imagem de referência para guiar o estilo." optional>
                 <UploadBox
                   accept="image/png,image/jpeg,image/webp"
@@ -149,16 +149,13 @@ export default function CriativoPage() {
         }
         preview={
           <PreviewPanel
+            busy={busy.image}
             icon={Eye}
             sub="Veja como seu criativo ficará. A imagem será gerada aqui."
             actions={
               <>
-                <Button variant="outline" className="h-10" disabled={!imageUrl} asChild={!!imageUrl}>
-                  {imageUrl ? <a href={imageUrl} download><Download className="w-4 h-4 mr-2" /> Baixar</a> : <span><Download className="w-4 h-4 mr-2" /> Baixar</span>}
-                </Button>
-                <Button variant="outline" className="h-10" disabled={!imageUrl} onClick={() => imageUrl && window.open(imageUrl, "_blank")}>
-                  <Maximize2 className="w-4 h-4 mr-2" /> Abrir em tela cheia
-                </Button>
+                <DownloadButton url={imageUrl} label="Baixar" />
+                <FullscreenButton url={imageUrl} />
               </>
             }
           >

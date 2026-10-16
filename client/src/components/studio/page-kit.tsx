@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, CloudUpload, X, Trash2, ArrowRight, Loader2, FileAudio, FileVideo } from "lucide-react";
+import { Lightbulb, CloudUpload, X, Trash2, ArrowRight, Loader2, FileAudio, FileVideo, Download, Maximize2 } from "lucide-react";
 
 // Peças visuais comuns às páginas do Estúdio (Criativo, Copy, Narração, Avatar, Vídeo):
 // cabeçalho com dica, card de formulário, chips, upload e coluna de preview.
@@ -11,15 +11,15 @@ export const selectCls =
 
 export function PageHeader({ icon: Icon, title, sub, tip }: { icon: any; title: string; sub: string; tip: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_70%,transparent)] via-card to-card p-5 flex items-center gap-4 flex-wrap">
-      <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 shadow-sm">
-        <Icon className="w-6 h-6 text-primary-foreground" />
+    <div className="rounded-2xl border bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_70%,transparent)] via-card to-card p-4 sm:p-5 flex items-center gap-3 sm:gap-4 flex-wrap">
+      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 shadow-sm">
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
       </div>
-      <div className="flex-1 min-w-[200px]">
-        <h1 className="text-xl font-bold tracking-tight">{title}</h1>
-        <p className="text-sm text-muted-foreground">{sub}</p>
+      <div className="flex-1 min-w-0 basis-[220px]">
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight">{title}</h1>
+        <p className="text-[13px] sm:text-sm text-muted-foreground">{sub}</p>
       </div>
-      <div className="hidden md:flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--primary)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_60%,transparent)] px-4 py-3 max-w-sm">
+      <div className="flex w-full md:w-auto items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--primary)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_60%,transparent)] px-4 py-3 max-w-sm">
         <Lightbulb className="w-5 h-5 text-primary flex-shrink-0" />
         <p className="text-xs leading-snug"><span className="font-semibold text-primary">Dica:</span> {tip}</p>
       </div>
@@ -28,14 +28,14 @@ export function PageHeader({ icon: Icon, title, sub, tip }: { icon: any; title: 
 }
 
 export function PageGrid({ form, preview }: { form: React.ReactNode; preview: React.ReactNode }) {
-  return <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_440px] items-start">{form}{preview}</div>;
+  return <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_460px] items-start [&>*]:min-w-0">{form}{preview}</div>;
 }
 
 export function FormPanel({ icon: Icon, title, sub, children, footer }: {
   icon: any; title: string; sub: string; children: React.ReactNode; footer: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border bg-card p-5 space-y-5">
+    <div className="rounded-2xl border bg-card p-4 sm:p-5 space-y-5 min-w-0">
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
           <Icon className="w-[18px] h-[18px] text-primary" />
@@ -51,11 +51,16 @@ export function FormPanel({ icon: Icon, title, sub, children, footer }: {
   );
 }
 
-export function PreviewPanel({ icon: Icon, title = "Preview", sub, children, actions }: {
-  icon: any; title?: string; sub: string; children: React.ReactNode; actions?: React.ReactNode;
+export function PreviewPanel({ icon: Icon, title = "Preview", sub, children, actions, busy }: {
+  icon: any; title?: string; sub: string; children: React.ReactNode; actions?: React.ReactNode; busy?: boolean;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // No celular o preview fica embaixo do formulário: ao gerar, rola até ele.
+  useEffect(() => {
+    if (busy && window.innerWidth < 1280) ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [busy]);
   return (
-    <div className="rounded-2xl border bg-card p-5 flex flex-col gap-4 xl:sticky xl:top-4 w-full">
+    <div ref={ref} className="scroll-mt-20 rounded-2xl border bg-card p-4 sm:p-5 flex flex-col gap-4 xl:sticky xl:top-4 w-full min-w-0">
       <div className="flex items-start gap-3">
         <Icon className="w-5 h-5 text-muted-foreground mt-0.5" />
         <div>
@@ -64,7 +69,7 @@ export function PreviewPanel({ icon: Icon, title = "Preview", sub, children, act
         </div>
       </div>
       {children}
-      {actions && <div className="grid grid-cols-2 gap-3">{actions}</div>}
+      {actions && <div className="grid grid-cols-2 gap-2 sm:gap-3 [&_button]:text-xs sm:[&_button]:text-sm">{actions}</div>}
     </div>
   );
 }
@@ -74,7 +79,7 @@ export function OptionCard({ icon: Icon, title, sub, optional, children, classNa
   icon: any; title: string; sub?: string; optional?: boolean; children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className={`rounded-xl border bg-card p-4 ${className}`}>
+    <div className={`rounded-xl border bg-card p-3.5 sm:p-4 min-w-0 ${className}`}>
       <div className="flex items-start gap-2.5 mb-3">
         <Icon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
         <div>
@@ -218,9 +223,9 @@ export function FormFooter({ onClear, onSubmit, busy, disabled, label, busyLabel
   onClear: () => void; onSubmit: () => void; busy: boolean; disabled?: boolean; label: string; busyLabel: string; icon: any;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-t pt-4">
-      <Button variant="outline" onClick={onClear} className="h-10 px-5"><Trash2 className="w-4 h-4 mr-2" /> Limpar</Button>
-      <Button onClick={onSubmit} disabled={disabled || busy} className="h-10 min-w-[220px]">
+    <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-t pt-4">
+      <Button variant="outline" onClick={onClear} className="h-10 px-5 w-full sm:w-auto"><Trash2 className="w-4 h-4 mr-2" /> Limpar</Button>
+      <Button onClick={onSubmit} disabled={disabled || busy} className="h-11 sm:h-10 w-full sm:w-auto sm:min-w-[220px]">
         {busy
           ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {busyLabel}</>
           : <><Icon className="w-4 h-4 mr-2" /> {label} <ArrowRight className="w-4 h-4 ml-2" /></>}
@@ -242,7 +247,7 @@ export function PreviewLoading({ label, sub }: { label: string; sub?: string }) 
 /** Mostra quais campos obrigatórios faltam, embaixo do botão de gerar. */
 export function MissingHint({ missing }: { missing: string[] }) {
   if (!missing.length) return null;
-  return <p className="text-[11px] text-muted-foreground text-right -mt-2">Falta preencher: {missing.join(", ")}</p>;
+  return <p className="text-[11px] text-muted-foreground text-center sm:text-right -mt-1">Falta preencher: {missing.join(", ")}</p>;
 }
 
 /** Campos obrigatórios que ainda estão vazios. */
@@ -271,4 +276,33 @@ export function useLocalForm<T extends object>(key: string, defaults: T) {
   });
   const reset = () => { try { localStorage.removeItem(storageKey); } catch { /* ok */ } setForm(defaults); };
   return [form, patch, reset] as const;
+}
+
+/** Botão de baixar: baixa o arquivo pela URL; fica desabilitado até existir resultado. */
+export function DownloadButton({ url, label = "Baixar", filename }: { url: string | null; label?: string; filename?: string }) {
+  return (
+    <Button
+      variant="outline"
+      className="h-10 w-full"
+      disabled={!url}
+      onClick={() => {
+        if (!url) return;
+        const a = Object.assign(document.createElement("a"), { href: url, download: filename || url.split("/").pop() || "lowfy" });
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }}
+    >
+      <Download className="w-4 h-4 mr-2 flex-shrink-0" /> <span className="truncate">{label}</span>
+    </Button>
+  );
+}
+
+/** Abre o resultado em outra aba, em tela cheia. */
+export function FullscreenButton({ url }: { url: string | null }) {
+  return (
+    <Button variant="outline" className="h-10 w-full" disabled={!url} onClick={() => url && window.open(url, "_blank", "noopener")}>
+      <Maximize2 className="w-4 h-4 mr-2 flex-shrink-0" /> <span className="truncate hidden sm:inline">Abrir em tela cheia</span><span className="sm:hidden">Tela cheia</span>
+    </Button>
+  );
 }

@@ -107,7 +107,7 @@ export default function CopyPage() {
               </div>
             }
           >
-            <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
               <div>
                 <FieldLabel required>Produto ou serviço</FieldLabel>
                 <Input value={f.produto} onChange={(e) => patch({ produto: e.target.value })} placeholder="Ex.: tênis esportivo, curso de inglês, suplemento..." />
@@ -159,6 +159,7 @@ export default function CopyPage() {
         }
         preview={
           <PreviewPanel
+            busy={busy}
             icon={Eye}
             sub={isSample ? "Veja como sua copy pode ficar." : "Sua copy está pronta. Copie ou baixe."}
             actions={
