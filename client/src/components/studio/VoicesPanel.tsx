@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +64,12 @@ export default function VoicesPanel() {
     }
   };
 
+  const { data: caps } = useQuery({
+    queryKey: ["/api/ai-studio/capabilities"],
+    queryFn: async () => (await (await apiRequest("GET", "/api/ai-studio/capabilities")).json()) as Record<string, { ready?: boolean }>,
+    staleTime: 10 * 60 * 1000,
+  });
+
   const cloneMut = useMutation({
     mutationFn: async () => {
       const r = await apiRequest("POST", "/api/ai-studio/clone-voice", { name: name || "Minha voz", samples });
@@ -89,6 +95,11 @@ export default function VoicesPanel() {
       controls={
         <>
           <SectionTitle>Clonar sua voz</SectionTitle>
+          {caps && !caps.voiceClone?.ready && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] text-amber-800 leading-snug">
+              A clonagem de voz ainda não está liberada nesta conta. Enquanto isso, use as vozes prontas na página de Narração.
+            </div>
+          )}
           <p className="text-[12px] text-muted-foreground leading-snug -mt-1">
             Grave ou envie de 1 a 5 amostras limpas (30s a 2min cada). A IA cria uma cópia da voz e ela fica disponível em todo o Estúdio.
           </p>

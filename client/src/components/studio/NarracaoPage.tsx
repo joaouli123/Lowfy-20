@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +60,12 @@ export default function NarracaoPage() {
   const { brief, patchBrief, script, addAsset } = useStudio();
   const { toast } = useToast();
   const { catalog, refetch } = useVoices();
+  const { data: caps } = useQuery({
+    queryKey: ["/api/ai-studio/capabilities"],
+    queryFn: async () => (await (await apiRequest("GET", "/api/ai-studio/capabilities")).json()) as Record<string, { ready?: boolean }>,
+    staleTime: 10 * 60 * 1000,
+  });
+  const canClone = !!caps?.voiceClone?.ready;
   const [f, patch, reset] = useLocalForm("narracao", { ...DEFAULTS, texto: script || "" });
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,7 +77,12 @@ export default function NarracaoPage() {
   }, [catalog, f.tipo]);
   const voice = voices.find((v) => v.voiceId === f.voiceId) || voices[0];
 
-  const missing = missingOf([["texto", f.texto], ["objetivo", f.objetivo]]);
+  const missing = missingOf([["texto da narração", f.texto]]);
+
+  const example = () => patch({
+    texto: "Conheça o novo tênis esportivo da marca. Leve, confortável e feito para quem não para. Aproveite: cinquenta por cento de desconto, só hoje!",
+    objetivo: "Anúncio / propaganda", estilo: "energica", velocidade: "normal",
+  });
 
   const run = async () => {
     if (f.texto.length > MAX) return toast({ title: "Texto muito longo", description: `O limite é ${MAX} caracteres.`, variant: "destructive" });
@@ -78,7 +90,7 @@ export default function NarracaoPage() {
     try {
       let voiceId = voice?.voiceId || brief.voice;
       // Áudio de referência: clona a voz e usa ela na narração.
-      if (f.referencia.length) {
+      if (canClone && f.referencia.length) {
         const r = await apiRequest("POST", "/api/ai-studio/clone-voice", { name: `Referência ${new Date().toLocaleDateString("pt-BR")}`, samples: f.referencia });
         voiceId = ((await r.json()) as { voiceId: string }).voiceId;
         patch({ referencia: [] });
@@ -116,7 +128,8 @@ export default function NarracaoPage() {
           <FormPanel
             icon={Settings2}
             title="Configurações da narração"
-            sub="Escreva o texto e escolha como a voz deve soar."
+            sub="Cole o texto, escolha a voz e clique em gerar."
+            onExample={example}
             footer={
               <div className="space-y-3">
                 <FormFooter onClear={() => { reset(); setUrl(null); }} onSubmit={() => void run()} busy={busy} disabled={missing.length > 0} label="Gerar narração" busyLabel="Gravando…" icon={Wand2} />
@@ -137,21 +150,21 @@ export default function NarracaoPage() {
 
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
               <div>
-                <FieldLabel required>Objetivo</FieldLabel>
+                <FieldLabel optional>Objetivo</FieldLabel>
                 <select value={f.objetivo} onChange={(e) => patch({ objetivo: e.target.value })} className={selectCls}>
                   <option value="">Selecione o objetivo da narração</option>
                   {OBJETIVOS.map((x) => <option key={x}>{x}</option>)}
                 </select>
               </div>
               <div>
-                <FieldLabel required>Idioma</FieldLabel>
+                <FieldLabel>Idioma</FieldLabel>
                 <select value={brief.lang} onChange={(e) => patchBrief({ lang: e.target.value })} className={selectCls}>
                   {LANGS.map((l) => <option key={l.v} value={l.v}>{l.label}</option>)}
                 </select>
               </div>
 
               <div>
-                <FieldLabel required>Tipo de voz</FieldLabel>
+                <FieldLabel>Tipo de voz</FieldLabel>
                 <PillGroup options={[...TIPOS]} value={f.tipo} onChange={(v) => patch({ tipo: v, voiceId: "" })} />
               </div>
               <div>
@@ -188,7 +201,7 @@ export default function NarracaoPage() {
                 <PillGroup options={PAUSAS.map((e) => ({ ...e, icon: f.pausa === e.v ? CircleDot : undefined }))} value={f.pausa} onChange={(v) => patch({ pausa: v })} />
               </div>
 
-              <div>
+              {canClone && <div>
                 <FieldLabel optional>Áudio de referência</FieldLabel>
                 <UploadBox
                   accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/webm"
@@ -198,8 +211,8 @@ export default function NarracaoPage() {
                   value={f.referencia}
                   onChange={(v) => patch({ referencia: v })}
                 />
-              </div>
-              <div>
+              </div>}
+              <div className={canClone ? "" : "md:col-span-2"}>
                 <FieldLabel optional>Observações</FieldLabel>
                 <Textarea value={f.observacoes} onChange={(e) => patch({ observacoes: e.target.value })} placeholder="Ex.: pronúncia de palavras, tom específico, etc." className="min-h-[64px]" />
               </div>

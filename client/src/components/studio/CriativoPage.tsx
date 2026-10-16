@@ -25,10 +25,12 @@ export default function CriativoPage() {
   const spec = ratioSpec(brief.ratio);
   const colorRef = useRef<HTMLInputElement>(null);
 
-  const missing = missingOf([
-    ["produto", brief.produto], ["objetivo", o.objetivo], ["público", brief.publico],
-    ["texto principal", o.texto], ["headline", brief.headline], ["CTA", o.cta],
-  ]);
+  const missing = missingOf([["produto ou serviço", brief.produto]]);
+
+  const example = () => {
+    patchBrief({ produto: "Tênis esportivo branco", publico: "Homens e mulheres de 25 a 40 anos que treinam", headline: "VÁ MAIS LONGE", estilo: "Fotográfico", ratio: "4:5" });
+    patchOpts("image", { objetivo: "Divulgar promoção", texto: "Conforto e tecnologia com 50% OFF só hoje", cta: "Comprar agora" });
+  };
 
   const clear = () => {
     patchBrief({ produto: "", publico: "", headline: "", estilo: "" });
@@ -49,7 +51,8 @@ export default function CriativoPage() {
           <FormPanel
             icon={SquarePen}
             title="Informações do criativo"
-            sub="Preencha os campos abaixo para gerar sua imagem."
+            sub="Só o produto é obrigatório. O resto a IA completa se você deixar em branco."
+            onExample={example}
             footer={
               <div className="space-y-3">
                 <FormFooter onClear={clear} onSubmit={() => void runImage()} busy={busy.image} disabled={missing.length > 0} label="Gerar criativo" busyLabel="Gerando criativo…" icon={Sparkles} />
@@ -63,28 +66,28 @@ export default function CriativoPage() {
                 <Input value={brief.produto} onChange={(e) => patchBrief({ produto: e.target.value })} placeholder="Ex.: tênis esportivo, curso de marketing, suplemento..." />
               </div>
               <div>
-                <FieldLabel required>Objetivo</FieldLabel>
+                <FieldLabel optional>Objetivo</FieldLabel>
                 <select value={o.objetivo} onChange={(e) => patchOpts("image", { objetivo: e.target.value })} className={selectCls}>
-                  <option value="">Selecione o objetivo</option>
+                  <option value="">Deixa a IA decidir</option>
                   {OBJETIVOS.map((x) => <option key={x}>{x}</option>)}
                 </select>
               </div>
               <div>
-                <FieldLabel required>Público-alvo</FieldLabel>
+                <FieldLabel optional>Público-alvo</FieldLabel>
                 <Input value={brief.publico} onChange={(e) => patchBrief({ publico: e.target.value })} placeholder="Ex.: homens de 25 a 40 anos, iniciantes em academia..." />
               </div>
               <div>
-                <FieldLabel required>Texto principal</FieldLabel>
-                <Textarea value={o.texto} onChange={(e) => patchOpts("image", { texto: e.target.value })} placeholder="Descreva o texto principal do seu anúncio..." className="min-h-[72px] md:min-h-[40px] md:h-10 resize-y" />
+                <FieldLabel optional>Texto de apoio</FieldLabel>
+                <Textarea value={o.texto} onChange={(e) => patchOpts("image", { texto: e.target.value })} placeholder="Ex.: Conforto e tecnologia com 50% OFF" className="min-h-[72px] md:min-h-[40px] md:h-10 resize-y" />
               </div>
               <div>
-                <FieldLabel required>Headline</FieldLabel>
-                <Input value={brief.headline} onChange={(e) => patchBrief({ headline: e.target.value })} placeholder="Ex.: 50% OFF HOJE, Transforme seu corpo..." />
+                <FieldLabel optional>Título na imagem</FieldLabel>
+                <Input value={brief.headline} onChange={(e) => patchBrief({ headline: e.target.value })} placeholder="Ex.: VÁ MAIS LONGE (vazio = a IA cria)" />
               </div>
               <div>
-                <FieldLabel required>CTA</FieldLabel>
+                <FieldLabel optional>Botão (CTA)</FieldLabel>
                 <select value={o.cta} onChange={(e) => patchOpts("image", { cta: e.target.value })} className={selectCls}>
-                  <option value="">Selecione um CTA</option>
+                  <option value="">Sem botão / a IA decide</option>
                   {CTAS.map((x) => <option key={x}>{x}</option>)}
                 </select>
               </div>

@@ -39,7 +39,12 @@ export default function VideoPage() {
   const [thumb, setThumb] = useState(0);
   const spec = ratioSpec(f.formato);
 
-  const missing = missingOf([["produto", f.produto], ["objetivo", f.objetivo], ["público", f.publico], ["mensagem", f.mensagem], ["CTA", f.cta]]);
+  const missing = missingOf([["produto ou oferta", f.produto]]);
+
+  const example = () => patch({
+    produto: "Tênis esportivo branco premium", objetivo: "Divulgar e vender", publico: "Jovens de 18 a 30 anos que praticam esportes",
+    mensagem: "Conforto, performance e estilo em todo momento.", duracao: "10", formato: "9:16", estilo: "moderno", cta: "Compre agora",
+  });
 
   const run = async () => {
     setBusy(true);
@@ -80,7 +85,8 @@ export default function VideoPage() {
           <FormPanel
             icon={FileText}
             title="Informações do vídeo"
-            sub="Defina os dados principais para montar seu vídeo."
+            sub="Diga o produto e a mensagem. Envie uma foto do produto para um resultado mais fiel."
+            onExample={example}
             footer={
               <div className="space-y-3">
                 <FormFooter onClear={() => { reset(); setUrl(null); setThumb(0); }} onSubmit={() => void run()} busy={busy} disabled={missing.length > 0} label="Gerar vídeo" busyLabel="Gerando vídeo…" icon={Sparkles} />
@@ -94,26 +100,26 @@ export default function VideoPage() {
                 <Input value={f.produto} onChange={(e) => patch({ produto: e.target.value })} placeholder="Ex.: tênis esportivo branco premium" />
               </div>
               <div>
-                <FieldLabel upper required>Objetivo</FieldLabel>
+                <FieldLabel upper optional>Objetivo</FieldLabel>
                 <select value={f.objetivo} onChange={(e) => patch({ objetivo: e.target.value })} className={selectCls}>
                   <option value="">Selecione o objetivo</option>
                   {OBJETIVOS.map((x) => <option key={x}>{x}</option>)}
                 </select>
               </div>
               <div>
-                <FieldLabel upper required>Público-alvo</FieldLabel>
+                <FieldLabel upper optional>Público-alvo</FieldLabel>
                 <Input value={f.publico} onChange={(e) => patch({ publico: e.target.value })} placeholder="Ex.: jovens de 18 a 30 anos, que praticam esportes" />
               </div>
               <div>
-                <FieldLabel upper required>Mensagem principal</FieldLabel>
+                <FieldLabel upper optional>Mensagem principal</FieldLabel>
                 <Textarea value={f.mensagem} onChange={(e) => patch({ mensagem: e.target.value })} placeholder="Ex.: Conforto, performance e estilo em todo momento." className="min-h-[64px]" />
               </div>
               <div>
-                <FieldLabel upper required>Duração</FieldLabel>
+                <FieldLabel upper>Duração</FieldLabel>
                 <PillGroup options={[...DURACOES]} value={f.duracao} onChange={(v) => patch({ duracao: v })} />
               </div>
               <div>
-                <FieldLabel upper required>Formato</FieldLabel>
+                <FieldLabel upper>Formato</FieldLabel>
                 <PillGroup options={[...FORMATOS]} value={f.formato} onChange={(v) => patch({ formato: v })} />
               </div>
               <div>
@@ -121,7 +127,7 @@ export default function VideoPage() {
                 <PillGroup options={[...ESTILOS]} value={f.estilo} onChange={(v) => patch({ estilo: v })} />
               </div>
               <div>
-                <FieldLabel upper required>CTA</FieldLabel>
+                <FieldLabel upper optional>Chamada (CTA)</FieldLabel>
                 <select value={f.cta} onChange={(e) => patch({ cta: e.target.value })} className={selectCls}>
                   <option value="">Selecione um CTA</option>
                   {CTAS.map((x) => <option key={x}>{x}</option>)}

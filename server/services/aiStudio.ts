@@ -162,7 +162,9 @@ export function buildAdImagePrompt(opts: {
     `Crie um criativo publicitário profissional e fotorrealista para anúncio de: ${opts.produto}.`,
     opts.publico ? `Público-alvo: ${opts.publico}.` : "",
     opts.estilo ? `Estilo visual: ${opts.estilo}.` : "Estilo moderno, alto contraste, com foco no produto.",
-    opts.headline ? `Inclua o texto em destaque, perfeitamente legível e sem erros de ortografia: "${opts.headline}".` : "",
+    opts.headline
+      ? `Inclua o texto em destaque, perfeitamente legível e sem erros de ortografia: "${opts.headline}".`
+      : `Crie e inclua uma headline curta e chamativa (até 5 palavras) em ${langName(opts.idioma)}, perfeitamente legível e sem erros de ortografia.`,
     opts.objetivo ? `Objetivo do anúncio: ${opts.objetivo}.` : "",
     opts.texto ? `Texto de apoio (menor que a headline): "${opts.texto}".` : "",
     opts.cta ? `Inclua um botão de chamada para ação com o texto "${opts.cta}".` : "",

@@ -40,7 +40,13 @@ export default function AvatarPage() {
   const [busy, setBusy] = useState(false);
   const spec = ratioSpec(f.formato);
 
-  const missing = missingOf([["objetivo", f.objetivo], ["produto", f.produto], ["público", f.publico], ["roteiro", f.roteiro]]);
+  const missing = missingOf([["o que o avatar vai falar", f.roteiro]]);
+
+  const example = () => patch({
+    objetivo: "Vender um produto", produto: "Curso online de marketing digital", publico: "Empreendedores iniciantes",
+    roteiro: "Oi! Você quer vender todos os dias pela internet? No nosso curso você aprende, passo a passo, a criar anúncios que convertem. Clique no link e comece hoje mesmo!",
+    estilo: "vendedor", formato: "9:16", cenario: "estudio",
+  });
 
   const run = async () => {
     if (f.roteiro.length > MAX) return toast({ title: "Roteiro muito longo", description: `O limite é ${MAX} caracteres.`, variant: "destructive" });
@@ -79,7 +85,8 @@ export default function AvatarPage() {
           <FormPanel
             icon={SquarePen}
             title="Configurações do avatar"
-            sub="Preencha os campos abaixo para gerar seu vídeo com avatar."
+            sub="Escreva o que o avatar vai falar. Sem foto, a IA cria um apresentador."
+            onExample={example}
             footer={
               <div className="space-y-3">
                 <FormFooter onClear={() => { reset(); setUrl(null); }} onSubmit={() => void run()} busy={busy} disabled={missing.length > 0} label="Gerar avatar" busyLabel="Gerando avatar…" icon={Sparkles} />
@@ -90,18 +97,18 @@ export default function AvatarPage() {
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
               <div className="space-y-4">
                 <div>
-                  <FieldLabel required>Objetivo</FieldLabel>
+                  <FieldLabel optional>Objetivo</FieldLabel>
                   <select value={f.objetivo} onChange={(e) => patch({ objetivo: e.target.value })} className={selectCls}>
-                    <option value="">Selecione um objetivo</option>
+                    <option value="">Deixa a IA decidir</option>
                     {OBJETIVOS.map((x) => <option key={x}>{x}</option>)}
                   </select>
                 </div>
                 <div>
-                  <FieldLabel required>Público-alvo</FieldLabel>
+                  <FieldLabel optional>Público-alvo</FieldLabel>
                   <Input value={f.publico} onChange={(e) => patch({ publico: e.target.value })} placeholder="Ex.: mulheres de 25 a 40 anos, iniciantes em academia..." />
                 </div>
                 <div>
-                  <FieldLabel required>Idioma</FieldLabel>
+                  <FieldLabel>Idioma</FieldLabel>
                   <select value={brief.lang} onChange={(e) => patchBrief({ lang: e.target.value })} className={selectCls}>
                     {LANGS.map((l) => <option key={l.v} value={l.v}>{l.label}</option>)}
                   </select>
@@ -109,11 +116,11 @@ export default function AvatarPage() {
               </div>
               <div className="space-y-4">
                 <div>
-                  <FieldLabel required>Produto ou assunto</FieldLabel>
+                  <FieldLabel optional>Produto ou assunto</FieldLabel>
                   <Input value={f.produto} onChange={(e) => patch({ produto: e.target.value })} placeholder="Ex.: tênis esportivo, curso de marketing, aplicativo..." />
                 </div>
                 <div>
-                  <FieldLabel required>Texto / roteiro</FieldLabel>
+                  <FieldLabel required>O que o avatar vai falar</FieldLabel>
                   <Textarea
                     value={f.roteiro}
                     onChange={(e) => patch({ roteiro: e.target.value })}

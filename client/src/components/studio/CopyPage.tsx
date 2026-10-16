@@ -47,10 +47,13 @@ export default function CopyPage() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const missing = missingOf([
-    ["produto", f.produto], ["objetivo", f.objetivo], ["público", f.publico],
-    ["oferta", f.oferta], ["benefícios", f.beneficios], ["CTA", f.cta],
-  ]);
+  const missing = missingOf([["produto ou serviço", f.produto]]);
+
+  const example = () => patch({
+    produto: "Curso online de inglês para iniciantes", objetivo: "Vender um produto", publico: "Adultos de 25 a 45 anos que travam na hora de falar",
+    oferta: "50% de desconto + 7 dias de garantia", beneficios: "Aulas curtas de 15 min, conversação desde o 1º dia, certificado", cta: "Garanta o seu agora!",
+    tom: "direto", canal: "instagram", tamanho: "medio",
+  });
 
   const run = async () => {
     setBusy(true);
@@ -99,7 +102,8 @@ export default function CopyPage() {
           <FormPanel
             icon={FileText}
             title="Informações da copy"
-            sub="Preencha o básico e deixe a IA montar o texto para você."
+            sub="Só o produto é obrigatório. Quanto mais detalhes, melhor a copy."
+            onExample={example}
             footer={
               <div className="space-y-3">
                 <FormFooter onClear={() => { reset(); setOut(null); }} onSubmit={() => void run()} busy={busy} disabled={missing.length > 0} label="Gerar copy" busyLabel="Escrevendo…" icon={Wand2} />
@@ -113,18 +117,18 @@ export default function CopyPage() {
                 <Input value={f.produto} onChange={(e) => patch({ produto: e.target.value })} placeholder="Ex.: tênis esportivo, curso de inglês, suplemento..." />
               </div>
               <div>
-                <FieldLabel required>Objetivo</FieldLabel>
+                <FieldLabel optional>Objetivo</FieldLabel>
                 <select value={f.objetivo} onChange={(e) => patch({ objetivo: e.target.value })} className={selectCls}>
-                  <option value="">Selecione um objetivo</option>
+                  <option value="">Deixa a IA decidir</option>
                   {OBJETIVOS.map((x) => <option key={x}>{x}</option>)}
                 </select>
               </div>
               <div>
-                <FieldLabel required>Público-alvo</FieldLabel>
+                <FieldLabel optional>Público-alvo</FieldLabel>
                 <Input value={f.publico} onChange={(e) => patch({ publico: e.target.value })} placeholder="Ex.: mulheres de 25 a 40 anos, iniciantes em academia..." />
               </div>
               <div>
-                <FieldLabel required>Oferta</FieldLabel>
+                <FieldLabel optional>Oferta</FieldLabel>
                 <Input value={f.oferta} onChange={(e) => patch({ oferta: e.target.value })} placeholder="Ex.: 50% de desconto, frete grátis, bônus exclusivo..." />
               </div>
               <div>
@@ -136,13 +140,13 @@ export default function CopyPage() {
                 <PillGroup options={[...CANAIS]} value={f.canal} onChange={(v) => patch({ canal: v })} />
               </div>
               <div>
-                <FieldLabel required>Benefícios / diferenciais</FieldLabel>
+                <FieldLabel optional>Benefícios / diferenciais</FieldLabel>
                 <Textarea value={f.beneficios} onChange={(e) => patch({ beneficios: e.target.value })} placeholder="Ex.: alta durabilidade, confortável, melhora o desempenho..." className="min-h-[64px]" />
               </div>
               <div>
-                <FieldLabel required>CTA</FieldLabel>
+                <FieldLabel optional>Chamada (CTA)</FieldLabel>
                 <select value={f.cta} onChange={(e) => patch({ cta: e.target.value })} className={selectCls}>
-                  <option value="">Selecione um CTA</option>
+                  <option value="">A IA escolhe</option>
                   {CTAS.map((x) => <option key={x}>{x}</option>)}
                 </select>
               </div>

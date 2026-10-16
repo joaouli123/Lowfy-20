@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, CloudUpload, X, Trash2, ArrowRight, Loader2, FileAudio, FileVideo, Download, Maximize2 } from "lucide-react";
+import { Lightbulb, CloudUpload, X, Trash2, ArrowRight, Loader2, FileAudio, FileVideo, Download, Maximize2, Wand2 } from "lucide-react";
 
 // Peças visuais comuns às páginas do Estúdio (Criativo, Copy, Narração, Avatar, Vídeo):
 // cabeçalho com dica, card de formulário, chips, upload e coluna de preview.
@@ -31,8 +31,10 @@ export function PageGrid({ form, preview }: { form: React.ReactNode; preview: Re
   return <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_460px] items-start [&>*]:min-w-0">{form}{preview}</div>;
 }
 
-export function FormPanel({ icon: Icon, title, sub, children, footer }: {
+export function FormPanel({ icon: Icon, title, sub, children, footer, onExample }: {
   icon: any; title: string; sub: string; children: React.ReactNode; footer: React.ReactNode;
+  /** Preenche o formulário com um exemplo pronto (ajuda quem nunca usou). */
+  onExample?: () => void;
 }) {
   return (
     <div className="rounded-2xl border bg-card p-4 sm:p-5 space-y-5 min-w-0">
@@ -40,10 +42,15 @@ export function FormPanel({ icon: Icon, title, sub, children, footer }: {
         <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
           <Icon className="w-[18px] h-[18px] text-primary" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h2 className="font-semibold leading-tight">{title}</h2>
           <p className="text-xs text-muted-foreground">{sub}</p>
         </div>
+        {onExample && (
+          <Button type="button" variant="outline" size="sm" onClick={onExample} className="h-8 text-xs flex-shrink-0">
+            <Wand2 className="w-3.5 h-3.5 mr-1.5 text-primary" /> Usar exemplo
+          </Button>
+        )}
       </div>
       {children}
       <div className="pt-1">{footer}</div>
