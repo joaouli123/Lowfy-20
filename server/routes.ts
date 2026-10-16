@@ -6403,6 +6403,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     windowMs: 60 * 60 * 1000, limit: 60, keyGenerator: studioKey, standardHeaders: true, legacyHeaders: false,
     validate: false, message: { message: 'Você atingiu o limite de gerações por hora. Tente de novo daqui a pouco.' },
   });
+  // Gerações longas em segundo plano: o Cloudflare corta pedidos com mais de 100s.
+  // Com body.async, responde na hora com { jobId } e o resultado fica em /api/ai-studio/jobs/:id.
+  type StudioJob = { userId: string; status: 'running' | 'done' | 'error'; result?: any; error?: string; createdAt: number };
+  const studioJobs = new Map<string, StudioJob>();
+  const studioAsync = (req: any, res: any, next: any) => {
+    if (!req.body?.async) return next();
+    const now = Date.now();
+    studioJobs.forEach((j, k) => { if (now - j.createdAt > 2 * 60 * 60 * 1000) studioJobs.delete(k); });
+    const id = crypto.randomUUID();
+    const job: StudioJob = { userId: req.user.id, status: 'running', createdAt: now };
+    studioJobs.set(id, job);
+    res.json({ jobId: id });
+    // A rota segue rodando normalmente; o que ela responderia vira o resultado do job.
+    let code = 200;
+    res.status = (c: number) => { code = c; return res; };
+    res.json = (body: any) => {
+      if (code >= 400) { job.status = 'error'; job.error = body?.message || 'Erro na geração'; }
+      else { job.status = 'done'; job.result = body; }
+      return res;
+    };
+    res.send = res.json;
+    next();
+  };
+  app.get('/api/ai-studio/jobs/:id', authMiddleware, (req: any, res) => {
+    const job = studioJobs.get(req.params.id);
+    if (!job || job.userId !== req.user.id) return res.status(404).json({ message: 'Tarefa não encontrada' });
+    res.json({ status: job.status, result: job.result, error: job.error });
+  });
+
   const studioHeavyLimit = studioRateLimit({
     windowMs: 60 * 60 * 1000, limit: 12, keyGenerator: studioKey, standardHeaders: true, legacyHeaders: false,
     validate: false, message: { message: 'Você atingiu o limite de vídeos/carrosséis por hora. Tente de novo daqui a pouco.' },
@@ -6413,7 +6442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gerar imagem de criativo
-  app.post('/api/ai-studio/image', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
+  app.post('/api/ai-studio/image', authMiddleware, fullAccessMiddleware, studioLimit, studioAsync, async (req: any, res) => {
     try {
       const { produto, estilo, headline, formato, publico, prompt, size, quality, provider, background, format, compression, objetivo, texto, cta, cores, observacoes, referencia } = req.body || {};
       const reference = typeof referencia === 'string' && referencia.startsWith('data:image/') && referencia.length < 14_000_000 ? referencia : undefined;
@@ -6534,7 +6563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai-studio/motion/animate', authMiddleware, fullAccessMiddleware, studioHeavyLimit, async (req: any, res) => {
+  app.post('/api/ai-studio/motion/animate', authMiddleware, fullAccessMiddleware, studioHeavyLimit, studioAsync, async (req: any, res) => {
     try {
       const b = req.body || {};
       const scenes = Array.isArray(b.scenes) ? b.scenes.slice(0, 12) : [];
@@ -6622,7 +6651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Avatar falante (foto + narração → MP4)
-  app.post('/api/ai-studio/avatar', authMiddleware, fullAccessMiddleware, studioHeavyLimit, async (req: any, res) => {
+  app.post('/api/ai-studio/avatar', authMiddleware, fullAccessMiddleware, studioHeavyLimit, studioAsync, async (req: any, res) => {
     try {
       const { text, audioUrl, size, voice, apresentador } = req.body || {};
       if (!text && !audioUrl) return res.status(400).json({ message: 'Informe o texto a ser falado' });
@@ -6647,7 +6676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vídeo de anúncio (imagem + narração → MP4; Seedance/Kling com FAL_KEY)
-  app.post('/api/ai-studio/video', authMiddleware, fullAccessMiddleware, studioHeavyLimit, async (req: any, res) => {
+  app.post('/api/ai-studio/video', authMiddleware, fullAccessMiddleware, studioHeavyLimit, studioAsync, async (req: any, res) => {
     try {
       const { script, size, voice, resolution, duration } = req.body || {};
       const imageUrl = await studioPublicUrl(req, req.body?.imageUrl, 'ai-uploads');

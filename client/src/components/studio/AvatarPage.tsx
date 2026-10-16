@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { UserRound, SquarePen, Eye, Download, Maximize2, User, Crop, Image as ImageIcon, MessageSquare, Sparkles, Play } from "lucide-react";
 import { useStudio } from "./store";
+import { postLong } from "./runners";
 import { ratioSpec } from "./types";
 import type { RatioId } from "./types";
 import {
@@ -52,7 +53,7 @@ export default function AvatarPage() {
     if (f.roteiro.length > MAX) return toast({ title: "Roteiro muito longo", description: `O limite é ${MAX} caracteres.`, variant: "destructive" });
     setBusy(true);
     try {
-      const r = await apiRequest("POST", "/api/ai-studio/avatar", {
+      const d = await postLong<{ url: string }>("/api/ai-studio/avatar", {
         imageUrl: f.foto[0]?.data || brief.photo || undefined,
         text: f.roteiro,
         voice: brief.voice,
@@ -61,7 +62,6 @@ export default function AvatarPage() {
         // Sem foto, o servidor cria o apresentador a partir destes campos.
         apresentador: { objetivo: f.objetivo, produto: f.produto, publico: f.publico, estilo: f.estilo, cenario: f.cenario, observacoes: f.observacoes, ratio: f.formato },
       });
-      const d = (await r.json()) as { url: string };
       setUrl(d.url);
       addAsset({ kind: "video", url: d.url, label: f.produto || "Avatar", from: "Avatar", ratio: f.formato });
     } catch (e: any) {

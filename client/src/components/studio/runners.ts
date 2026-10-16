@@ -10,6 +10,27 @@ const post = async <T,>(url: string, body: any): Promise<T> => {
   return (await r.json()) as T;
 };
 
+/**
+ * Geração longa (imagem, vídeo, avatar, motion): roda em segundo plano no servidor,
+ * porque o Cloudflare corta pedidos com mais de 100s. Envia, recebe o jobId e consulta
+ * até ficar pronto.
+ */
+export async function postLong<T>(url: string, body: any, maxMs = 15 * 60_000): Promise<T> {
+  const first = await post<any>(url, { ...body, async: true });
+  if (!first?.jobId) return first as T; // rota sem segundo plano: já veio o resultado
+  const started = Date.now();
+  while (Date.now() - started < maxMs) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const r = await fetch(`/api/ai-studio/jobs/${first.jobId}`, { credentials: "include" });
+    if (r.status === 404) throw new Error("O sistema foi atualizado enquanto gerava. Tente de novo.");
+    if (!r.ok) continue; // oscilação de rede: tenta de novo
+    const j = await r.json();
+    if (j.status === "done") return j.result as T;
+    if (j.status === "error") throw new Error(j.error || "Erro na geração");
+  }
+  throw new Error("A geração demorou demais. Tente de novo.");
+}
+
 export interface CopyParams {
   tipo: string;
   framework: string;
@@ -46,7 +67,7 @@ export interface ImageParams {
 }
 
 export const genImage = (brief: Brief, p: ImageParams) =>
-  post<{ url: string }>("/api/ai-studio/image", {
+  postLong<{ url: string }>("/api/ai-studio/image", {
     produto: brief.produto,
     estilo: brief.estilo,
     headline: p.headline ?? brief.headline,
@@ -88,7 +109,7 @@ export const genTts = (brief: Brief, p: TtsParams) =>
   });
 
 export const genAvatar = (brief: Brief, p: { text: string; photo?: string }) =>
-  post<{ url: string }>("/api/ai-studio/avatar", {
+  postLong<{ url: string }>("/api/ai-studio/avatar", {
     imageUrl: p.photo ?? brief.photo,
     text: p.text,
     voice: brief.voice,
@@ -105,7 +126,7 @@ export interface VideoParams {
 }
 
 export const genVideo = (brief: Brief, p: VideoParams) =>
-  post<{ url: string }>("/api/ai-studio/video", {
+  postLong<{ url: string }>("/api/ai-studio/video", {
     prompt: p.prompt || `${brief.produto}${brief.estilo ? `, ${brief.estilo}` : ""}`,
     script: p.script,
     imageUrl: p.imageUrl,

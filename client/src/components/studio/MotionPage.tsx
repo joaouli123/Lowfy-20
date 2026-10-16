@@ -8,6 +8,7 @@ import {
   Clapperboard, Lightbulb, ScrollText, Mic, Sparkles, RefreshCw, Check, Play, Pause, ArrowLeft, Loader2, Wand2, Plus, X, Eye,
 } from "lucide-react";
 import { useStudio } from "./store";
+import { postLong } from "./runners";
 import { playPreview, useVoices } from "./ui";
 import { FieldLabel, FormPanel, PageGrid, PageHeader, Pill, PillGroup, PreviewPanel, DownloadButton, useLocalForm } from "./page-kit";
 
@@ -70,12 +71,21 @@ export default function MotionPage() {
     if (d) patch({ audioUrl: d.audioUrl, words: d.words, timed: d.scenes, duration: d.duration, html: "", passo: 4 });
   };
 
+  // A animação leva minutos: roda em segundo plano no servidor (ver postLong).
   const gerarMotion = async (comAjuste = false) => {
-    const d = await call<{ html: string }>("/api/ai-studio/motion/animate", {
-      scenes: f.timed, duration: f.duration, formato: f.formato, estilo: f.estilo, cores: f.cores,
-      instrucao: comAjuste ? instrucao : undefined, htmlAnterior: comAjuste ? f.html : undefined,
-    }, "motion", "Erro ao criar a animação");
-    if (d) { patch({ html: d.html }); setInstrucao(""); }
+    setBusy("motion");
+    try {
+      const d = await postLong<{ html: string }>("/api/ai-studio/motion/animate", {
+        scenes: f.timed, duration: f.duration, formato: f.formato, estilo: f.estilo, cores: f.cores, idioma: brief.lang,
+        instrucao: comAjuste ? instrucao : undefined, htmlAnterior: comAjuste ? f.html : undefined,
+      });
+      patch({ html: d.html });
+      setInstrucao("");
+    } catch (e: any) {
+      toast({ title: "Erro ao criar a animação", description: e?.message || "Tente novamente", variant: "destructive" });
+    } finally {
+      setBusy("");
+    }
   };
 
   const voice = useMemo(() => catalog.find((v) => v.voiceId === f.voice) || catalog[0], [catalog, f.voice]);

@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import * as kie from "./kie";
 import { langName, llmJson } from "./aiStudio";
 import { logger } from "../utils/logger";
@@ -139,22 +140,40 @@ function extractHtml(text: string): string {
   return i >= 0 ? raw.slice(i, j > i ? j + 7 : undefined) : raw;
 }
 
-/** Claude: API da Anthropic direto (ANTHROPIC_API_KEY) ou, sem ela, pela Kie. */
+/**
+ * Claude: SDK oficial da Anthropic (ANTHROPIC_API_KEY) ou, sem ela, pela Kie.
+ * Opus 5.5 sempre raciocina antes de responder (não dá para desligar): o controle é o
+ * effort. Com saída longa (HTML de 10-15k tokens) precisa de max_tokens alto e streaming,
+ * senão o raciocínio consome o limite e o texto volta vazio.
+ */
+let _anthropic: Anthropic | null = null;
+function anthropic(): Anthropic {
+  if (!_anthropic) {
+    _anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      // Chave criada fora de um workspace exige o ID do workspace.
+      defaultHeaders: process.env.ANTHROPIC_WORKSPACE_ID ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID } : undefined,
+    });
+  }
+  return _anthropic;
+}
+
 async function claude(system: string, user: string, maxTokens: number): Promise<string> {
-  const key = process.env.ANTHROPIC_API_KEY || "";
-  if (!key) return kie.kieClaude(system, user, { maxTokens });
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json",
-      // Chave criada fora de um workspace exige o ID do workspace no cabeçalho.
-      ...(process.env.ANTHROPIC_WORKSPACE_ID ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID } : {}),
-    },
-    body: JSON.stringify({ model: process.env.ANTHROPIC_MOTION_MODEL || "claude-opus-5-5", max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
-    signal: AbortSignal.timeout(5 * 60_000),
-  });
-  const j: any = await r.json().catch(() => ({}));
-  const text = Array.isArray(j?.content) ? j.content.map((c: any) => c?.text || "").join("") : "";
-  if (!text) throw new Error(`Claude (Anthropic) ${r.status}: ${String(j?.error?.message || "sem resposta").slice(0, 160)}`);
+  if (!process.env.ANTHROPIC_API_KEY) return kie.kieClaude(system, user, { maxTokens });
+  const stream = anthropic().beta.messages.stream({
+    model: process.env.ANTHROPIC_MOTION_MODEL || "claude-opus-5-5",
+    max_tokens: Math.max(maxTokens, 64000),
+    output_config: { effort: "medium" },
+    // Se o filtro de segurança recusar, a própria API refaz em outro modelo.
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    system,
+    messages: [{ role: "user", content: user }],
+  } as any);
+  const msg: any = await stream.finalMessage();
+  if (msg.stop_reason === "refusal") throw new Error("O Claude recusou gerar esta animação. Ajuste o roteiro e tente de novo.");
+  const text = (msg.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
+  if (!text) throw new Error(`Claude não devolveu a animação (motivo: ${msg.stop_reason}).`);
+  if (msg.stop_reason === "max_tokens") logger.warn("[Motion] resposta cortada por max_tokens");
   return text;
 }

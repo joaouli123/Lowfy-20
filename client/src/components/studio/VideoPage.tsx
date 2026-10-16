@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Video, FileText, Eye, Download, Maximize2, Sparkles, Film } from "lucide-react";
 import { useStudio } from "./store";
+import { postLong } from "./runners";
 import { ratioSpec } from "./types";
 import type { RatioId } from "./types";
 import {
@@ -49,7 +50,7 @@ export default function VideoPage() {
   const run = async () => {
     setBusy(true);
     try {
-      const r = await apiRequest("POST", "/api/ai-studio/video", {
+      const d = await postLong<{ url: string }>("/api/ai-studio/video", {
         produto: f.produto, objetivo: f.objetivo, publico: f.publico, mensagem: f.mensagem, estilo: f.estilo, cta: f.cta, observacoes: f.observacoes,
         imageUrl: f.arquivos[thumb]?.data || f.arquivos[0]?.data || undefined,
         script: f.mensagem,
@@ -59,7 +60,6 @@ export default function VideoPage() {
         duration: f.duracao,
         idioma: brief.lang,
       });
-      const d = (await r.json()) as { url: string };
       setUrl(d.url);
       addAsset({ kind: "video", url: d.url, label: f.produto || "Vídeo", from: "Vídeo", ratio: f.formato });
     } catch (e: any) {
