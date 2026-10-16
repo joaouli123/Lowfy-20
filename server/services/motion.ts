@@ -145,7 +145,11 @@ async function claude(system: string, user: string, maxTokens: number): Promise<
   if (!key) return kie.kieClaude(system, user, { maxTokens });
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    headers: {
+      "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json",
+      // Chave criada fora de um workspace exige o ID do workspace no cabeçalho.
+      ...(process.env.ANTHROPIC_WORKSPACE_ID ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID } : {}),
+    },
     body: JSON.stringify({ model: process.env.ANTHROPIC_MOTION_MODEL || "claude-opus-5-5", max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
     signal: AbortSignal.timeout(5 * 60_000),
   });

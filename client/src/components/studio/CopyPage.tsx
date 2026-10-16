@@ -7,6 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Type, FileText, Eye, Copy as CopyIcon, Download, ChevronDown, Wand2, RotateCcw, Check, Mic } from "lucide-react";
 import { useStudio } from "./store";
+import { CopyPreview, copyToText } from "./CopyPreviews";
+import type { Canal, CopyOut } from "./CopyPreviews";
+import EXEMPLOS from "./copy-exemplos.json";
 import {
   FieldLabel, FormFooter, FormPanel, MissingHint, PageGrid, PageHeader, PillGroup, PreviewLoading, PreviewPanel,
   missingOf, selectCls, useLocalForm,
@@ -19,45 +22,40 @@ const TONS = [
   { v: "emocional", label: "Emocional" }, { v: "descontraido", label: "Descontraído" },
 ] as const;
 const CANAIS = [
-  { v: "instagram", label: "Instagram" }, { v: "whatsapp", label: "WhatsApp" },
-  { v: "landing", label: "Landing page" }, { v: "anuncio", label: "Anúncio" },
+  { v: "social", label: "Redes sociais" }, { v: "meta", label: "Anúncio (Meta Ads)" }, { v: "whatsapp", label: "WhatsApp" },
+  { v: "landing", label: "Landing page" }, { v: "email", label: "E-mail" },
 ] as const;
+const CANAIS_VALIDOS = CANAIS.map((c) => c.v) as string[];
 const TAMANHOS = [{ v: "curto", label: "Curto" }, { v: "medio", label: "Médio" }, { v: "longo", label: "Longo" }] as const;
 
-interface CopyKit { headline: string; subheadline: string; texto: string; cta: string; variacoes: string[] }
 
 const DEFAULTS = {
   modo: "simples" as "simples" | "detalhado", descricao: "",
   produto: "", objetivo: "", publico: "", oferta: "", beneficios: "", cta: "", observacoes: "",
-  tom: "direto" as string, canal: "instagram" as string, tamanho: "curto" as string,
+  tom: "direto" as string, canal: "social" as string, tamanho: "curto" as string,
 };
 
-const SAMPLE: CopyKit = {
-  headline: "Mais desempenho no seu dia a dia",
-  subheadline: "Tênis esportivo com 50% OFF apenas hoje.",
-  texto: "Conforto, leveza e tecnologia para você ir mais longe. Nosso tênis esportivo é ideal para quem busca performance, sem abrir mão do estilo.",
-  cta: "Garanta o seu agora!",
-  variacoes: ["Seu próximo passo para uma vida mais ativa", "Conforto que acompanha o seu ritmo", "Qualidade e estilo em todos os momentos"],
-};
 
 export default function CopyPage() {
   const { brief, addAsset, setScript, setTab } = useStudio();
   const { toast } = useToast();
   const [f, patch, reset] = useLocalForm("copy", DEFAULTS);
-  const [out, setOut] = useState<CopyKit | null>(null);
+  const [out, setOut] = useState<CopyOut | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   const simples = f.modo === "simples";
+  // Canal salvo de versões antigas (instagram/anuncio) cai em Redes sociais.
+  const canal = (CANAIS_VALIDOS.includes(f.canal) ? f.canal : "social") as Canal;
   const missing = simples ? missingOf([["o que você precisa", f.descricao]]) : missingOf([["produto ou serviço", f.produto]]);
 
   const example = () => simples ? patch({
     descricao: "Quero vender meu curso online de inglês para iniciantes, para adultos de 25 a 45 anos que travam na hora de falar. Está com 50% de desconto e tem 7 dias de garantia. As aulas são curtas, de 15 minutos, e a pessoa conversa desde o primeiro dia.",
-    canal: "instagram", tamanho: "medio",
+    canal: "social", tamanho: "medio",
   }) : patch({
     produto: "Curso online de inglês para iniciantes", objetivo: "Vender um produto", publico: "Adultos de 25 a 45 anos que travam na hora de falar",
     oferta: "50% de desconto + 7 dias de garantia", beneficios: "Aulas curtas de 15 min, conversação desde o 1º dia, certificado", cta: "Garanta o seu agora!",
-    tom: "direto", canal: "instagram", tamanho: "medio",
+    tom: "direto", canal: "social", tamanho: "medio",
   });
 
   const run = async () => {
@@ -65,12 +63,12 @@ export default function CopyPage() {
     try {
       // No modo simples só vai a descrição livre: os campos detalhados escondidos não interferem.
       const body = simples
-        ? { descricao: f.descricao, canal: f.canal, tamanho: f.tamanho, idioma: brief.lang }
-        : { ...f, descricao: undefined, idioma: brief.lang };
+        ? { descricao: f.descricao, canal, tamanho: f.tamanho, idioma: brief.lang }
+        : { ...f, canal, descricao: undefined, idioma: brief.lang };
       const r = await apiRequest("POST", "/api/ai-studio/copy-kit", body);
-      const d = (await r.json()) as CopyKit;
+      const d = (await r.json()) as CopyOut;
       setOut(d);
-      addAsset({ kind: "copy", text: fullText(d), label: (simples ? f.descricao : f.produto).slice(0, 40) || "Copy", from: "Copy" });
+      addAsset({ kind: "copy", text: copyToText(canal, d), label: (simples ? f.descricao : f.produto).slice(0, 40) || "Copy", from: "Copy" });
     } catch (e: any) {
       toast({ title: "Erro ao gerar copy", description: e?.message || "Tente novamente", variant: "destructive" });
     } finally {
@@ -78,8 +76,9 @@ export default function CopyPage() {
     }
   };
 
-  const shown = out || SAMPLE;
-  const isSample = !out;
+  // Sem resultado (ou trocou de canal): mostra o exemplo real daquele canal.
+  const isSample = !out || out.canal !== canal;
+  const shown: CopyOut = isSample ? ((EXEMPLOS as Record<string, CopyOut>)[canal] || {}) : out!;
 
   const copy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -88,9 +87,7 @@ export default function CopyPage() {
   };
 
   const download = (ext: "txt" | "md") => {
-    const body = ext === "md"
-      ? `# ${shown.headline}\n\n_${shown.subheadline}_\n\n${shown.texto}\n\n**${shown.cta}**\n\n## Variações de headline\n${shown.variacoes.map((v) => `- ${v}`).join("\n")}\n`
-      : fullText(shown);
+    const body = copyToText(canal, shown);
     const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: `copy-${((simples ? f.descricao : f.produto) || "lowfy").slice(0, 30).replace(/[^\w-]+/g, "-")}.${ext}` });
     a.click();
@@ -151,12 +148,12 @@ export default function CopyPage() {
                 <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*]:min-w-0">
                   <div>
                     <FieldLabel>Onde vai usar</FieldLabel>
-                    <PillGroup options={[...CANAIS]} value={f.canal} onChange={(v) => patch({ canal: v })} />
+                    <PillGroup options={[...CANAIS]} value={canal} onChange={(v) => patch({ canal: v })} />
                   </div>
-                  <div>
+                  {canal !== "landing" && <div>
                     <FieldLabel>Tamanho do texto</FieldLabel>
                     <PillGroup options={[...TAMANHOS]} value={f.tamanho} onChange={(v) => patch({ tamanho: v })} />
-                  </div>
+                  </div>}
                 </div>
               </div>
             ) : (
@@ -185,8 +182,8 @@ export default function CopyPage() {
                 <PillGroup options={[...TONS]} value={f.tom} onChange={(v) => patch({ tom: v })} />
               </div>
               <div>
-                <FieldLabel>Canal</FieldLabel>
-                <PillGroup options={[...CANAIS]} value={f.canal} onChange={(v) => patch({ canal: v })} />
+                <FieldLabel>Onde vai usar</FieldLabel>
+                <PillGroup options={[...CANAIS]} value={canal} onChange={(v) => patch({ canal: v })} />
               </div>
               <div>
                 <FieldLabel optional>Benefícios / diferenciais</FieldLabel>
@@ -199,10 +196,10 @@ export default function CopyPage() {
                   {CTAS.map((x) => <option key={x}>{x}</option>)}
                 </select>
               </div>
-              <div>
+              {canal !== "landing" && <div>
                 <FieldLabel>Tamanho do texto</FieldLabel>
                 <PillGroup options={[...TAMANHOS]} value={f.tamanho} onChange={(v) => patch({ tamanho: v })} />
-              </div>
+              </div>}
               <div>
                 <FieldLabel optional>Observações</FieldLabel>
                 <Textarea value={f.observacoes} onChange={(e) => patch({ observacoes: e.target.value })} placeholder="Ex.: mencionar cor, tamanho, garantia, etc..." className="min-h-[64px]" />
@@ -215,10 +212,10 @@ export default function CopyPage() {
           <PreviewPanel
             busy={busy}
             icon={Eye}
-            sub={isSample ? "Veja como sua copy pode ficar." : "Sua copy está pronta. Copie ou baixe."}
+            sub={isSample ? "Exemplo real deste canal. A sua copy aparece no lugar." : "Sua copy está pronta. Copie ou baixe."}
             actions={
               <>
-                <Button variant="outline" className="h-10" disabled={isSample} onClick={() => copy(fullText(shown), "all")}>
+                <Button variant="outline" className="h-10" disabled={isSample} onClick={() => copy(copyToText(canal, shown), "all")}>
                   {copied === "all" ? <Check className="w-4 h-4 mr-2 text-primary" /> : <CopyIcon className="w-4 h-4 mr-2" />} Copiar texto
                 </Button>
                 <DropdownMenu>
@@ -233,39 +230,18 @@ export default function CopyPage() {
               </>
             }
           >
-            <div className="relative space-y-4">
-              {isSample && <span className="absolute -top-1 right-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted rounded px-1.5 py-0.5 z-10">Exemplo</span>}
-
-              <Block title="Headline" onCopy={isSample ? undefined : () => copy(`${shown.headline}\n${shown.subheadline}`, "h")} copied={copied === "h"} tinted>
-                <p className="text-[17px] font-bold text-primary leading-snug">{shown.headline}</p>
-                {shown.subheadline && <p className="text-xs text-muted-foreground mt-1">{shown.subheadline}</p>}
-              </Block>
-
-              <Block title="Texto principal" onCopy={isSample ? undefined : () => copy(shown.texto, "t")} copied={copied === "t"}>
-                <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{shown.texto}</p>
-              </Block>
-
-              <Block title="CTA" onCopy={isSample ? undefined : () => copy(shown.cta, "c")} copied={copied === "c"} tinted>
-                <p className="text-sm font-semibold">{shown.cta}</p>
-              </Block>
-
-              {shown.variacoes.length > 0 && (
-                <Block title="Variações de headline" onCopy={isSample ? undefined : () => copy(shown.variacoes.join("\n"), "v")} copied={copied === "v"}>
-                  <ul className="space-y-1.5">
-                    {shown.variacoes.map((v, i) => (
-                      <li key={i} className="flex gap-2 text-[13px]"><span className="w-1.5 h-1.5 rounded-full bg-primary mt-[7px] flex-shrink-0" />{v}</li>
-                    ))}
-                  </ul>
-                </Block>
-              )}
-
-              {busy && <PreviewLoading label="Escrevendo sua copy…" sub="A IA está testando ângulos diferentes" />}
+            <div className="relative">
+              {isSample && <span className="absolute -top-2 right-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-[color-mix(in_srgb,var(--muted)_100%,transparent)] rounded px-1.5 py-0.5 z-20">Exemplo</span>}
+              <CopyPreview key={`${canal}-${isSample}`} canal={canal} d={shown} />
+              {busy && <PreviewLoading label="Escrevendo sua copy…" sub={canal === "landing" ? "A landing page leva uns 20 segundos" : "A IA está testando ângulos diferentes"} />}
             </div>
 
             {!isSample && (
               <div className="flex flex-wrap gap-2 -mt-1">
                 <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => void run()} disabled={busy}><RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Gerar outra versão</Button>
-                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setScript(shown.texto); setTab("narracao"); }}><Mic className="w-3.5 h-3.5 mr-1.5" /> Narrar este texto</Button>
+                {(canal === "social" || canal === "whatsapp") && (
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setScript(copyToText(canal, shown)); setTab("narracao"); }}><Mic className="w-3.5 h-3.5 mr-1.5" /> Narrar este texto</Button>
+                )}
               </div>
             )}
           </PreviewPanel>
@@ -274,27 +250,3 @@ export default function CopyPage() {
     </div>
   );
 }
-
-function Block({ title, children, onCopy, copied, tinted }: { title: string; children: React.ReactNode; onCopy?: () => void; copied?: boolean; tinted?: boolean }) {
-  return (
-    <div>
-      <p className="text-[13px] font-semibold mb-1.5">{title}</p>
-      <div className={`relative rounded-xl p-3.5 pr-12 ${tinted ? "bg-[color-mix(in_srgb,var(--accent)_50%,transparent)]" : "bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]"}`}>
-        {children}
-        {onCopy && (
-          <button
-            type="button"
-            onClick={onCopy}
-            className="absolute right-2.5 top-2.5 w-8 h-8 rounded-lg border bg-card flex items-center justify-center hover:bg-muted transition"
-            aria-label={`Copiar ${title}`}
-          >
-            {copied ? <Check className="w-4 h-4 text-primary" /> : <CopyIcon className="w-4 h-4" />}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const fullText = (d: CopyKit) =>
-  [d.headline, d.subheadline, "", d.texto, "", d.cta, "", "Variações de headline:", ...d.variacoes.map((v) => `- ${v}`)].join("\n").trim();

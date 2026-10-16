@@ -932,11 +932,13 @@ export interface CopyKitParams {
   tom?: string; canal?: string; cta?: string; tamanho?: string; observacoes?: string; idioma?: string;
 }
 
-const CANAL_LABEL: Record<string, string> = { instagram: "legenda de Instagram", whatsapp: "mensagem de WhatsApp", landing: "seção de landing page", anuncio: "anúncio pago (Meta/Google)" };
 const TAMANHO_LABEL: Record<string, string> = { curto: "curto (2 a 3 frases)", medio: "médio (1 parágrafo de 4 a 6 frases)", longo: "longo (2 a 3 parágrafos)" };
 
-export async function generateCopyKit(p: CopyKitParams): Promise<{ headline: string; subheadline: string; texto: string; cta: string; variacoes: string[] }> {
-  const user = `Escreva a copy de um(a) ${CANAL_LABEL[p.canal || ""] || "anúncio"}.
+export async function generateCopyKit(p: CopyKitParams): Promise<Record<string, any>> {
+  const canal = CANAIS_COPY[p.canal || ""] ? (p.canal as string) : "social";
+  const c = CANAIS_COPY[canal];
+  const tamanho = canal === "landing" ? "" : `Tamanho: ${TAMANHO_LABEL[p.tamanho || ""] || TAMANHO_LABEL.curto}.`;
+  const user = `Escreva a copy para: ${c.nome}.
 ${p.descricao ? `- O que o cliente precisa (nas palavras dele; extraia daqui produto, público, oferta e objetivo): ${p.descricao}` : ""}
 ${p.produto ? `- Produto/serviço: ${p.produto}` : ""}
 ${p.objetivo ? `- Objetivo: ${p.objetivo}` : ""}
@@ -946,24 +948,55 @@ ${p.beneficios ? `- Benefícios/diferenciais: ${p.beneficios}` : ""}
 ${p.tom ? `- Tom de voz: ${p.tom}` : ""}
 ${p.cta ? `- Chamada para ação desejada: ${p.cta}` : ""}
 ${p.observacoes ? `- Observações: ${p.observacoes}` : ""}
-O texto principal deve ser ${TAMANHO_LABEL[p.tamanho || ""] || TAMANHO_LABEL.curto}.
+Regras do canal: ${c.regras}
+${tamanho}
+NUNCA invente depoimentos, números de clientes, prêmios, prazos ou garantias que o cliente não informou — onde precisar, use um marcador entre colchetes como [depoimento de cliente] ou [prazo da garantia].
 Escreva TODO o conteúdo no idioma: ${langName(p.idioma)}.
-Responda SOMENTE com JSON: {"headline":"até 8 palavras","subheadline":"1 frase curta reforçando a oferta","texto":"texto principal","cta":"chamada para ação curta","variacoes":["3 headlines alternativas"]}`;
+Responda SOMENTE com JSON neste formato: ${c.formato}`;
   let j: any;
   if (kie.kieReady()) {
     try { j = await kie.kieChat(COPY_SYSTEM, user, { json: true, temperature: 0.85 }); }
     catch (e) { if (!OPENAI_KEY && !GEMINI_KEY) throw e; }
   }
   if (!j) j = await llmJson(COPY_SYSTEM, user, 0.85);
-  const str = (v: any) => (typeof v === "string" ? v.trim() : "");
-  return {
-    headline: str(j?.headline),
-    subheadline: str(j?.subheadline),
-    texto: str(j?.texto),
-    cta: str(j?.cta) || p.cta || "",
-    variacoes: Array.isArray(j?.variacoes) ? j.variacoes.map(str).filter(Boolean).slice(0, 5) : [],
-  };
+  return { canal, ...clean(j) };
 }
+
+/** Remove espaços sobrando em todo o JSON (strings, listas e objetos). */
+function clean(v: any): any {
+  if (typeof v === "string") return v.trim();
+  if (Array.isArray(v)) return v.map(clean).filter((x) => x !== "" && x != null);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clean(x)]));
+  return v;
+}
+
+const CANAIS_COPY: Record<string, { nome: string; regras: string; formato: string }> = {
+  social: {
+    nome: "legenda de post para redes sociais (Instagram/Facebook/TikTok)",
+    regras: "A primeira linha é um GANCHO que aparece antes do \"…mais\" e faz parar o scroll. Parágrafos curtos, quebras de linha, emojis com moderação, chamada para ação clara no fim (comentar, salvar, clicar no link da bio). 5 a 10 hashtags relevantes.",
+    formato: '{"gancho":"primeira linha","legenda":"resto da legenda (sem o gancho e sem as hashtags)","cta":"chamada final","hashtags":["#tag"],"variacoes":["3 ganchos alternativos"]}',
+  },
+  meta: {
+    nome: "anúncio de Meta Ads (Facebook/Instagram)",
+    regras: "Texto principal: as 2 primeiras linhas precisam vender sozinhas (o resto fica escondido). Título: no máximo 40 caracteres. Descrição: no máximo 30 caracteres. Botão: escolha UM dos botões oficiais da Meta: Saiba mais, Comprar agora, Cadastre-se, Enviar mensagem, Baixar, Reservar agora, Obter oferta. Evite promessas proibidas pelas políticas da Meta (resultados garantidos, atributos pessoais do tipo \"você que está acima do peso\").",
+    formato: '{"texto_principal":"...","titulo":"até 40 caracteres","descricao":"até 30 caracteres","botao":"Saiba mais","variacoes":[{"texto_principal":"...","titulo":"..."}, {"texto_principal":"...","titulo":"..."}]}',
+  },
+  whatsapp: {
+    nome: "mensagem de WhatsApp (lista de transmissão / atendimento)",
+    regras: "Curta e direta, como uma pessoa falando. Use *negrito* do WhatsApp nos pontos-chave e emojis com moderação. No máximo 4 parágrafos curtos. Termine com uma pergunta ou chamada que gere resposta.",
+    formato: '{"mensagem":"...","variacoes":["2 versões alternativas, ainda mais curtas"]}',
+  },
+  landing: {
+    nome: "landing page de vendas COMPLETA (copy longa, estruturada em seções)",
+    regras: "Copy longa e persuasiva, seção por seção, seguindo a jornada: atenção → problema → solução → benefícios → como funciona → oferta → garantia → objeções (FAQ) → chamada final. Títulos fortes em cada seção. 4 benefícios, 3 passos, 4 perguntas frequentes.",
+    formato: '{"hero":{"titulo":"...","subtitulo":"...","botao":"..."},"problema":{"titulo":"...","texto":"..."},"solucao":{"titulo":"...","texto":"..."},"beneficios":[{"titulo":"...","texto":"..."}],"como_funciona":[{"titulo":"...","texto":"..."}],"oferta":{"titulo":"...","texto":"...","preco":"se informado, senão vazio","botao":"..."},"garantia":{"titulo":"...","texto":"..."},"faq":[{"pergunta":"...","resposta":"..."}],"cta_final":{"titulo":"...","texto":"...","botao":"..."}}',
+  },
+  email: {
+    nome: "e-mail de vendas/marketing",
+    regras: "Assunto curto e curioso (até 50 caracteres) e pré-cabeçalho que complementa o assunto. Corpo em parágrafos curtos, conversando com a pessoa pelo nome ({{nome}}), uma única chamada para ação. Termine com um P.S. que reforça a oferta ou a urgência real informada.",
+    formato: '{"assunto":"...","preheader":"...","corpo":"...","botao":"...","ps":"...","variacoes_assunto":["3 assuntos alternativos"]}',
+  },
+};
 
 // ---------- Avatar sem foto: retrato do apresentador ----------
 

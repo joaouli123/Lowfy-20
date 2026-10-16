@@ -6395,12 +6395,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== AI STUDIO (gerador de criativos) ====================
 
+  // Limite por usuário nas gerações pagas: protege os créditos (Kie, ElevenLabs, Anthropic)
+  // contra abuso ou script. Vídeo/avatar/carrossel/motion custam mais e têm limite menor.
+  const { rateLimit: studioRateLimit } = await import('express-rate-limit');
+  const studioKey = (req: any) => String(req.user?.id || req.ip);
+  const studioLimit = studioRateLimit({
+    windowMs: 60 * 60 * 1000, limit: 60, keyGenerator: studioKey, standardHeaders: true, legacyHeaders: false,
+    validate: false, message: { message: 'Você atingiu o limite de gerações por hora. Tente de novo daqui a pouco.' },
+  });
+  const studioHeavyLimit = studioRateLimit({
+    windowMs: 60 * 60 * 1000, limit: 12, keyGenerator: studioKey, standardHeaders: true, legacyHeaders: false,
+    validate: false, message: { message: 'Você atingiu o limite de vídeos/carrosséis por hora. Tente de novo daqui a pouco.' },
+  });
+
   app.get('/api/ai-studio/capabilities', authMiddleware, async (_req, res) => {
     res.json(aiStudio.aiStudioCapabilities());
   });
 
   // Gerar imagem de criativo
-  app.post('/api/ai-studio/image', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/image', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const { produto, estilo, headline, formato, publico, prompt, size, quality, provider, background, format, compression, objetivo, texto, cta, cores, observacoes, referencia } = req.body || {};
       const reference = typeof referencia === 'string' && referencia.startsWith('data:image/') && referencia.length < 14_000_000 ? referencia : undefined;
@@ -6431,7 +6444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     carouselJobs.forEach((j, id) => { if (j.createdAt < cutoff) carouselJobs.delete(id); });
   };
 
-  app.post('/api/ai-studio/carousel', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/carousel', authMiddleware, fullAccessMiddleware, studioHeavyLimit, async (req: any, res) => {
     const b = req.body || {};
     const tema = String(b.tema || '').trim();
     if (tema.length < 3) return res.status(400).json({ message: 'Diga sobre o que é o carrossel' });
@@ -6492,7 +6505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== MOTION (roteiro → dublagem → animação) ====================
-  app.post('/api/ai-studio/motion/script', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/motion/script', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const b = req.body || {};
       const ideia = String(b.ideia || '').trim();
@@ -6505,7 +6518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai-studio/motion/voice', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/motion/voice', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const cenas = (Array.isArray(req.body?.cenas) ? req.body.cenas : [])
         .map((c: any) => ({ texto: String(c?.texto || '').slice(0, 600), visual: String(c?.visual || '').slice(0, 600) }))
@@ -6521,7 +6534,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai-studio/motion/animate', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/motion/animate', authMiddleware, fullAccessMiddleware, studioHeavyLimit, async (req: any, res) => {
     try {
       const b = req.body || {};
       const scenes = Array.isArray(b.scenes) ? b.scenes.slice(0, 12) : [];
@@ -6540,7 +6553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gerar copy persuasiva
-  app.post('/api/ai-studio/copy', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/copy', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const { produto, publico, dor, beneficios, oferta, tipo, framework, tom, variacoes } = req.body || {};
       if (!produto || !tipo) {
@@ -6556,7 +6569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gerar narração (TTS)
-  app.post('/api/ai-studio/tts', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/tts', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const { text, voice, provider, instructions, modelId, stability, similarityBoost, style, speed } = req.body || {};
       if (!text || String(text).trim().length < 2) {
@@ -6590,7 +6603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Copy estruturada (headline, texto, CTA e variações) para a página de Copy
-  app.post('/api/ai-studio/copy-kit', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/copy-kit', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const b = req.body || {};
       if (!b.produto && !String(b.descricao || '').trim()) return res.status(400).json({ message: 'Conte o que você precisa ou informe o produto' });
@@ -6599,7 +6612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         produto: String(b.produto || ''), objetivo: b.objetivo, publico: b.publico, oferta: b.oferta, beneficios: b.beneficios,
         tom: b.tom, canal: b.canal, cta: b.cta, tamanho: b.tamanho, observacoes: b.observacoes, idioma: b.idioma,
       });
-      const text = [result.headline, result.subheadline, result.texto, result.cta].filter(Boolean).join('\n\n');
+      const text = JSON.stringify(result).slice(0, 20000);
       void aiGenStore.saveGen({ userId: req.user.id, type: 'copy', text, title: String(b.produto || b.descricao || 'Copy').slice(0, 80), prompt: String(b.canal || '') });
       res.json(result);
     } catch (error: any) {
@@ -6609,7 +6622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Avatar falante (foto + narração → MP4)
-  app.post('/api/ai-studio/avatar', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/avatar', authMiddleware, fullAccessMiddleware, studioHeavyLimit, async (req: any, res) => {
     try {
       const { text, audioUrl, size, voice, apresentador } = req.body || {};
       if (!text && !audioUrl) return res.status(400).json({ message: 'Informe o texto a ser falado' });
@@ -6634,7 +6647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vídeo de anúncio (imagem + narração → MP4; Seedance/Kling com FAL_KEY)
-  app.post('/api/ai-studio/video', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/video', authMiddleware, fullAccessMiddleware, studioHeavyLimit, async (req: any, res) => {
     try {
       const { script, size, voice, resolution, duration } = req.body || {};
       const imageUrl = await studioPublicUrl(req, req.body?.imageUrl, 'ai-uploads');
@@ -6668,7 +6681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonagem de voz (ElevenLabs IVC) — recebe amostras de áudio em base64
-  app.post('/api/ai-studio/clone-voice', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ai-studio/clone-voice', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const { name, description, samples } = req.body || {};
       if (!Array.isArray(samples) || !samples.length) {
