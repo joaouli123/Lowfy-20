@@ -73,58 +73,82 @@ export interface GenerateImageParams {
  * de texto-em-imagem (Ideogram / FLUX.2 / Recraft) habilitam ao configurar a chave.
  */
 export async function generateAdImage(params: GenerateImageParams): Promise<{ buffer: Buffer; mime: string }> {
-  // Kie.ai (GPT Image 2) — bem mais barato que a OpenAI direto.
+  const aspect = kie.kieAspect(params.aspect || params.size);
+  let kieErr: any = null;
+
+  // 1) Kie.ai (GPT Image 2) — bem mais barato que a OpenAI direto.
   if (kie.kieReady()) {
-    const ref = params.reference ? await kie.kieFileUrl(params.reference, { folder: "referencias" }) : null;
-    const input: Record<string, any> = {
-      prompt: params.prompt.slice(0, 20000),
-      aspect_ratio: kie.kieAspect(params.aspect || params.size),
-      resolution: "1K",
-    };
-    if (params.background && params.background !== "auto") input.background = params.background;
-    if (ref) input.input_urls = [ref];
-    const r = await kie.kieRun(ref ? "gpt-image-2-image-to-image" : "gpt-image-2-text-to-image", input, { timeoutMs: 4 * 60_000 });
-    return kie.kieDownload(r.urls[0]);
-  }
-
-  // Ideogram (melhor texto-em-imagem) se configurado
-  if (process.env.IDEOGRAM_API_KEY && (params.provider as any) === "ideogram") {
-    throw new Error("Integração Ideogram pronta para implementar (IDEOGRAM_API_KEY detectada).");
-  }
-
-  // Premium: OpenAI gpt-image (quando a chave é válida). Em falha/ausência,
-  // cai para um gerador GRATUITO (Flux via Pollinations) para o recurso funcionar
-  // sem chave — o gpt-image assume automaticamente quando a chave válida é configurada.
-  if (OPENAI_KEY) {
     try {
-      const fmt = params.format || "png";
-      const body: any = {
-        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-        prompt: params.prompt,
-        size: params.size || "1024x1024",
-        quality: params.quality || "high",
-        background: params.background || "auto",
-        output_format: fmt,
-        n: 1,
-      };
-      if ((fmt === "jpeg" || fmt === "webp") && typeof params.compression === "number") {
-        body.output_compression = Math.max(0, Math.min(100, params.compression));
-      }
-      const ref = parseDataUrl(params.reference);
-      const res = ref
-        ? await openai().images.edit({ ...body, background: undefined, image: await toFile(ref.buffer, `ref.${ref.ext}`, { type: ref.mime }) })
-        : await openai().images.generate(body);
-      const b64 = (res as any).data?.[0]?.b64_json;
-      if (b64) {
-        const mime = fmt === "jpeg" ? "image/jpeg" : fmt === "webp" ? "image/webp" : "image/png";
-        return { buffer: Buffer.from(b64, "base64"), mime };
-      }
+      const ref = params.reference ? await kie.kieFileUrl(params.reference, { folder: "referencias" }) : null;
+      const input: Record<string, any> = { prompt: params.prompt.slice(0, 20000), aspect_ratio: aspect, resolution: "1K" };
+      if (params.background && params.background !== "auto") input.background = params.background;
+      if (ref) input.input_urls = [ref];
+      const r = await kie.kieRun(ref ? "gpt-image-2-image-to-image" : "gpt-image-2-text-to-image", input, { timeoutMs: 4 * 60_000 });
+      return await kie.kieDownload(r.urls[0]);
     } catch (e: any) {
-      throw new Error(`Falha na geração de imagem premium (gpt-image): ${e?.message?.slice(0, 90)}`);
+      kieErr = e;
+      logger.warn(`[Imagem] Kie falhou, tentando OpenAI: ${e?.message}`);
+      if (!OPENAI_KEY) throw e;
     }
   }
 
-  throw new Error("Geração de imagem requer a chave premium OPENAI_API_KEY (gpt-image).");
+  // 2) OpenAI direto (reserva). gpt-image-2: o gpt-image-1 foi desligado em 23/10/2026.
+  if (OPENAI_KEY) {
+    try {
+      const fmt = params.format || "png";
+      const [w, h] = aspect.split(":").map(Number);
+      const ratio = w && h ? w / h : 1;
+      const size = Math.abs(ratio - 1) < 0.05 ? "1024x1024" : ratio > 1 ? "1536x1024" : "1024x1536";
+      const body: any = {
+        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
+        prompt: params.prompt,
+        size,
+        quality: params.quality || "high",
+        output_format: fmt,
+        n: 1,
+      };
+      if (params.background && params.background !== "auto") body.background = params.background;
+      const ref = await referenceBuffer(params.reference);
+      const res = ref
+        ? await openai().images.edit({ ...body, image: await toFile(ref.buffer, `ref.${ref.ext}`, { type: ref.mime }) })
+        : await openai().images.generate(body);
+      const b64 = (res as any).data?.[0]?.b64_json;
+      if (!b64) throw new Error("a OpenAI não devolveu a imagem");
+      const mime = fmt === "jpeg" ? "image/jpeg" : fmt === "webp" ? "image/webp" : "image/png";
+      // A OpenAI só gera 1:1, 3:2 e 2:3: recorta no centro para o formato pedido (4:5, 9:16, 16:9).
+      return { buffer: await cropToAspect(Buffer.from(b64, "base64"), ratio, fmt), mime };
+    } catch (e: any) {
+      const msg = `Falha na geração de imagem (OpenAI): ${String(e?.message || e).slice(0, 120)}`;
+      throw new Error(kieErr ? `${msg} | Kie: ${String(kieErr?.message || "").slice(0, 80)}` : msg);
+    }
+  }
+
+  throw new Error("Geração de imagem requer KIE_API_KEY ou OPENAI_API_KEY.");
+}
+
+/** Referência em data URL ou URL pública → buffer para a OpenAI. */
+async function referenceBuffer(ref?: string): Promise<{ buffer: Buffer; mime: string; ext: string } | null> {
+  if (!ref) return null;
+  const parsed = parseDataUrl(ref);
+  if (parsed) return parsed;
+  if (/^https?:\/\//i.test(ref)) {
+    const r = await fetch(ref);
+    if (!r.ok) return null;
+    const mime = (r.headers.get("content-type") || "image/png").split(";")[0];
+    return { buffer: Buffer.from(await r.arrayBuffer()), mime, ext: mime.includes("jpeg") ? "jpg" : mime.includes("webp") ? "webp" : "png" };
+  }
+  return null;
+}
+
+async function cropToAspect(buf: Buffer, ratio: number, fmt: string): Promise<Buffer> {
+  const sharp = (await import("sharp")).default;
+  const img = sharp(buf);
+  const { width = 0, height = 0 } = await img.metadata();
+  if (!width || !height || Math.abs(width / height - ratio) < 0.02) return buf;
+  let w = width, h = height;
+  if (width / height > ratio) w = Math.round(height * ratio); else h = Math.round(width / ratio);
+  const out = img.extract({ left: Math.round((width - w) / 2), top: Math.round((height - h) / 2), width: w, height: h });
+  return fmt === "jpeg" ? out.jpeg({ quality: 92 }).toBuffer() : fmt === "webp" ? out.webp({ quality: 92 }).toBuffer() : out.png().toBuffer();
 }
 
 function parseDataUrl(dataUrl?: string): { buffer: Buffer; mime: string; ext: string } | null {

@@ -54,12 +54,11 @@ function Rich({ text, className = "" }: { text: string; className?: string }) {
   );
 }
 
-/** Moldura de celular: o preview fica no tamanho real de uma tela de app. */
+/** Card do post/anúncio como aparece na rede social: borda suave, sem moldura de celular. */
 function Phone({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[340px] rounded-[30px] border-[7px] border-slate-900 shadow-xl overflow-hidden bg-slate-900">
-      <div className="h-5 bg-slate-900 flex items-center justify-center"><span className="w-16 h-1.5 rounded-full bg-slate-700" /></div>
-      <div className="bg-white max-h-[560px] overflow-y-auto text-slate-900 font-sans">{children}</div>
+    <div className="mx-auto w-full max-w-[400px] rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.06)] overflow-hidden text-slate-900 font-sans">
+      {children}
     </div>
   );
 }
