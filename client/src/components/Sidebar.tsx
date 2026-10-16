@@ -53,7 +53,15 @@ import {
   TrendingUp,
   DollarSign,
   Wand2,
-  KeyRound
+  KeyRound,
+  Image as ImageIcon,
+  Type,
+  Mic,
+  UserSquare2,
+  Video,
+  AudioWaveform,
+  Workflow,
+  Library
 } from "lucide-react";
 import type { Notification } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -74,6 +82,7 @@ export default function Sidebar() {
   const queryClient = useQueryClient();
   const [isAdminExpanded, setIsAdminExpanded] = useState(false);
   const [isUtilitiesExpanded, setIsUtilitiesExpanded] = useState(false);
+  const [isStudioExpanded, setIsStudioExpanded] = useState(() => location.startsWith("/ai-studio"));
   const [isMarketplaceExpanded, setIsMarketplaceExpanded] = useState(false);
   const { isSidebarOpen, isSidebarCollapsed, closeSidebar, toggleCollapse } = useSidebar();
 
@@ -138,7 +147,17 @@ export default function Sidebar() {
       name: "Estúdio IA",
       href: "/ai-studio",
       icon: Wand2,
-      testId: "nav-ai-studio"
+      testId: "nav-ai-studio",
+      subItems: [
+        { name: "Criativo", href: "/ai-studio/criativo", icon: ImageIcon, testId: "nav-studio-criativo" },
+        { name: "Copy", href: "/ai-studio/copy", icon: Type, testId: "nav-studio-copy" },
+        { name: "Narração", href: "/ai-studio/narracao", icon: Mic, testId: "nav-studio-narracao" },
+        { name: "Avatar", href: "/ai-studio/avatar", icon: UserSquare2, testId: "nav-studio-avatar" },
+        { name: "Vídeo", href: "/ai-studio/video", icon: Video, testId: "nav-studio-video" },
+        { name: "Clone de voz", href: "/ai-studio/clone-de-voz", icon: AudioWaveform, testId: "nav-studio-vozes" },
+        { name: "Fluxos", href: "/ai-studio/fluxos", icon: Workflow, testId: "nav-studio-fluxos" },
+        { name: "Histórico", href: "/ai-studio/historico", icon: Library, testId: "nav-studio-historico" },
+      ],
     },
     {
       name: "Criador de Ebooks",
@@ -360,7 +379,7 @@ export default function Sidebar() {
     },
   ] : [];
 
-  const navigation = user?.isAdmin ? [...mainNav, {
+  const navigation: Array<{ name: string; href: string; icon: any; testId: string; subItems?: Array<{ name: string; href: string; icon: any; testId: string }> }> = user?.isAdmin ? [...mainNav, {
     name: "Painel Admin",
     href: "/admin", // This is a parent link, sub-items will be handled separately
     icon: Shield,
@@ -476,6 +495,9 @@ export default function Sidebar() {
           const Icon = item.icon;
           const isCurrentLocation = isNavLinkActive(item.href);
           const isAdminSection = item.name === "Painel Admin";
+          const isStudioSection = item.href === "/ai-studio";
+          const hasSub = isAdminSection || isStudioSection;
+          const expanded = isAdminSection ? isAdminExpanded : isStudioExpanded;
 
           return (
             <div key={item.href}>
@@ -490,9 +512,14 @@ export default function Sidebar() {
                   )}
                   data-testid={item.testId}
                   onMouseEnter={() => !isAdminSection && preloadOnHover(item.href)}
-                  onClick={() => {
+                  onClick={(e) => {
                     if (isAdminSection) {
                       setIsAdminExpanded(!isAdminExpanded);
+                    }
+                    if (isStudioSection) {
+                      // Já dentro do Estúdio: o clique só abre/fecha o submenu.
+                      if (location.startsWith("/ai-studio")) e.preventDefault();
+                      setIsStudioExpanded(location.startsWith("/ai-studio") ? !isStudioExpanded : true);
                     }
                   }}
                   title={isSidebarCollapsed ? item.name : undefined}
@@ -501,9 +528,9 @@ export default function Sidebar() {
                   {!isSidebarCollapsed && (
                     <>
                       <span>{item.name}</span>
-                      {isAdminSection && (
+                      {hasSub && (
                         <>
-                          {isAdminExpanded ? (
+                          {expanded ? (
                             <ChevronDown className="w-4 h-4 ml-auto" />
                           ) : (
                             <ChevronRight className="w-4 h-4 ml-auto" />
@@ -516,7 +543,7 @@ export default function Sidebar() {
               </Link>
 
               {/* Render sub-items if it's the admin section and it's expanded */}
-              {isAdminSection && isAdminExpanded && item.subItems && !isSidebarCollapsed && (
+              {hasSub && expanded && item.subItems && !isSidebarCollapsed && (
                 <div className="ml-4 mt-1 space-y-1">
                   {item.subItems.map((subItem) => {
                     const SubIcon = subItem.icon;

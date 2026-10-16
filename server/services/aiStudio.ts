@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { GoogleGenAI } from "@google/genai";
 import { logger } from "../utils/logger";
 import { spawn } from "child_process";
@@ -58,6 +58,8 @@ export interface GenerateImageParams {
   format?: "png" | "jpeg" | "webp";
   compression?: number; // 0-100 (jpeg/webp)
   provider?: "openai" | "gemini";
+  /** Imagem de referência (data URL) para guiar estilo/composição. */
+  reference?: string;
 }
 
 /**
@@ -89,7 +91,10 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
       if ((fmt === "jpeg" || fmt === "webp") && typeof params.compression === "number") {
         body.output_compression = Math.max(0, Math.min(100, params.compression));
       }
-      const res = await openai().images.generate(body);
+      const ref = parseDataUrl(params.reference);
+      const res = ref
+        ? await openai().images.edit({ ...body, background: undefined, image: await toFile(ref.buffer, `ref.${ref.ext}`, { type: ref.mime }) })
+        : await openai().images.generate(body);
       const b64 = (res as any).data?.[0]?.b64_json;
       if (b64) {
         const mime = fmt === "jpeg" ? "image/jpeg" : fmt === "webp" ? "image/webp" : "image/png";
@@ -103,9 +108,17 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
   throw new Error("Geração de imagem requer a chave premium OPENAI_API_KEY (gpt-image).");
 }
 
+function parseDataUrl(dataUrl?: string): { buffer: Buffer; mime: string; ext: string } | null {
+  const m = /^data:(image\/(png|jpe?g|webp));base64,(.+)$/i.exec(dataUrl || "");
+  if (!m) return null;
+  return { buffer: Buffer.from(m[3], "base64"), mime: m[1], ext: m[2].replace("jpeg", "jpg") };
+}
+
 /** Nome do idioma para instruções aos modelos (padrão pt-BR). */
 export function langName(code?: string): string {
-  return ({ "pt-BR": "português do Brasil", en: "inglês", es: "espanhol", fr: "francês", it: "italiano", de: "alemão" } as Record<string, string>)[code || "pt-BR"] || "português do Brasil";
+  const c = code || "pt-BR";
+  const names: Record<string, string> = { "pt-BR": "português do Brasil", en: "inglês", es: "espanhol", fr: "francês", it: "italiano", de: "alemão" };
+  return names[c] || names[c.slice(0, 2)] || "português do Brasil";
 }
 
 /**
@@ -119,12 +132,24 @@ export function buildAdImagePrompt(opts: {
   formato?: "quadrado" | "story" | "feed";
   publico?: string;
   idioma?: string;
+  objetivo?: string;
+  texto?: string;
+  cta?: string;
+  cores?: string[];
+  observacoes?: string;
+  temReferencia?: boolean;
 }): string {
   const partes = [
     `Crie um criativo publicitário profissional e fotorrealista para anúncio de: ${opts.produto}.`,
     opts.publico ? `Público-alvo: ${opts.publico}.` : "",
     opts.estilo ? `Estilo visual: ${opts.estilo}.` : "Estilo moderno, alto contraste, com foco no produto.",
     opts.headline ? `Inclua o texto em destaque, perfeitamente legível e sem erros de ortografia: "${opts.headline}".` : "",
+    opts.objetivo ? `Objetivo do anúncio: ${opts.objetivo}.` : "",
+    opts.texto ? `Texto de apoio (menor que a headline): "${opts.texto}".` : "",
+    opts.cta ? `Inclua um botão de chamada para ação com o texto "${opts.cta}".` : "",
+    opts.cores?.length ? `Use a paleta de cores da marca: ${opts.cores.join(", ")}.` : "",
+    opts.temReferencia ? "Use a imagem enviada como referência de estilo, composição e produto." : "",
+    opts.observacoes ? `Observações extras: ${opts.observacoes}.` : "",
     opts.idioma && opts.idioma !== "pt-BR" ? `Qualquer texto na imagem deve estar em ${langName(opts.idioma)}.` : "",
     "Composição limpa, iluminação de estúdio, cores vibrantes, espaço para o produto respirar. Qualidade de agência publicitária. Sem marcas d'água.",
   ];
@@ -729,4 +754,87 @@ async function premiumTalkingAvatar(params: GenerateAvatarParams): Promise<{ buf
     throw new Error("D-ID timeout");
   }
   throw new Error("HeyGen pronto para implementar (HEYGEN_API_KEY detectada).");
+}
+
+// ---------- Página de Copy: kit estruturado ----------
+
+export interface CopyKitParams {
+  produto: string; objetivo?: string; publico?: string; oferta?: string; beneficios?: string;
+  tom?: string; canal?: string; cta?: string; tamanho?: string; observacoes?: string; idioma?: string;
+}
+
+const CANAL_LABEL: Record<string, string> = { instagram: "legenda de Instagram", whatsapp: "mensagem de WhatsApp", landing: "seção de landing page", anuncio: "anúncio pago (Meta/Google)" };
+const TAMANHO_LABEL: Record<string, string> = { curto: "curto (2 a 3 frases)", medio: "médio (1 parágrafo de 4 a 6 frases)", longo: "longo (2 a 3 parágrafos)" };
+
+export async function generateCopyKit(p: CopyKitParams): Promise<{ headline: string; subheadline: string; texto: string; cta: string; variacoes: string[] }> {
+  const user = `Escreva a copy de um(a) ${CANAL_LABEL[p.canal || ""] || "anúncio"}.
+- Produto/serviço: ${p.produto}
+${p.objetivo ? `- Objetivo: ${p.objetivo}` : ""}
+${p.publico ? `- Público-alvo: ${p.publico}` : ""}
+${p.oferta ? `- Oferta: ${p.oferta}` : ""}
+${p.beneficios ? `- Benefícios/diferenciais: ${p.beneficios}` : ""}
+${p.tom ? `- Tom de voz: ${p.tom}` : ""}
+${p.cta ? `- Chamada para ação desejada: ${p.cta}` : ""}
+${p.observacoes ? `- Observações: ${p.observacoes}` : ""}
+O texto principal deve ser ${TAMANHO_LABEL[p.tamanho || ""] || TAMANHO_LABEL.curto}.
+Escreva TODO o conteúdo no idioma: ${langName(p.idioma)}.
+Responda SOMENTE com JSON: {"headline":"até 8 palavras","subheadline":"1 frase curta reforçando a oferta","texto":"texto principal","cta":"chamada para ação curta","variacoes":["3 headlines alternativas"]}`;
+  const j = await llmJson(COPY_SYSTEM, user, 0.85);
+  const str = (v: any) => (typeof v === "string" ? v.trim() : "");
+  return {
+    headline: str(j?.headline),
+    subheadline: str(j?.subheadline),
+    texto: str(j?.texto),
+    cta: str(j?.cta) || p.cta || "",
+    variacoes: Array.isArray(j?.variacoes) ? j.variacoes.map(str).filter(Boolean).slice(0, 5) : [],
+  };
+}
+
+// ---------- Avatar sem foto: retrato do apresentador ----------
+
+const ESTILO_AVATAR: Record<string, string> = {
+  profissional: "roupa social elegante, postura confiante.",
+  casual: "roupa casual moderna, expressão simpática e descontraída.",
+  elegante: "visual sofisticado e elegante, cabelo e maquiagem impecáveis.",
+  vendedor: "visual de apresentador de vendas, sorriso aberto e energia alta.",
+};
+const CENARIO_AVATAR: Record<string, string> = {
+  estudio: "estúdio de gravação com iluminação profissional suave e fundo desfocado",
+  clean: "fundo liso claro e minimalista",
+  escritorio: "escritório moderno desfocado ao fundo",
+  produto: "ambiente com o produto em destaque ao lado, fundo desfocado",
+};
+
+export function buildPresenterPrompt(a: { produto?: string; publico?: string; estilo?: string; cenario?: string; observacoes?: string }): string {
+  return [
+    "Retrato fotorrealista de um(a) apresentador(a) brasileiro(a) olhando diretamente para a câmera, enquadramento do peito para cima, rosto bem iluminado e nítido, expressão natural.",
+    ESTILO_AVATAR[a.estilo || ""] || ESTILO_AVATAR.profissional,
+    `Cenário: ${CENARIO_AVATAR[a.cenario || ""] || CENARIO_AVATAR.estudio}.`,
+    a.produto ? `Contexto: vai apresentar ${a.produto}${a.publico ? ` para ${a.publico}` : ""}.` : "",
+    a.observacoes ? `Detalhes: ${a.observacoes}.` : "",
+    "Sem texto, sem logotipos, sem marcas d'água. Qualidade de foto profissional.",
+  ].filter(Boolean).join(" ");
+}
+
+// ---------- Vídeo: prompt a partir do formulário ----------
+
+const ESTILO_VIDEO: Record<string, string> = {
+  clean: "Visual clean e minimalista, fundo claro, movimentos de câmera suaves.",
+  moderno: "Visual moderno e dinâmico, transições rápidas, cores vivas.",
+  promocional: "Estilo promocional chamativo, energia alta, destaque para a oferta.",
+  cinematografico: "Estilo cinematográfico, iluminação dramática, câmera lenta e profundidade de campo.",
+};
+
+export function buildAdVideoPrompt(b: { produto?: string; objetivo?: string; publico?: string; mensagem?: string; estilo?: string; cta?: string; observacoes?: string; idioma?: string }): string {
+  return [
+    `Vídeo publicitário curto de ${b.produto}.`,
+    b.objetivo ? `Objetivo: ${b.objetivo}.` : "",
+    b.publico ? `Público-alvo: ${b.publico}.` : "",
+    b.mensagem ? `Mensagem principal: "${b.mensagem}".` : "",
+    ESTILO_VIDEO[b.estilo || ""] || ESTILO_VIDEO.clean,
+    b.cta ? `Termine com a chamada para ação "${b.cta}".` : "",
+    b.observacoes ? `Observações: ${b.observacoes}.` : "",
+    `Qualquer fala ou texto em ${langName(b.idioma)}.`,
+    "Produto sempre em foco, qualidade de comercial de TV.",
+  ].filter(Boolean).join(" ");
 }

@@ -1,892 +1,207 @@
-import { useState, useRef } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useLocation, useParams } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import ImageUpload from "@/components/quiz/ImageUpload";
-import { ELEVEN_VOICES } from "@/lib/elevenVoices";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Sparkles, Image as ImageIcon, Type, Mic, Video, UserSquare2,
-  Loader2, Copy, Download, Wand2, RefreshCw, Check, Upload, History, Volume2, Languages,
-  AudioWaveform, Trash2, X,
+  Sparkles, Workflow, Image as ImageIcon, Type, Mic, Video, UserSquare2, AudioWaveform,
+  Library, RotateCcw, Languages, Cpu, Check,
 } from "lucide-react";
+import { StudioProvider, useStudio } from "@/components/studio/store";
+import type { ToolId } from "@/components/studio/types";
+import BriefBar from "@/components/studio/BriefBar";
+import FlowBoard from "@/components/studio/FlowBoard";
+import AssetDock from "@/components/studio/AssetDock";
+import VoicesPanel from "@/components/studio/VoicesPanel";
+import LibraryPanel from "@/components/studio/LibraryPanel";
+import CriativoPage from "@/components/studio/CriativoPage";
+import CopyPage from "@/components/studio/CopyPage";
+import NarracaoPage from "@/components/studio/NarracaoPage";
+import AvatarPage from "@/components/studio/AvatarPage";
+import VideoPage from "@/components/studio/VideoPage";
 
-const COPY_TYPES = [
-  { v: "headline", label: "Headlines" },
-  { v: "anuncio", label: "Texto de anúncio" },
-  { v: "vsl", label: "Roteiro de VSL" },
-  { v: "email", label: "E-mail de vendas" },
-  { v: "legenda", label: "Legenda p/ redes" },
-  { v: "cta", label: "CTA" },
+// Ferramentas com página própria (cabeçalho + formulário + preview).
+const FULL_PAGES: Partial<Record<ToolId, () => JSX.Element>> = {
+  criativo: CriativoPage,
+  copy: CopyPage,
+  narracao: NarracaoPage,
+  avatar: AvatarPage,
+  video: VideoPage,
+};
+
+/** Cada ferramenta do Estúdio é uma página própria (submenu no sidebar). */
+export const STUDIO_PAGES: { id: ToolId; slug: string; label: string; icon: any }[] = [
+  { id: "criativo", slug: "criativo", label: "Criativo", icon: ImageIcon },
+  { id: "copy", slug: "copy", label: "Copy", icon: Type },
+  { id: "narracao", slug: "narracao", label: "Narração", icon: Mic },
+  { id: "avatar", slug: "avatar", label: "Avatar", icon: UserSquare2 },
+  { id: "video", slug: "video", label: "Vídeo", icon: Video },
+  { id: "vozes", slug: "clone-de-voz", label: "Clone de voz", icon: AudioWaveform },
+  { id: "fluxo", slug: "fluxos", label: "Fluxos", icon: Workflow },
+  { id: "biblioteca", slug: "historico", label: "Histórico", icon: Library },
 ];
-const FRAMEWORKS = [
-  { v: "auto", label: "Automático" },
-  { v: "AIDA", label: "AIDA" },
-  { v: "PAS", label: "PAS" },
-  { v: "BAB", label: "BAB" },
-  { v: "4P", label: "4P" },
-  { v: "FAB", label: "FAB" },
+
+const LANGS = [
+  { v: "pt-BR", label: "Português (BR)" },
+  { v: "en-US", label: "English (US)" },
+  { v: "es-ES", label: "Español" },
 ];
-const TTS_VOICES = [
-  { v: "nova", label: "Nova" },
-  { v: "shimmer", label: "Shimmer" },
-  { v: "alloy", label: "Alloy" },
-  { v: "echo", label: "Echo" },
-  { v: "fable", label: "Fable" },
-  { v: "onyx", label: "Onyx" },
-  { v: "verse", label: "Verse" },
-  { v: "ballad", label: "Ballad" },
-];
-const VIDEO_FORMATS = [
-  { v: "1080x1080", label: "Quadrado", sub: "Feed" },
-  { v: "1080x1920", label: "Vertical", sub: "Story / Reels" },
-  { v: "1920x1080", label: "Horizontal", sub: "YouTube" },
-];
-const IMG_STYLES = [
-  "Fotográfico", "Minimalista", "Gradiente", "Estúdio", "3D realista", "Vibrante", "Cinematográfico", "Flat / clean",
-];
-const IMG_RATIOS = [
-  { v: "1:1", label: "1:1", cls: "aspect-square" },
-  { v: "4:5", label: "4:5", cls: "aspect-[4/5]" },
-  { v: "9:16", label: "9:16", cls: "aspect-[9/16]" },
-  { v: "16:9", label: "16:9", cls: "aspect-video" },
-];
-type Hist = { type: "image" | "audio" | "video"; url: string; label: string };
-
-// ---- helpers de UI ----
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</Label>
-      {children}
-      {hint && <p className="text-[11px] text-muted-foreground/70 leading-snug">{hint}</p>}
-    </div>
-  );
-}
-
-function VoiceCard({ active, name, tag, previewUrl, onSelect }: { active: boolean; name: string; tag?: string; previewUrl?: string; onSelect: () => void }) {
-  return (
-    <div
-      className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition ${
-        active ? "bg-accent text-accent-foreground border-primary/30 shadow-sm" : "bg-card border-border hover:bg-muted"
-      }`}
-    >
-      {previewUrl && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); try { new Audio(previewUrl).play(); } catch {} }}
-          className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 hover:bg-primary/20 transition"
-          title="Ouvir amostra"
-        >
-          <Volume2 className="w-3.5 h-3.5 text-primary" />
-        </button>
-      )}
-      <button type="button" onClick={onSelect} className="flex-1 min-w-0 text-left">
-        <p className="text-xs font-semibold truncate">{name}</p>
-        {tag && <p className="text-[10px] text-muted-foreground truncate">{tag}</p>}
-      </button>
-      {active && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
-    </div>
-  );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 h-8 rounded-lg border transition ${
-        active
-          ? "bg-accent text-accent-foreground border-primary/30 shadow-sm"
-          : "bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ProviderBadge({ premium }: { free?: string; premium: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-      <span className="inline-flex items-center gap-1 rounded-full bg-accent text-accent-foreground px-2 py-0.5 font-medium">
-        <Sparkles className="w-3 h-3" /> {premium}
-      </span>
-    </div>
-  );
-}
-
-function CanvasShell({ children, ratio = "aspect-[4/3]" }: { children: React.ReactNode; ratio?: string }) {
-  return (
-    <div className={`w-full ${ratio} rounded-xl border bg-muted/30 flex items-center justify-center overflow-hidden`}>
-      {children}
-    </div>
-  );
-}
-
-function EmptyState({ icon: Icon, title, sub }: { icon: any; title: string; sub: string }) {
-  return (
-    <div className="text-center px-6">
-      <div className="w-14 h-14 rounded-2xl bg-card border border-dashed flex items-center justify-center mx-auto mb-3">
-        <Icon className="w-6 h-6 text-muted-foreground/40" />
-      </div>
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      <p className="text-xs text-muted-foreground/70 mt-0.5">{sub}</p>
-    </div>
-  );
-}
-
-function Loading({ label }: { label: string }) {
-  return (
-    <div className="text-center">
-      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-      <p className="text-sm text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function Slider({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (n: number) => void }) {
-  return (
-    <div>
-      <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
-        <span>{label}</span><span className="font-medium text-foreground">{value.toFixed(2)}</span>
-      </div>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} className="w-full accent-primary h-1.5 cursor-pointer" />
-    </div>
-  );
-}
-
-// Prévia de voz GRÁTIS via navegador (Web Speech API) — não consome API/tokens.
-function speakDemo(text: string, rate = 1) {
-  try {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance((text || "Olá! Esta é uma prévia de narração em português do Brasil.").slice(0, 240));
-    u.lang = "pt-BR";
-    u.rate = Math.max(0.6, Math.min(1.4, rate));
-    const pt = synth.getVoices().find((v) => /pt[-_]?BR|portugu/i.test(`${v.lang} ${v.name}`));
-    if (pt) u.voice = pt;
-    synth.speak(u);
-  } catch {}
-}
 
 export default function AIStudio() {
-  const { toast } = useToast();
-  const [history, setHistory] = useState<Hist[]>([]);
-  const pushHist = (h: Hist) => setHistory((p) => [h, ...p].slice(0, 12));
+  return (
+    <StudioProvider>
+      <StudioShell />
+    </StudioProvider>
+  );
+}
 
-  // ---- Histórico persistente (todas as gerações) ----
-  const [histType, setHistType] = useState("all");
-  const [histQ, setHistQ] = useState("");
-  const { data: hist = [], refetch: refetchHist, isFetching: histLoading } = useQuery({
-    queryKey: ["/api/ai-studio/history", histType, histQ],
-    queryFn: async () => {
-      const p = new URLSearchParams();
-      if (histType !== "all") p.set("type", histType);
-      if (histQ) p.set("q", histQ);
-      const r = await apiRequest("GET", `/api/ai-studio/history?${p.toString()}`);
-      return (await r.json()) as any[];
-    },
-    staleTime: 0,
-  });
-  const delHist = async (id: string) => { try { await apiRequest("DELETE", `/api/ai-studio/history/${id}`); refetchHist(); } catch {} };
+function StudioShell() {
+  const { tab, setTab, projectName, setProjectName, brief, patchBrief, resetProject } = useStudio();
+  const params = useParams<{ tool?: string }>();
+  const [, navigate] = useLocation();
+  const fromUrl = STUDIO_PAGES.find((p) => p.slug === params.tool);
 
-  // ---- Criativo (imagem) ----
-  const [lang, setLang] = useState("pt-BR"); // idioma global do Estúdio (padrão pt-BR)
-  const [img, setImg] = useState({ produto: "", estilo: "", headline: "", publico: "", ratio: "1:1", quality: "high", format: "png", background: "auto" });
-  const [imgUrl, setImgUrl] = useState<string | null>(null);
-  const imageMut = useMutation({
-    mutationFn: async () => {
-      const size = img.ratio === "16:9" ? "1536x1024" : (img.ratio === "9:16" || img.ratio === "4:5") ? "1024x1536" : "1024x1024";
-      const r = await apiRequest("POST", "/api/ai-studio/image", { ...img, size, idioma: lang });
-      return (await r.json()) as { url: string };
-    },
-    onSuccess: (d) => { setImgUrl(d.url); pushHist({ type: "image", url: d.url, label: img.produto || "Criativo" }); },
-    onError: (e: any) => toast({ title: "Erro ao gerar imagem", description: e.message, variant: "destructive" }),
-  });
+  // URL manda: /ai-studio/<slug> define a ferramenta aberta.
+  useEffect(() => {
+    if (!fromUrl) navigate("/ai-studio/criativo", { replace: true });
+    else if (fromUrl.id !== tab) setTab(fromUrl.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.tool]);
 
-  // ---- Copy ----
-  const [copy, setCopy] = useState({ produto: "", publico: "", dor: "", beneficios: "", oferta: "", tipo: "headline", framework: "auto", variacoes: 5 });
-  const [copyOut, setCopyOut] = useState<string[]>([]);
-  const copyMut = useMutation({
-    mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/copy", { ...copy, idioma: lang });
-      return (await r.json()) as { variacoes: string[] };
-    },
-    onSuccess: (d) => setCopyOut(d.variacoes || []),
-    onError: (e: any) => toast({ title: "Erro ao gerar copy", description: e.message, variant: "destructive" }),
-  });
+  // Ações internas (ex.: "usar em narração") trocam a ferramenta pelo store; refletimos na URL.
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    const target = STUDIO_PAGES.find((p) => p.id === tab);
+    if (fromUrl && target && target.id !== fromUrl.id) navigate(`/ai-studio/${target.slug}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
-  // ---- Narração (TTS) ----
-  const [tts, setTts] = useState({ text: "", voice: "pNInz6obpgDQGcFmaJgB", provider: "elevenlabs", instructions: "", modelId: "eleven_multilingual_v2", stability: 0.5, similarityBoost: 0.75, style: 0, speed: 1 });
-  const [ttsUrl, setTtsUrl] = useState<string | null>(null);
-  const ttsMut = useMutation({
-    mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/tts", { ...tts, idioma: lang });
-      return (await r.json()) as { url: string };
-    },
-    onSuccess: (d) => { setTtsUrl(d.url); pushHist({ type: "audio", url: d.url, label: "Narração" }); },
-    onError: (e: any) => toast({ title: "Erro ao gerar narração", description: e.message, variant: "destructive" }),
-  });
+  if (!fromUrl) return null;
+  const current = fromUrl.id;
 
-  // ---- Avatar (foto + texto → vídeo) ----
-  const [avatar, setAvatar] = useState<{ photo: string | null; text: string; voice: string; size: string }>({ photo: null, text: "", voice: "nova", size: "1080x1080" });
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const avatarMut = useMutation({
-    mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/avatar", { imageUrl: avatar.photo, text: avatar.text, voice: avatar.voice, size: avatar.size, idioma: lang });
-      return (await r.json()) as { url: string };
-    },
-    onSuccess: (d) => { setAvatarUrl(d.url); pushHist({ type: "video", url: d.url, label: "Avatar" }); },
-    onError: (e: any) => toast({ title: "Erro ao gerar avatar", description: e.message, variant: "destructive" }),
-  });
-
-  // ---- Vídeo (Seedance 2.0) ----
-  const [vid, setVid] = useState({ prompt: "", script: "", voice: "nova", size: "1080x1080", resolution: "720p", duration: "auto", imageUrl: "" });
-  const [vidUrl, setVidUrl] = useState<string | null>(null);
-  const videoMut = useMutation({
-    mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/video", { ...vid, idioma: lang });
-      return (await r.json()) as { url: string };
-    },
-    onSuccess: (d) => { setVidUrl(d.url); pushHist({ type: "video", url: d.url, label: vid.prompt || "Vídeo" }); },
-    onError: (e: any) => toast({ title: "Erro ao gerar vídeo", description: e.message, variant: "destructive" }),
-  });
-
-  // ---- Clonagem de voz (ElevenLabs) ----
-  const { data: voicesData, refetch: refetchVoices } = useQuery({
-    queryKey: ["/api/ai-studio/voices"],
-    queryFn: async () => {
-      const r = await apiRequest("GET", "/api/ai-studio/voices");
-      return (await r.json()) as { voices: { voiceId: string; name: string; category?: string; previewUrl?: string }[] };
-    },
-  });
-  const clonedVoices = (voicesData?.voices || []).filter((v) => v.category === "cloned" || v.category === "professional" || v.category === "generated");
-  // Lista de vozes: a da conta (server, se a chave estiver no ambiente) ou o catálogo público (prévias tocam sem env).
-  const voiceList: any[] = (voicesData?.voices && voicesData.voices.length ? voicesData.voices : ELEVEN_VOICES);
-  const [cloneName, setCloneName] = useState("");
-  const [cloneSamples, setCloneSamples] = useState<{ data: string; type: string; name: string }[]>([]);
-  const [clonedVoiceId, setClonedVoiceId] = useState<string | null>(null);
-  const cloneMut = useMutation({
-    mutationFn: async () => {
-      const r = await apiRequest("POST", "/api/ai-studio/clone-voice", { name: cloneName, samples: cloneSamples });
-      return (await r.json()) as { voiceId: string; requiresVerification?: boolean };
-    },
-    onSuccess: (d) => { setClonedVoiceId(d.voiceId); refetchVoices(); toast({ title: "Voz clonada com sucesso!", description: `Já disponível na narração.` }); },
-    onError: (e: any) => toast({ title: "Erro ao clonar voz", description: e.message, variant: "destructive" }),
-  });
-  const onSamplePick = (files?: FileList | null) => {
-    if (!files) return;
-    Array.from(files).slice(0, 5).forEach((f) => {
-      if (f.size > 12 * 1024 * 1024) { toast({ title: "Áudio muito grande", description: "Use até 12MB por amostra.", variant: "destructive" }); return; }
-      const reader = new FileReader();
-      reader.onload = () => setCloneSamples((s) => [...s, { data: String(reader.result), type: f.type || "audio/mpeg", name: f.name }].slice(0, 5));
-      reader.readAsDataURL(f);
-    });
-  };
-
-  // Gravação de voz na hora (MediaRecorder)
-  const [recording, setRecording] = useState(false);
-  const recRef = useRef<MediaRecorder | null>(null);
-  const recChunks = useRef<Blob[]>([]);
-  const toggleRec = async () => {
-    if (recording) { recRef.current?.stop(); return; }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      recChunks.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size) recChunks.current.push(e.data); };
-      mr.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(recChunks.current, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.onload = () => setCloneSamples((s) => [...s, { data: String(reader.result), type: "audio/webm", name: `gravacao-${s.length + 1}.webm` }].slice(0, 5));
-        reader.readAsDataURL(blob);
-        setRecording(false);
-      };
-      recRef.current = mr; mr.start(); setRecording(true);
-    } catch { toast({ title: "Não foi possível acessar o microfone", variant: "destructive" }); }
-  };
-
-  const onPhotoPick = (file?: File) => {
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { toast({ title: "Foto muito grande", description: "Use uma imagem de até 8MB.", variant: "destructive" }); return; }
-    const reader = new FileReader();
-    reader.onload = () => setAvatar((a) => ({ ...a, photo: String(reader.result) }));
-    reader.readAsDataURL(file);
-  };
-
-  const copyToClipboard = (t: string) => {
-    navigator.clipboard.writeText(t);
-    toast({ title: "Copiado!" });
-  };
-
-  const ratioCls = IMG_RATIOS.find((r) => r.v === img.ratio)?.cls || "aspect-square";
+  const Full = FULL_PAGES[current];
+  if (Full) {
+    return (
+      <>
+        <Full />
+        <AssetDock />
+      </>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Hero Header */}
-      <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-primary/[0.07] via-primary/[0.03] to-transparent border border-primary/10 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_0%_0%,hsl(161,84%,33%,0.10),transparent)]" />
-        <div className="relative flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center shadow-lg shadow-primary/25 flex-shrink-0">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">Estúdio de Criação IA</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Criativos, copy persuasiva, narração realista, avatar lip-sync e vídeos — tudo num só lugar.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 rounded-lg bg-card border px-2.5 py-1.5" title="Idioma das gerações">
-              <Languages className="w-3.5 h-3.5 text-muted-foreground" />
-              <select value={lang} onChange={(e) => setLang(e.target.value)} className="text-xs font-medium bg-transparent outline-none cursor-pointer">
-                <option value="pt-BR">Português (BR)</option>
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="it">Italiano</option>
-                <option value="de">Deutsch</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground rounded-lg bg-card/60 border px-3 py-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Qualidade premium — conecte suas chaves de API
-            </div>
-          </div>
-        </div>
+    <div className="space-y-4 pb-4">
+      <StudioHeader
+        projectName={projectName}
+        setProjectName={setProjectName}
+        lang={brief.lang}
+        setLang={(v) => patchBrief({ lang: v })}
+        onReset={resetProject}
+      />
+
+      {current !== "biblioteca" && current !== "vozes" && <BriefBar />}
+
+      {current === "fluxo" && <FlowBoard />}
+      {current === "vozes" && <VoicesPanel />}
+      {current === "biblioteca" && <LibraryPanel />}
+
+      <AssetDock />
+    </div>
+  );
+}
+
+function StudioHeader({ projectName, setProjectName, lang, setLang, onReset }: {
+  projectName: string;
+  setProjectName: (n: string) => void;
+  lang: string;
+  setLang: (v: string) => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-3 flex-wrap">
+      <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+        <Sparkles className="w-5 h-5 text-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <input
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+          className="w-full max-w-sm bg-transparent text-xl font-bold tracking-tight outline-none border-b border-transparent focus:border-border transition px-0"
+          aria-label="Nome do projeto"
+        />
+        <p className="text-sm text-muted-foreground">Estúdio de Criação IA — criativo, copy, voz e vídeo no mesmo projeto.</p>
       </div>
 
-      <Tabs defaultValue="criativo" orientation="vertical" className="flex flex-col lg:flex-row gap-5 items-stretch lg:items-start">
-        <TabsList className="flex lg:flex-col h-auto w-full lg:w-52 shrink-0 gap-1 bg-card border rounded-xl p-2 lg:sticky lg:top-20 overflow-x-auto">
-          <p className="hidden lg:block px-2 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Ferramentas</p>
-          <TabsTrigger value="criativo" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><ImageIcon className="w-4 h-4" /> Criativo</TabsTrigger>
-          <TabsTrigger value="copy" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Type className="w-4 h-4" /> Copy</TabsTrigger>
-          <TabsTrigger value="narracao" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Mic className="w-4 h-4" /> Narração</TabsTrigger>
-          <TabsTrigger value="avatar" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><UserSquare2 className="w-4 h-4" /> Avatar</TabsTrigger>
-          <TabsTrigger value="video" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><Video className="w-4 h-4" /> Vídeo</TabsTrigger>
-          <TabsTrigger value="clonar" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><AudioWaveform className="w-4 h-4" /> Clonar Voz</TabsTrigger>
-          <TabsTrigger value="historico" className="lg:w-full lg:justify-start gap-2 text-sm px-3 py-2.5"><History className="w-4 h-4" /> Histórico</TabsTrigger>
-        </TabsList>
-
-        {/* ---------- CRIATIVO ---------- */}
-        <TabsContent value="criativo" className="flex-1 min-w-0 w-full mt-0">
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="shadow-sm">
-              <CardContent className="p-5 space-y-4">
-                <ProviderBadge free="Flux" premium="GPT-Image" />
-                <Field label="Produto / oferta *">
-                  <Input value={img.produto} onChange={(e) => setImg({ ...img, produto: e.target.value })} placeholder="Ex.: tênis esportivo branco premium" />
-                </Field>
-                <Field label="Headline na imagem">
-                  <Input value={img.headline} onChange={(e) => setImg({ ...img, headline: e.target.value })} placeholder="Ex.: 50% OFF HOJE" />
-                </Field>
-                <Field label="Proporção">
-                  <div className="flex flex-wrap gap-1.5">
-                    {IMG_RATIOS.map((r) => (
-                      <Chip key={r.v} active={img.ratio === r.v} onClick={() => setImg({ ...img, ratio: r.v })}>{r.label}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="Estilo visual" hint="Clique num preset ou escreva o seu.">
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {IMG_STYLES.map((s) => (
-                      <Chip key={s} active={img.estilo === s} onClick={() => setImg({ ...img, estilo: s })}>{s}</Chip>
-                    ))}
-                  </div>
-                  <Input value={img.estilo} onChange={(e) => setImg({ ...img, estilo: e.target.value })} placeholder="Ex.: fundo gradiente, luz de estúdio…" />
-                </Field>
-                <Field label="Público-alvo">
-                  <Input value={img.publico} onChange={(e) => setImg({ ...img, publico: e.target.value })} placeholder="Ex.: corredores iniciantes" />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Qualidade">
-                    <div className="flex flex-wrap gap-1.5">
-                      {[["high", "Alta"], ["medium", "Média"], ["low", "Baixa"]].map(([v, l]) => (
-                        <Chip key={v} active={img.quality === v} onClick={() => setImg({ ...img, quality: v })}>{l}</Chip>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label="Formato">
-                    <div className="flex flex-wrap gap-1.5">
-                      {["png", "jpeg", "webp"].map((f) => (
-                        <Chip key={f} active={img.format === f} onClick={() => setImg({ ...img, format: f })}>{f.toUpperCase()}</Chip>
-                      ))}
-                    </div>
-                  </Field>
-                </div>
-                <Field label="Fundo" hint="Transparente exige PNG/WebP (ideal p/ logos e recortes).">
-                  <div className="flex flex-wrap gap-1.5">
-                    {[["auto", "Automático"], ["opaque", "Opaco"], ["transparent", "Transparente"]].map(([v, l]) => (
-                      <Chip key={v} active={img.background === v} onClick={() => setImg({ ...img, background: v, format: v === "transparent" && img.format === "jpeg" ? "png" : img.format })}>{l}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <Button className="w-full shadow-sm" disabled={imageMut.isPending || !img.produto} onClick={() => imageMut.mutate()}>
-                  {imageMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                  {imgUrl ? "Gerar novamente" : "Gerar criativo"}
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-5">
-                <CanvasShell ratio={ratioCls}>
-                  {imageMut.isPending ? (
-                    <Loading label="Gerando seu criativo…" />
-                  ) : imgUrl ? (
-                    <img src={imgUrl} alt="Criativo gerado" className="w-full h-full object-cover" />
-                  ) : (
-                    <EmptyState icon={ImageIcon} title="Seu criativo aparecerá aqui" sub="Preencha os campos e clique em Gerar" />
-                  )}
-                </CanvasShell>
-                {imgUrl && !imageMut.isPending && (
-                  <div className="flex gap-2 mt-3">
-                    <a href={imgUrl} download className="flex-1"><Button variant="outline" size="sm" className="w-full"><Download className="w-3.5 h-3.5 mr-1.5" />Baixar</Button></a>
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => imageMut.mutate()}><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Variar</Button>
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => toast({ title: "Edição no Canva", description: "Conecte sua conta Canva nas configurações." })}>
-                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />Canva
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* ---------- COPY ---------- */}
-        <TabsContent value="copy" className="flex-1 min-w-0 w-full mt-0">
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="shadow-sm">
-              <CardContent className="p-5 space-y-4">
-                <ProviderBadge free="Gemini" premium="GPT-4o" />
-                <Field label="Produto / oferta *">
-                  <Input value={copy.produto} onChange={(e) => setCopy({ ...copy, produto: e.target.value })} placeholder="Ex.: Curso de marketing do zero" />
-                </Field>
-                <Field label="Tipo de copy">
-                  <div className="flex flex-wrap gap-1.5">
-                    {COPY_TYPES.map((t) => (
-                      <Chip key={t.v} active={copy.tipo === t.v} onClick={() => setCopy({ ...copy, tipo: t.v })}>{t.label}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="Framework de copywriting">
-                  <div className="flex flex-wrap gap-1.5">
-                    {FRAMEWORKS.map((f) => (
-                      <Chip key={f.v} active={copy.framework === f.v} onClick={() => setCopy({ ...copy, framework: f.v })}>{f.label}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Público-alvo">
-                    <Input value={copy.publico} onChange={(e) => setCopy({ ...copy, publico: e.target.value })} placeholder="Ex.: iniciantes" />
-                  </Field>
-                  <Field label="Dor principal">
-                    <Input value={copy.dor} onChange={(e) => setCopy({ ...copy, dor: e.target.value })} placeholder="Ex.: não sabem começar" />
-                  </Field>
-                </div>
-                <Field label="Benefícios / oferta">
-                  <Textarea rows={2} value={copy.beneficios} onChange={(e) => setCopy({ ...copy, beneficios: e.target.value })} placeholder="Ex.: método passo a passo, suporte, garantia" />
-                </Field>
-                <Field label="Variações">
-                  <div className="flex flex-wrap gap-1.5">
-                    {[3, 5, 8, 10].map((n) => (
-                      <Chip key={n} active={copy.variacoes === n} onClick={() => setCopy({ ...copy, variacoes: n })}>{n}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <Button className="w-full shadow-sm" disabled={copyMut.isPending || !copy.produto} onClick={() => copyMut.mutate()}>
-                  {copyMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                  Gerar copy
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-5 min-h-[340px]">
-                {copyMut.isPending ? (
-                  <div className="space-y-2.5">
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className="rounded-lg border p-3 space-y-2 animate-pulse">
-                        <div className="h-3 bg-muted rounded w-3/4" />
-                        <div className="h-3 bg-muted rounded w-1/2" />
-                      </div>
-                    ))}
-                  </div>
-                ) : copyOut.length ? (
-                  <div className="space-y-2.5">
-                    {copyOut.map((c, i) => (
-                      <div key={i} className="group rounded-lg border p-3 text-sm whitespace-pre-wrap relative hover:border-primary/30 hover:bg-muted/30 transition">
-                        {c}
-                        <button onClick={() => copyToClipboard(c)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition"><Copy className="w-4 h-4" /></button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="h-full min-h-[300px] flex items-center justify-center">
-                    <EmptyState icon={Type} title="Suas copies aparecerão aqui" sub="Escolha tipo, framework e clique em Gerar" />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* ---------- NARRAÇÃO ---------- */}
-        <TabsContent value="narracao" className="flex-1 min-w-0 w-full mt-0">
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="shadow-sm">
-              <CardContent className="p-5 space-y-4">
-                <ProviderBadge free="Google TTS pt-BR" premium="ElevenLabs" />
-                <Field label="Texto para narrar *">
-                  <Textarea rows={5} maxLength={5000} value={tts.text} onChange={(e) => setTts({ ...tts, text: e.target.value })} placeholder="Cole o roteiro/texto da narração…" />
-                  <p className={`text-[10px] text-right mt-1 ${tts.text.length > 4800 ? "text-destructive" : "text-muted-foreground"}`}>{tts.text.length}/5000</p>
-                </Field>
-                <Field label="Voz" hint="Clique no alto-falante pra ouvir a amostra antes de escolher.">
-                  {clonedVoices.length > 0 && (
-                    <div className="mb-2.5 space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground">Suas vozes clonadas</p>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {clonedVoices.map((v) => (
-                          <VoiceCard key={v.voiceId} active={tts.voice === v.voiceId} name={v.name} previewUrl={v.previewUrl} onSelect={() => setTts({ ...tts, voice: v.voiceId, provider: "elevenlabs" })} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] font-medium text-muted-foreground">ElevenLabs · masculinas</p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {ELEVEN_VOICES.filter((v) => v.gender === "masc").map((v) => (
-                        <VoiceCard key={v.voiceId} active={tts.voice === v.voiceId} name={v.name} tag={v.tag} previewUrl={v.previewUrl} onSelect={() => setTts({ ...tts, voice: v.voiceId, provider: "elevenlabs" })} />
-                      ))}
-                    </div>
-                    <p className="text-[11px] font-medium text-muted-foreground pt-1">ElevenLabs · femininas</p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {ELEVEN_VOICES.filter((v) => v.gender === "fem").map((v) => (
-                        <VoiceCard key={v.voiceId} active={tts.voice === v.voiceId} name={v.name} tag={v.tag} previewUrl={v.previewUrl} onSelect={() => setTts({ ...tts, voice: v.voiceId, provider: "elevenlabs" })} />
-                      ))}
-                    </div>
-                  </div>
-                </Field>
-                <Field label="Modelo (ElevenLabs)">
-                  <div className="flex flex-wrap gap-1.5">
-                    {[["eleven_v3", "v3 · expressivo"], ["eleven_multilingual_v2", "Multilingual v2"], ["eleven_flash_v2_5", "Flash · rápido"]].map(([v, l]) => (
-                      <Chip key={v} active={tts.modelId === v} onClick={() => setTts({ ...tts, modelId: v })}>{l}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="Ajustes de voz">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                    <Slider label="Estabilidade" value={tts.stability} min={0} max={1} step={0.05} onChange={(n) => setTts({ ...tts, stability: n })} />
-                    <Slider label="Similaridade" value={tts.similarityBoost} min={0} max={1} step={0.05} onChange={(n) => setTts({ ...tts, similarityBoost: n })} />
-                    <Slider label="Estilo" value={tts.style} min={0} max={1} step={0.05} onChange={(n) => setTts({ ...tts, style: n })} />
-                    <Slider label="Velocidade" value={tts.speed} min={0.7} max={1.2} step={0.05} onChange={(n) => setTts({ ...tts, speed: n })} />
-                  </div>
-                </Field>
-                <Button className="w-full shadow-sm" disabled={ttsMut.isPending || !tts.text} onClick={() => ttsMut.mutate()}>
-                  {ttsMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
-                  Gerar narração
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-5 min-h-[340px] flex flex-col items-center justify-center">
-                {ttsMut.isPending ? (
-                  <Loading label="Gerando narração…" />
-                ) : ttsUrl ? (
-                  <div className="w-full space-y-3">
-                    <div className="rounded-xl border bg-muted/30 p-5 flex flex-col items-center gap-3">
-                      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center"><Volume2 className="w-7 h-7 text-primary" /></div>
-                      <audio controls src={ttsUrl} className="w-full" />
-                    </div>
-                    <a href={ttsUrl} download className="block"><Button variant="outline" size="sm" className="w-full"><Download className="w-3.5 h-3.5 mr-1.5" />Baixar MP3</Button></a>
-                  </div>
-                ) : (
-                  <EmptyState icon={Mic} title="Sua narração aparecerá aqui" sub="Cole o texto, escolha a voz e gere" />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* ---------- AVATAR ---------- */}
-        <TabsContent value="avatar" className="flex-1 min-w-0 w-full mt-0">
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="shadow-sm">
-              <CardContent className="p-5 space-y-4">
-                <ProviderBadge free="Foto + narração → MP4" premium="HeyGen / D-ID lip-sync" />
-                <Field label="Foto da pessoa *">
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition">
-                    {avatar.photo ? (
-                      <img src={avatar.photo} alt="Foto" className="h-36 rounded-lg object-cover" />
-                    ) : (
-                      <div className="text-center text-muted-foreground text-sm py-3">
-                        <div className="w-12 h-12 rounded-xl bg-card border flex items-center justify-center mx-auto mb-2"><Upload className="w-5 h-5 text-muted-foreground/50" /></div>
-                        Clique para enviar uma foto (rosto)
-                      </div>
-                    )}
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => onPhotoPick(e.target.files?.[0])} />
-                  </label>
-                </Field>
-                <Field label="O que a pessoa vai falar *">
-                  <Textarea rows={4} value={avatar.text} onChange={(e) => setAvatar({ ...avatar, text: e.target.value })} placeholder="Cole o roteiro que será narrado…" />
-                </Field>
-                <Field label="Voz">
-                  <div className="flex flex-wrap gap-1.5">
-                    {TTS_VOICES.map((v) => (
-                      <Chip key={v.v} active={avatar.voice === v.v} onClick={() => setAvatar({ ...avatar, voice: v.v })}><Volume2 className="w-3.5 h-3.5" />{v.label}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="Formato">
-                  <div className="flex flex-wrap gap-1.5">
-                    {VIDEO_FORMATS.map((f) => (
-                      <Chip key={f.v} active={avatar.size === f.v} onClick={() => setAvatar({ ...avatar, size: f.v })}>{f.label}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <Button className="w-full shadow-sm" disabled={avatarMut.isPending || !avatar.photo || !avatar.text} onClick={() => avatarMut.mutate()}>
-                  {avatarMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                  Gerar avatar
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-5 min-h-[340px] flex flex-col items-center justify-center">
-                {avatarMut.isPending ? (
-                  <Loading label="Gerando seu avatar… pode levar alguns segundos" />
-                ) : avatarUrl ? (
-                  <div className="w-full space-y-3">
-                    <video controls src={avatarUrl} className="w-full rounded-xl border" />
-                    <a href={avatarUrl} download className="block"><Button variant="outline" size="sm" className="w-full"><Download className="w-3.5 h-3.5 mr-1.5" />Baixar vídeo</Button></a>
-                  </div>
-                ) : (
-                  <EmptyState icon={UserSquare2} title="Seu avatar aparecerá aqui" sub="Envie a foto e o roteiro para começar" />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* ---------- VÍDEO ---------- */}
-        <TabsContent value="video" className="flex-1 min-w-0 w-full mt-0">
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="shadow-sm">
-              <CardContent className="p-5 space-y-4">
-                <ProviderBadge free="Imagem + narração → MP4" premium="Seedance 2.0 (vídeo + áudio nativo)" />
-                <Field label="Descrição do vídeo / produto *">
-                  <Textarea rows={3} value={vid.prompt} onChange={(e) => setVid({ ...vid, prompt: e.target.value })} placeholder="Ex.: tênis esportivo premium em fundo escuro com luz de estúdio, foco no produto" />
-                </Field>
-                <Field label="Roteiro de narração" hint="Deixe vazio para vídeo sem áudio.">
-                  <Textarea rows={4} value={vid.script} onChange={(e) => setVid({ ...vid, script: e.target.value })} placeholder="Cole a copy / voiceover…" />
-                </Field>
-                <Field label="Voz">
-                  <div className="flex flex-wrap gap-1.5">
-                    {TTS_VOICES.map((v) => (
-                      <Chip key={v.v} active={vid.voice === v.v} onClick={() => setVid({ ...vid, voice: v.v })}><Volume2 className="w-3.5 h-3.5" />{v.label}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="Formato">
-                  <div className="flex flex-wrap gap-1.5">
-                    {VIDEO_FORMATS.map((f) => (
-                      <Chip key={f.v} active={vid.size === f.v} onClick={() => setVid({ ...vid, size: f.v })}>{f.label}</Chip>
-                    ))}
-                  </div>
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Resolução">
-                    <div className="flex flex-wrap gap-1.5">
-                      {["480p", "720p", "1080p"].map((r) => (
-                        <Chip key={r} active={vid.resolution === r} onClick={() => setVid({ ...vid, resolution: r })}>{r}</Chip>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label="Duração">
-                    <div className="flex flex-wrap gap-1.5">
-                      {[["auto", "Auto"], ["5", "5s"], ["8", "8s"], ["10", "10s"], ["12", "12s"]].map(([v, l]) => (
-                        <Chip key={v} active={vid.duration === v} onClick={() => setVid({ ...vid, duration: v })}>{l}</Chip>
-                      ))}
-                    </div>
-                  </Field>
-                </div>
-                <Field label="Imagem base (opcional)" hint="Envie uma imagem ou cole uma URL para animar (image-to-video do Seedance).">
-                  <ImageUpload value={vid.imageUrl} onChange={(url) => setVid({ ...vid, imageUrl: url })} folder="ai-videos-base" compact />
-                </Field>
-                <Button className="w-full shadow-sm" disabled={videoMut.isPending || (!vid.prompt && !vid.imageUrl)} onClick={() => videoMut.mutate()}>
-                  {videoMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                  Gerar vídeo
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-5 min-h-[340px] flex flex-col items-center justify-center">
-                {videoMut.isPending ? (
-                  <Loading label="Renderizando seu vídeo…" />
-                ) : vidUrl ? (
-                  <div className="w-full space-y-3">
-                    <video controls src={vidUrl} className="w-full rounded-xl border" />
-                    <a href={vidUrl} download className="block"><Button variant="outline" size="sm" className="w-full"><Download className="w-3.5 h-3.5 mr-1.5" />Baixar vídeo</Button></a>
-                  </div>
-                ) : (
-                  <EmptyState icon={Video} title="Seu vídeo aparecerá aqui" sub="Descreva o produto e gere" />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* ---------- CLONAR VOZ ---------- */}
-        <TabsContent value="clonar" className="flex-1 min-w-0 w-full mt-0">
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="shadow-sm">
-              <CardContent className="p-5 space-y-4">
-                <ProviderBadge free="—" premium="ElevenLabs Instant Voice Cloning" />
-                <p className="text-xs text-muted-foreground -mt-1">Envie 1–5 amostras de áudio limpas da voz (total ~1 min). A voz clonada aparece automaticamente na aba Narração.</p>
-                <Field label="Nome da voz *">
-                  <Input value={cloneName} onChange={(e) => setCloneName(e.target.value)} placeholder="Ex.: Minha voz, Locutor João…" />
-                </Field>
-                <Field label="Amostras de áudio *" hint="MP3/WAV/M4A, até 5 arquivos, 12MB cada.">
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition">
-                    <div className="w-12 h-12 rounded-xl bg-card border flex items-center justify-center mb-2"><Upload className="w-5 h-5 text-muted-foreground/50" /></div>
-                    <span className="text-sm text-muted-foreground">Clique para enviar amostras</span>
-                    <input type="file" accept="audio/*" multiple className="hidden" onChange={(e) => onSamplePick(e.target.files)} />
-                  </label>
-                  <button type="button" onClick={toggleRec} className={`mt-2 w-full h-10 rounded-lg border flex items-center justify-center gap-2 text-sm font-medium transition ${recording ? "border-red-300 bg-red-50 text-red-600" : "hover:bg-muted"}`}>
-                    {recording ? <><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" /> Gravando… clique para parar</> : <><Mic className="w-4 h-4" /> Gravar agora pelo microfone</>}
-                  </button>
-                </Field>
-                {cloneSamples.length > 0 && (
-                  <div className="space-y-1.5">
-                    {cloneSamples.map((s, i) => (
-                      <div key={i} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                        <Volume2 className="w-4 h-4 text-primary flex-shrink-0" />
-                        <span className="truncate flex-1">{s.name}</span>
-                        <button onClick={() => setCloneSamples((arr) => arr.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-red-600"><X className="w-4 h-4" /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <Button className="w-full shadow-sm" disabled={cloneMut.isPending || !cloneName || !cloneSamples.length} onClick={() => cloneMut.mutate()}>
-                  {cloneMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <AudioWaveform className="w-4 h-4 mr-2" />}
-                  Clonar voz
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-5 min-h-[340px]">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold">Vozes disponíveis</h3>
-                  <Button variant="ghost" size="sm" onClick={() => refetchVoices()} className="h-7 gap-1.5 text-xs"><RefreshCw className="w-3.5 h-3.5" /> Atualizar</Button>
-                </div>
-                {clonedVoiceId && (
-                  <div className="rounded-lg border border-primary/30 bg-accent px-3 py-2.5 text-sm text-accent-foreground mb-3 flex items-center gap-2">
-                    <Check className="w-4 h-4" /> Voz clonada criada! Já dá pra usar na Narração.
-                  </div>
-                )}
-                {voiceList.length ? (
-                  <div className="space-y-1.5 max-h-[430px] overflow-y-auto pr-1">
-                    {voiceList.map((v: any) => (
-                      <div key={v.voiceId} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                        <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center flex-shrink-0"><AudioWaveform className="w-3.5 h-3.5 text-primary" /></div>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate font-medium">{v.name}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase">{v.category}</p>
-                        </div>
-                        {v.previewUrl && (
-                          <button onClick={() => { try { new Audio(v.previewUrl).play(); } catch {} }} className="p-1.5 rounded hover:bg-muted transition" title="Ouvir amostra (grátis)"><Volume2 className="w-3.5 h-3.5 text-primary" /></button>
-                        )}
-                        <button onClick={() => { setTts((t) => ({ ...t, voice: v.voiceId })); toast({ title: `Voz "${v.name}" selecionada`, description: "Já dá pra usar na aba Narração." }); }} className="text-[11px] font-medium border rounded-lg px-2 py-1 hover:bg-accent transition">Usar</button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="h-full min-h-[260px] flex items-center justify-center">
-                    <EmptyState icon={AudioWaveform} title="Nenhuma voz disponível" sub="Conecte a chave ElevenLabs para ouvir e usar as vozes (as amostras são grátis)" />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* ---------- HISTÓRICO ---------- */}
-        <TabsContent value="historico" className="flex-1 min-w-0 w-full mt-0">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 flex-wrap">
-              <input value={histQ} onChange={(e) => setHistQ(e.target.value)} placeholder="Buscar por título ou prompt…" className="flex-1 min-w-[180px] h-9 rounded-md border border-input bg-card px-3 text-sm" />
-              <button onClick={() => refetchHist()} className="text-sm rounded-lg px-3 py-1.5 border hover:bg-muted flex items-center gap-1.5 transition"><RefreshCw className={`w-3.5 h-3.5 ${histLoading ? "animate-spin" : ""}`} />Atualizar</button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[["all", "Todos"], ["image", "Imagens"], ["copy", "Copy"], ["audio", "Áudio"], ["video", "Vídeo"]].map(([v, l]) => (
-                <Chip key={v} active={histType === v} onClick={() => setHistType(v)}>{l}</Chip>
-              ))}
-            </div>
-            {hist.length ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {hist.map((g: any) => (
-                  <div key={g.id} className="group bg-card border rounded-xl overflow-hidden hover:shadow-md transition">
-                    <div className="aspect-video bg-muted/40 flex items-center justify-center overflow-hidden">
-                      {g.type === "image" ? <img src={g.url} alt="" className="w-full h-full object-cover" />
-                        : g.type === "video" ? <video src={g.url} className="w-full h-full object-cover" />
-                        : g.type === "audio" ? <Volume2 className="w-8 h-8 text-primary" />
-                        : <div className="p-3 text-[11px] text-muted-foreground line-clamp-5 w-full h-full overflow-hidden">{g.text}</div>}
-                    </div>
-                    <div className="p-2.5 flex items-center gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{g.title}</p>
-                        <p className="text-[10px] text-muted-foreground">{new Date(g.createdAt).toLocaleDateString("pt-BR")}</p>
-                      </div>
-                      {g.type === "copy"
-                        ? <button onClick={() => { navigator.clipboard.writeText(g.text || ""); toast({ title: "Copiado!" }); }} className="p-1.5 rounded hover:bg-muted transition" title="Copiar"><Copy className="w-3.5 h-3.5" /></button>
-                        : <a href={g.url} download target="_blank" rel="noreferrer" className="p-1.5 rounded hover:bg-muted transition" title="Baixar"><Download className="w-3.5 h-3.5" /></a>}
-                      <button onClick={() => delHist(g.id)} className="p-1.5 rounded hover:bg-red-50 hover:text-red-600 transition" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="min-h-[300px] flex items-center justify-center">
-                <EmptyState icon={History} title="Nenhuma criação ainda" sub="Suas gerações aparecem aqui automaticamente" />
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Galeria de criações recentes (sessão) */}
-      {history.length > 0 && (
-        <div className="mt-8">
-          <div className="flex items-center gap-2 mb-3">
-            <History className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Criações recentes</h2>
-            <span className="text-xs text-muted-foreground">· nesta sessão</span>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {history.map((h, i) => (
-              <a key={i} href={h.url} target="_blank" rel="noreferrer" title={h.label} className="group flex-shrink-0 w-28">
-                <div className="w-28 h-28 rounded-xl border bg-muted/30 overflow-hidden flex items-center justify-center relative">
-                  {h.type === "image" ? (
-                    <img src={h.url} alt={h.label} className="w-full h-full object-cover" />
-                  ) : h.type === "video" ? (
-                    <video src={h.url} className="w-full h-full object-cover" />
-                  ) : (
-                    <Volume2 className="w-7 h-7 text-primary" />
-                  )}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
-                </div>
-                <p className="text-[11px] text-muted-foreground truncate mt-1">{h.label}</p>
-              </a>
-            ))}
-          </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="relative">
+          <Languages className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
+            className="h-9 rounded-lg border bg-card pl-8 pr-3 text-xs font-medium outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+            aria-label="Idioma das gerações"
+          >
+            {LANGS.map((l) => <option key={l.v} value={l.v}>{l.label}</option>)}
+          </select>
         </div>
-      )}
+        <EnginesBadge />
+        <Button variant="outline" size="sm" className="h-9" onClick={onReset}>
+          <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Novo projeto
+        </Button>
+      </div>
     </div>
+  );
+}
+
+/** Estado dos motores de IA: mostra o que está no modo premium e o que roda no gratuito. */
+function EnginesBadge() {
+  const { data } = useQuery({
+    queryKey: ["/api/ai-studio/capabilities"],
+    queryFn: async () => {
+      const r = await apiRequest("GET", "/api/ai-studio/capabilities");
+      return (await r.json()) as Record<string, { ready?: boolean; premium?: boolean }>;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const rows = [
+    { k: "image", label: "Criativos" },
+    { k: "copy", label: "Copy" },
+    { k: "tts", label: "Narração" },
+    { k: "voiceClone", label: "Clonagem de voz" },
+    { k: "avatar", label: "Avatar" },
+    { k: "video", label: "Vídeo" },
+  ];
+  const premium = rows.filter((r) => data?.[r.k]?.premium).length;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9">
+          <Cpu className="w-3.5 h-3.5 mr-1.5" /> Motores
+          {premium > 0 && <span className="ml-1.5 text-[10px] font-bold text-primary bg-accent rounded px-1">{premium} PRO</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-2">
+        <p className="text-[11px] text-muted-foreground px-1.5 pb-1.5">O que está ligado nesta conta</p>
+        {rows.map((r) => {
+          const c = data?.[r.k];
+          return (
+            <div key={r.k} className="flex items-center justify-between gap-2 px-1.5 py-1.5 rounded-lg hover:bg-muted transition">
+              <span className="text-xs font-medium">{r.label}</span>
+              {c?.premium ? (
+                <span className="text-[10px] font-bold text-primary bg-accent rounded px-1.5 py-0.5 inline-flex items-center gap-1"><Check className="w-3 h-3" /> PRO</span>
+              ) : c?.ready ? (
+                <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded px-1.5 py-0.5">Gratuito</span>
+              ) : (
+                <span className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">Sem chave</span>
+              )}
+            </div>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
   );
 }

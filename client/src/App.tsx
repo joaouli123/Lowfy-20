@@ -249,6 +249,7 @@ function Router() {
                 <Route path="/plrs" component={PLRs} />
                 <Route path="/ai-tools" component={AITools} />
                 <Route path="/ai-studio" component={AIStudio} />
+                <Route path="/ai-studio/:tool" component={AIStudio} />
                 <Route path="/ebooks" component={EbookStudio} />
                 <Route path="/quiz-builder" component={QuizBuilder} />
                 <Route path="/clonador" component={PageCloner} />

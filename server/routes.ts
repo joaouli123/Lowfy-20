@@ -6401,12 +6401,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gerar imagem de criativo
   app.post('/api/ai-studio/image', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
-      const { produto, estilo, headline, formato, publico, prompt, size, quality, provider, background, format, compression } = req.body || {};
-      const finalPrompt = prompt || aiStudio.buildAdImagePrompt({ produto, estilo, headline, formato, publico, idioma: req.body?.idioma });
+      const { produto, estilo, headline, formato, publico, prompt, size, quality, provider, background, format, compression, objetivo, texto, cta, cores, observacoes, referencia } = req.body || {};
+      const reference = typeof referencia === 'string' && referencia.startsWith('data:image/') && referencia.length < 14_000_000 ? referencia : undefined;
+      const finalPrompt = prompt || aiStudio.buildAdImagePrompt({ produto, estilo, headline, formato, publico, idioma: req.body?.idioma, objetivo, texto, cta, cores: Array.isArray(cores) ? cores.slice(0, 6).map(String) : undefined, observacoes, temReferencia: !!reference });
       if (!finalPrompt || finalPrompt.trim().length < 3) {
         return res.status(400).json({ message: 'Descreva o produto/criativo' });
       }
-      const { buffer, mime } = await aiStudio.generateAdImage({ prompt: finalPrompt, size, quality, provider, background, format, compression });
+      const { buffer, mime } = await aiStudio.generateAdImage({ prompt: finalPrompt, size, quality, provider, background, format, compression, reference });
       const ext = mime.includes('webp') ? 'webp' : mime.includes('jpeg') ? 'jpg' : 'png';
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-criativos', mime, ext);
@@ -6455,12 +6456,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Imagem enviada como data URL → arquivo no storage com URL pública absoluta
+  // (os provedores de vídeo/avatar baixam a imagem pela URL).
+  const studioPublicUrl = async (req: any, value: unknown, folder: string): Promise<string | undefined> => {
+    if (typeof value !== 'string' || !value) return undefined;
+    const origin = `${process.env.NODE_ENV === 'production' ? 'https' : req.protocol}://${req.get('host')}`;
+    if (value.startsWith('/')) return `${origin}${value}`;
+    const m = /^data:(image\/(png|jpe?g|webp));base64,(.+)$/i.exec(value);
+    if (!m) return /^https?:\/\//i.test(value) ? value : undefined;
+    const ext = m[2].toLowerCase().replace('jpeg', 'jpg');
+    const url = await new ObjectStorageService().uploadBuffer(Buffer.from(m[3], 'base64'), folder, m[1], ext);
+    return `${origin}${url}`;
+  };
+
+  // Copy estruturada (headline, texto, CTA e variações) para a página de Copy
+  app.post('/api/ai-studio/copy-kit', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    try {
+      const b = req.body || {};
+      if (!b.produto) return res.status(400).json({ message: 'Informe o produto ou serviço' });
+      const result = await aiStudio.generateCopyKit({
+        produto: String(b.produto), objetivo: b.objetivo, publico: b.publico, oferta: b.oferta, beneficios: b.beneficios,
+        tom: b.tom, canal: b.canal, cta: b.cta, tamanho: b.tamanho, observacoes: b.observacoes, idioma: b.idioma,
+      });
+      const text = [result.headline, result.subheadline, result.texto, result.cta].filter(Boolean).join('\n\n');
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'copy', text, title: String(b.produto).slice(0, 80), prompt: String(b.canal || '') });
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[AI Studio] Erro ao gerar copy-kit:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar copy' });
+    }
+  });
+
   // Avatar falante (foto + narração → MP4)
   app.post('/api/ai-studio/avatar', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
-      const { imageUrl, text, audioUrl, size, voice } = req.body || {};
-      if (!imageUrl) return res.status(400).json({ message: 'Envie a foto da pessoa (imageUrl)' });
+      const { text, audioUrl, size, voice, apresentador } = req.body || {};
       if (!text && !audioUrl) return res.status(400).json({ message: 'Informe o texto a ser falado' });
+      let imageUrl = await studioPublicUrl(req, req.body?.imageUrl, 'ai-uploads');
+      // Sem foto: a IA cria o apresentador a partir do estilo e do cenário escolhidos.
+      if (!imageUrl && apresentador) {
+        const imgSize = size === '1080x1920' ? '1024x1536' : size === '1920x1080' ? '1536x1024' : '1024x1024';
+        const gen = await aiStudio.generateAdImage({ prompt: aiStudio.buildPresenterPrompt(apresentador), size: imgSize, quality: 'high', format: 'png' });
+        const stored = await new ObjectStorageService().uploadBuffer(gen.buffer, 'ai-avatares', gen.mime, 'png');
+        imageUrl = await studioPublicUrl(req, stored, 'ai-avatares');
+      }
+      if (!imageUrl) return res.status(400).json({ message: 'Envie a foto da pessoa ou escolha o estilo do apresentador' });
       const { buffer, mime } = await aiStudio.generateTalkingAvatar({ imageUrl, text, audioUrl, size, voice, idioma: req.body?.idioma } as any);
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-avatares', mime, 'mp4');
@@ -6475,7 +6515,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Vídeo de anúncio (imagem + narração → MP4; Seedance/Kling com FAL_KEY)
   app.post('/api/ai-studio/video', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {
-      const { prompt, imageUrl, script, size, voice, resolution, duration } = req.body || {};
+      const { script, size, voice, resolution, duration } = req.body || {};
+      const imageUrl = await studioPublicUrl(req, req.body?.imageUrl, 'ai-uploads');
+      const prompt = req.body?.prompt || (req.body?.produto ? aiStudio.buildAdVideoPrompt(req.body) : '');
       if (!prompt && !imageUrl) return res.status(400).json({ message: 'Descreva o vídeo ou envie uma imagem base' });
       const { buffer, mime } = await aiStudio.generateAdVideo({ prompt, imageUrl, script, size, voice, resolution, duration, idioma: req.body?.idioma } as any);
       const objectStorageService = new ObjectStorageService();
