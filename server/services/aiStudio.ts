@@ -40,7 +40,7 @@ export function aiStudioCapabilities() {
   return {
     kie: { ready: K },
     image: { ready: true, premium: K || !!OPENAI_KEY, providers: { openai: !!OPENAI_KEY, ideogram: !!process.env.IDEOGRAM_API_KEY, free: true } },
-    copy: { ready: !!(GEMINI_KEY || OPENAI_KEY), providers: { gemini: !!GEMINI_KEY, openai: !!OPENAI_KEY } },
+    copy: { ready: K || !!(GEMINI_KEY || OPENAI_KEY), providers: { gemini: !!GEMINI_KEY, openai: !!OPENAI_KEY } },
     tts: { ready: true, premium: K || !!ELEVENLABS_KEY, providers: { elevenlabs: !!ELEVENLABS_KEY, free: true } },
     voiceClone: { ready: !!ELEVENLABS_KEY, provider: "elevenlabs" },
     avatar: { ready: true, premium: K || !!(process.env.HEYGEN_API_KEY || process.env.DID_API_KEY), providers: { heygen: !!process.env.HEYGEN_API_KEY, did: !!process.env.DID_API_KEY, free: true } },
@@ -218,6 +218,15 @@ ${fw}
 Escreva TODO o conteúdo no idioma: ${langName(params.idioma)}.
 Devolva como JSON: {"variacoes": ["...", "..."]}. Cada variação deve ser ${tamanhoPorTipo(params.tipo)}.`;
 
+  // Kie.ai primeiro (mais barato); OpenAI/Gemini direto como reserva.
+  if (kie.kieReady()) {
+    try {
+      const j = await kie.kieChat(COPY_SYSTEM, userPrompt, { json: true, temperature: 0.9 });
+      return { variacoes: parseVariacoes(JSON.stringify(j), n), tokens: 0 };
+    } catch (e: any) {
+      if (!OPENAI_KEY && !GEMINI_KEY) throw e;
+    }
+  }
   // Premium: OpenAI GPT (melhor qualidade de copy). Gemini só como fallback se OpenAI ausente.
   if (OPENAI_KEY) {
     const res = await openai().chat.completions.create({
@@ -299,7 +308,8 @@ export async function llmJson(system: string, user: string, temperature = 0.8): 
     });
     return JSON.parse(((res as any).text || "{}").replace(/```json|```/g, "").trim());
   }
-  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY ou GEMINI_API_KEY)");
+  if (kie.kieReady()) return kie.kieChat(system, user, { json: true, temperature });
+  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY, GEMINI_API_KEY ou KIE_API_KEY)");
 }
 
 // Variante de llmJson que também devolve o uso de tokens (p/ logTokenUsage nos call sites).
@@ -340,7 +350,8 @@ export async function llmJsonWithUsage(
       completionTokens: usage?.candidatesTokenCount || 0,
     };
   }
-  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY ou GEMINI_API_KEY)");
+  if (kie.kieReady()) return { data: await kie.kieChat(system, user, { json: true, temperature }), model: "kie/gemini-3-8-flash", promptTokens: 0, completionTokens: 0 };
+  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY, GEMINI_API_KEY ou KIE_API_KEY)");
 }
 
 export async function llmText(system: string, user: string, temperature = 0.7): Promise<string> {
@@ -360,7 +371,8 @@ export async function llmText(system: string, user: string, temperature = 0.7): 
     });
     return (res as any).text || "";
   }
-  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY ou GEMINI_API_KEY)");
+  if (kie.kieReady()) return kie.kieChat(system, user, { temperature });
+  throw new Error("Nenhuma chave de IA configurada (OPENAI_API_KEY, GEMINI_API_KEY ou KIE_API_KEY)");
 }
 
 const LANDING_BLOCKS_SYSTEM = `Você é um web designer de páginas de pré-venda (advertorial/landing) de alta conversão. Gere uma página COMPLETA a partir da descrição do usuário.
@@ -868,7 +880,12 @@ ${p.observacoes ? `- Observações: ${p.observacoes}` : ""}
 O texto principal deve ser ${TAMANHO_LABEL[p.tamanho || ""] || TAMANHO_LABEL.curto}.
 Escreva TODO o conteúdo no idioma: ${langName(p.idioma)}.
 Responda SOMENTE com JSON: {"headline":"até 8 palavras","subheadline":"1 frase curta reforçando a oferta","texto":"texto principal","cta":"chamada para ação curta","variacoes":["3 headlines alternativas"]}`;
-  const j = await llmJson(COPY_SYSTEM, user, 0.85);
+  let j: any;
+  if (kie.kieReady()) {
+    try { j = await kie.kieChat(COPY_SYSTEM, user, { json: true, temperature: 0.85 }); }
+    catch (e) { if (!OPENAI_KEY && !GEMINI_KEY) throw e; }
+  }
+  if (!j) j = await llmJson(COPY_SYSTEM, user, 0.85);
   const str = (v: any) => (typeof v === "string" ? v.trim() : "");
   return {
     headline: str(j?.headline),

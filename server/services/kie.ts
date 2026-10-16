@@ -158,3 +158,55 @@ const KIE_VOICE_IDS = new Set([
 ]);
 export const kieVoice = (id?: string) => (id && KIE_VOICE_IDS.has(id) ? id : KIE_DEFAULT_VOICE);
 export const kieVoicePreview = (id: string) => `https://static.aiquickdraw.com/elevenlabs/voice/${id}.mp3`;
+
+// ---------- Chat (texto) ----------
+// Um endpoint por modelo. Ordem = preferência (o 1º que responder vence).
+// GPT-5.6 Luna (API "responses") saiu ~6x mais barato que o GPT-5.2 em teste real (out/2026).
+const CHAT_MODELS: { path: string; model: string; responses?: boolean }[] = [
+  { path: "/codex/v1/responses", model: process.env.KIE_CHAT_MODEL || "gpt-5-6-luna", responses: true },
+  { path: "/gemini-3-8-flash-openai/v1/chat/completions", model: "gemini-3-8-flash" },
+  { path: "/gpt-5-2/v1/chat/completions", model: "gpt-5-2" },
+];
+
+/** Texto da resposta nos dois formatos (chat/completions e responses). O Luna embrulha em <escape>. */
+function chatText(j: any): string | undefined {
+  const t = j?.choices?.[0]?.message?.content
+    ?? j?.output_text
+    ?? (Array.isArray(j?.output) ? j.output.flatMap((o: any) => o?.content || []).map((c: any) => c?.text || "").join("") : undefined);
+  return typeof t === "string" && t.trim() ? t.replace(/<\/?escape>/g, "").trim() : undefined;
+}
+
+/** Gera texto pela Kie. Com json=true, devolve o objeto já parseado. */
+export async function kieChat(system: string, user: string, opts: { json?: boolean; temperature?: number } = {}): Promise<any> {
+  let lastErr: any;
+  const sys = system + (opts.json ? "\nResponda SOMENTE com JSON válido, sem comentários nem markdown." : "");
+  for (const m of CHAT_MODELS) {
+    try {
+      const r = await fetch(`${API}${m.path}`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(m.responses
+          ? { model: m.model, stream: false, instructions: sys, input: user }
+          : {
+              model: m.model,
+              stream: false,
+              temperature: opts.temperature ?? 0.8,
+              messages: [{ role: "system", content: sys }, { role: "user", content: user }],
+              ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+            }),
+        signal: AbortSignal.timeout(120_000),
+      });
+      const j: any = await r.json().catch(() => ({}));
+      const text = chatText(j);
+      if (!text) throw new Error(j?.msg || `HTTP ${r.status}`);
+      if (!opts.json) return text;
+      const clean = text.replace(/```json|```/g, "").trim();
+      const start = clean.indexOf("{");
+      return JSON.parse(start > 0 ? clean.slice(start, clean.lastIndexOf("}") + 1) : clean);
+    } catch (e) {
+      lastErr = e;
+      logger.warn(`[Kie] chat ${m.model} falhou: ${(e as any)?.message}`);
+    }
+  }
+  throw new Error(`Kie.ai (texto) indisponível: ${lastErr?.message || "sem detalhe"}`);
+}
