@@ -22,6 +22,23 @@ const ESTILOS = ["Minimalista", "Fotográfico", "Moderno", "Elegante", "Vibrante
 const QTD_SLIDES = [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "7", label: "7" }, { v: "10", label: "10" }];
 const CAROUSEL_RATIOS = RATIOS.filter((r) => r.id === "1:1" || r.id === "4:5");
 
+// Exemplos reais gerados pelo Estúdio: aparecem no preview vazio para a pessoa ver o resultado antes de gastar crédito.
+const EXEMPLO_POST: Record<string, string> = {
+  "4:5": "/studio-examples/post-tenis-4x5.webp",
+  "9:16": "/studio-examples/post-tenis-4x5.webp",
+  "1:1": "/studio-examples/post-perfume-1x1.webp",
+  "16:9": "/studio-examples/post-perfume-1x1.webp",
+};
+const EXEMPLO_CARROSSEL = [1, 2, 3].map((i) => `/studio-examples/carrossel-${i}.webp`);
+
+function ExampleBadge() {
+  return (
+    <span className="absolute top-2 left-2 rounded-md bg-black/60 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 backdrop-blur-sm">
+      Exemplo
+    </span>
+  );
+}
+
 /** Largura da prévia por proporção: o 9:16 não estoura a altura da tela. */
 const previewWidth = (r: RatioId) =>
   r === "9:16" ? "max-w-[250px]" : r === "4:5" ? "max-w-[330px]" : "max-w-full";
@@ -46,6 +63,7 @@ export default function CriativoPage() {
   const [job, setJob] = useState<CarouselState | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [slide, setSlide] = useState(0);
+  const [exSlide, setExSlide] = useState(0);
   const carBusy = !!job && (job.status === "planning" || job.status === "drawing");
 
   useEffect(() => {
@@ -53,7 +71,15 @@ export default function CriativoPage() {
     let stop = false;
     const tick = async () => {
       try {
-        const r = await apiRequest("GET", `/api/ai-studio/carousel/${jobId}`);
+        const r = await fetch(`/api/ai-studio/carousel/${jobId}`, { credentials: "include" });
+        if (r.status === 404) {
+          // O servidor reiniciou (atualização do sistema) e o carrossel em andamento se perdeu.
+          setJobId(null);
+          setJob(null);
+          toast({ title: "O carrossel foi interrompido", description: "O sistema foi atualizado enquanto gerava. Clique em gerar de novo.", variant: "destructive" });
+          return;
+        }
+        if (!r.ok) throw new Error(String(r.status));
         const d = (await r.json()) as CarouselState;
         if (stop) return;
         setJob(d);
@@ -343,7 +369,7 @@ export default function CriativoPage() {
             <PreviewPanel
               busy={carBusy}
               icon={Eye}
-              sub={job?.status === "done" ? `${ready.length} de ${slides.length} slides prontos.` : "Seus slides aparecem aqui, um ao lado do outro."}
+              sub={job?.status === "done" ? `${ready.length} de ${slides.length} slides prontos.` : job ? "Seus slides aparecem aqui, um ao lado do outro." : "Exemplo real de carrossel feito aqui. Use as setas para ver."}
               actions={
                 <>
                   <DownloadButton url={cur?.url || null} label="Baixar slide" />
@@ -370,11 +396,16 @@ export default function CriativoPage() {
                       <p className="text-xs text-muted-foreground">{cur.texto}</p>
                     </div>
                   ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4">
-                      <GalleryHorizontal className="w-8 h-8 text-[color-mix(in_srgb,var(--muted-foreground)_60%,transparent)]" />
-                      <p className="text-sm font-semibold">{car.slides} slides · {spec.id}</p>
-                      <p className="text-xs text-muted-foreground">Carrossel do Instagram</p>
-                    </div>
+                    <>
+                      <img src={EXEMPLO_CARROSSEL[exSlide]} alt="Exemplo de carrossel" className="w-full h-full object-cover" />
+                      <ExampleBadge />
+                      <button type="button" onClick={() => setExSlide((i) => Math.max(0, i - 1))} disabled={exSlide === 0} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center disabled:opacity-30" aria-label="Exemplo anterior">
+                        <ChevronLeft className="w-5 h-5 text-slate-800" />
+                      </button>
+                      <button type="button" onClick={() => setExSlide((i) => Math.min(EXEMPLO_CARROSSEL.length - 1, i + 1))} disabled={exSlide === EXEMPLO_CARROSSEL.length - 1} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center disabled:opacity-30" aria-label="Próximo exemplo">
+                        <ChevronRight className="w-5 h-5 text-slate-800" />
+                      </button>
+                    </>
                   )}
                   {job?.status === "planning" && <PreviewLoading label="Escrevendo o roteiro dos slides…" sub="A IA está montando o gancho e o conteúdo" />}
                   {slides.length > 1 && (
@@ -426,7 +457,7 @@ export default function CriativoPage() {
             <PreviewPanel
               busy={busy.image}
               icon={Eye}
-              sub="Veja como seu criativo ficará. A imagem será gerada aqui."
+              sub={imageUrl ? "Seu criativo está pronto." : "Isto é um exemplo real feito aqui. O seu aparece no lugar."}
               actions={
                 <>
                   <DownloadButton url={imageUrl} label="Baixar" />
@@ -439,11 +470,11 @@ export default function CriativoPage() {
                   {imageUrl ? (
                     <img src={imageUrl} alt="Criativo gerado" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4">
-                      <ImageIcon className="w-8 h-8 text-[color-mix(in_srgb,var(--muted-foreground)_60%,transparent)]" />
-                      <p className="text-sm font-semibold">{spec.id} · {spec.label}</p>
-                      <p className="text-xs text-muted-foreground">{spec.sub}</p>
-                    </div>
+                    <>
+                      <img src={EXEMPLO_POST[ratio]} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60" />
+                      <img src={EXEMPLO_POST[ratio]} alt="Exemplo de criativo" className="relative w-full h-full object-contain" />
+                      <ExampleBadge />
+                    </>
                   )}
                   {busy.image && <PreviewLoading label="Criando seu criativo…" sub="Costuma levar cerca de 1 minuto" />}
                 </div>
