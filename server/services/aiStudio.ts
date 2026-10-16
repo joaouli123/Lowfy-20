@@ -152,14 +152,23 @@ const ESTILO_CRIATIVO: Record<string, string> = {
   elegante: "Estilo ELEGANTE / PREMIUM: tons sóbrios, contraste refinado, tipografia serifada sofisticada, acabamento de marca de luxo.",
   vibrante: "Estilo VIBRANTE: cores saturadas e alegres, alto contraste, elementos gráficos chamativos, energia alta.",
 };
+// Estrutura padrão de cada tipo de criativo. Cada objetivo tem um "jeitão" próprio de anúncio de Instagram.
 const OBJETIVO_CRIATIVO: Record<string, string> = {
-  "Vender um produto": "Objetivo: VENDER — produto como herói da imagem e sensação de desejo/urgência.",
-  "Gerar leads": "Objetivo: GERAR CADASTROS — transmita benefício claro e confiança, convide a pessoa a deixar o contato.",
-  "Divulgar promoção": "Objetivo: PROMOÇÃO — destaque visual forte para o desconto/oferta, selo ou etiqueta de promoção.",
-  "Lançamento": "Objetivo: LANÇAMENTO — sensação de novidade e exclusividade.",
-  "Reconhecimento de marca": "Objetivo: MARCA — visual memorável e consistente, foco na identidade e não no preço.",
-  "Tráfego para o site": "Objetivo: CLIQUES — curiosidade e chamada clara para saber mais.",
+  "Vender um produto":
+    "TIPO DE CRIATIVO: ANÚNCIO DE VENDA DIRETA. Estrutura obrigatória: o PRODUTO é o herói, grande e muito bem iluminado, ocupando boa parte da imagem; título curto de desejo/benefício; se houver preço ou condição, destaque em selo ou etiqueta; botão de compra bem visível na parte de baixo. Sensação: desejo imediato, \"eu quero isso agora\".",
+  "Divulgar promoção":
+    "TIPO DE CRIATIVO: PROMOÇÃO / OFERTA DE INSTAGRAM, com cara de liquidação de verdade. Estrutura obrigatória: o DESCONTO é o maior elemento da peça (ex.: número gigante \"50% OFF\" ou preço riscado + preço novo) dentro de um selo, etiqueta, faixa diagonal ou explosão; cores quentes e de alto contraste (vermelho, amarelo, laranja ou as cores da marca bem saturadas); urgência transmitida pelo VISUAL (raios, faixas diagonais, explosões, setas, brilho) — NÃO escreva frases de urgência ou escassez (\"só hoje\", \"últimas unidades\", prazos) que o cliente não informou, porque podem não ser verdade; produto visível ao lado do desconto; botão de compra chamativo. Energia de Black Friday/queima de estoque — nada discreto.",
+  "Lançamento":
+    "TIPO DE CRIATIVO: LANÇAMENTO / NOVIDADE. Estrutura obrigatória: selo ou faixa \"NOVO\" / \"LANÇAMENTO\" bem visível; produto revelado de forma dramática (luz de destaque, brilho, fundo escuro ou gradiente premium, efeito de revelação); título que gera curiosidade e exclusividade; sensação de evento e de \"chegou\". Visual premium e impactante.",
+  "Gerar leads":
+    "TIPO DE CRIATIVO: CAPTAÇÃO DE LEADS (isca gratuita). Estrutura obrigatória: deixe claro o que a pessoa GANHA de graça (e-book, aula, consultoria, diagnóstico, cupom), de preferência mostrando o material (mockup de e-book/celular/tela); palavra \"GRÁTIS\" ou \"GRATUITO\" em destaque; benefício principal em uma linha; botão de ação do tipo \"Quero receber\" / \"Baixar agora\". Sensação: confiável, útil e sem risco.",
+  "Reconhecimento de marca":
+    "TIPO DE CRIATIVO: BRANDING / RECONHECIMENTO DE MARCA. Estrutura obrigatória: foco no estilo de vida e na sensação que a marca transmite, não no preço; composição limpa e sofisticada, muito respiro; poucas palavras (uma frase de impacto ou slogan); fotografia aspiracional com pessoas ou ambiente; nada de selos de desconto. Sensação: memorável, bonito, de marca grande.",
+  "Tráfego para o site":
+    "TIPO DE CRIATIVO: TRÁFEGO / CLIQUE PARA O SITE. Estrutura obrigatória: título que desperta curiosidade ou promete uma informação útil (\"Descubra…\", \"Veja como…\"); elementos que remetem a clicar e navegar (seta, cursor, mockup de site no celular ou notebook); chamada clara do tipo \"Saiba mais\" / \"Acesse o site\" em botão destacado. Sensação: \"preciso clicar para ver\".",
 };
+// Sem objetivo escolhido: criativo de venda, que é o caso mais comum.
+const OBJETIVO_PADRAO = OBJETIVO_CRIATIVO["Vender um produto"];
 
 export function buildAdImagePrompt(opts: {
   produto: string;
@@ -177,7 +186,7 @@ export function buildAdImagePrompt(opts: {
 }): string {
   const lang = langName(opts.idioma);
   const estilo = ESTILO_CRIATIVO[(opts.estilo || "").toLowerCase()] || (opts.estilo ? `Estilo visual: ${opts.estilo}.` : ESTILO_CRIATIVO.moderno);
-  const objetivo = OBJETIVO_CRIATIVO[opts.objetivo || ""] || (opts.objetivo ? `Objetivo: ${opts.objetivo}.` : "");
+  const objetivo = OBJETIVO_CRIATIVO[opts.objetivo || ""] || (opts.objetivo ? `Objetivo: ${opts.objetivo}.` : OBJETIVO_PADRAO);
 
   // Textos que vão estampados: exatamente estes, nada além.
   const textos: string[] = [];
@@ -189,6 +198,7 @@ export function buildAdImagePrompt(opts: {
     `Crie um criativo de anúncio para redes sociais, com qualidade de agência de publicidade, para: ${opts.produto}.`,
     opts.publico ? `Público-alvo: ${opts.publico} — a imagem precisa falar com essas pessoas.` : "",
     objetivo,
+    "Siga a ESTRUTURA DO TIPO DE CRIATIVO acima à risca — ela é a prioridade da composição. O estilo visual abaixo só define a estética.",
     estilo,
     opts.cores?.length
       ? `PALETA OBRIGATÓRIA (cores da marca): ${opts.cores.join(", ")}. Use essas cores como dominantes no fundo, nos elementos gráficos e no botão.`
@@ -197,7 +207,7 @@ export function buildAdImagePrompt(opts: {
       ? "A imagem enviada é a REFERÊNCIA: mantenha o produto exatamente como aparece nela (forma, cor, rótulo e detalhes) e use-a como guia de estilo."
       : "",
     textos.length
-      ? `TEXTOS NA IMAGEM — escreva exatamente estes, em ${lang}, com ortografia e acentuação corretas, perfeitamente legíveis, e NÃO adicione nenhum outro texto: ${textos.join(" | ")}.`
+      ? `TEXTOS NA IMAGEM — escreva exatamente estes, em ${lang}, com ortografia e acentuação corretas, perfeitamente legíveis, e NÃO adicione nenhum outro texto (no máximo o percentual de desconto calculado a partir dos preços informados): ${textos.join(" | ")}.`
       : `Crie um título curto e chamativo (até 5 palavras) em ${lang}, com ortografia e acentuação corretas, e não adicione outros textos.`,
     opts.observacoes ? `Instruções extras do cliente (siga à risca): ${opts.observacoes}.` : "",
     "Hierarquia visual clara: produto em destaque, título fácil de ler no celular, respiro nas margens (nada colado na borda). Sem marcas d'água, sem logotipos inventados.",
