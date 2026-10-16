@@ -6419,6 +6419,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Carrossel: roda em segundo plano (vários minutos) e o front acompanha por polling.
+  type CarouselJob = {
+    userId: string; status: 'planning' | 'drawing' | 'done' | 'error'; total: number; done: number;
+    slides: aiStudio.CarouselSlide[]; error?: string; createdAt: number;
+  };
+  const carouselJobs = new Map<string, CarouselJob>();
+  const pruneCarouselJobs = () => {
+    const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+    carouselJobs.forEach((j, id) => { if (j.createdAt < cutoff) carouselJobs.delete(id); });
+  };
+
+  app.post('/api/ai-studio/carousel', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+    const b = req.body || {};
+    const tema = String(b.tema || '').trim();
+    if (tema.length < 3) return res.status(400).json({ message: 'Diga sobre o que é o carrossel' });
+    const params: aiStudio.CarouselParams = {
+      tema,
+      produto: b.produto, publico: b.publico, objetivo: b.objetivo, estilo: b.estilo, cta: b.cta, observacoes: b.observacoes,
+      cores: Array.isArray(b.cores) ? b.cores.slice(0, 6).map(String) : undefined,
+      slides: Math.max(3, Math.min(10, Number(b.slides) || 5)),
+      aspect: b.aspect === '1:1' ? '1:1' : '4:5',
+      idioma: b.idioma,
+      referencia: typeof b.referencia === 'string' && b.referencia.startsWith('data:image/') ? b.referencia : undefined,
+    };
+    pruneCarouselJobs();
+    const id = crypto.randomUUID();
+    const job: CarouselJob = { userId: req.user.id, status: 'planning', total: params.slides, done: 0, slides: [], createdAt: Date.now() };
+    carouselJobs.set(id, job);
+    res.json({ id });
+
+    const storage = new ObjectStorageService();
+    const drawSlide = async (i: number, base?: string) => {
+      const s = job.slides[i];
+      try {
+        const prompt = aiStudio.buildCarouselSlidePrompt(params, s, i, job.slides.length, !!base);
+        const img = await aiStudio.generateAdImage({ prompt, aspect: params.aspect, reference: base || (i === 0 ? params.referencia : undefined) });
+        const ext = img.mime.includes('webp') ? 'webp' : img.mime.includes('jpeg') ? 'jpg' : 'png';
+        s.url = await storage.uploadBuffer(img.buffer, 'ai-carrosseis', img.mime, ext);
+      } catch (e: any) {
+        s.erro = e?.message || 'Falha ao gerar este slide';
+      } finally {
+        job.done++;
+      }
+    };
+
+    try {
+      job.slides = await aiStudio.planCarousel(params);
+      job.total = job.slides.length;
+      job.status = 'drawing';
+      // Slide 1 define o visual; os outros usam ele como referência (mesma identidade).
+      await drawSlide(0);
+      if (!job.slides[0].url) throw new Error(job.slides[0].erro || 'Falha ao gerar a capa');
+      const base = await studioPublicUrl(req, job.slides[0].url, 'ai-carrosseis');
+      const rest = job.slides.map((_, i) => i).slice(1);
+      for (let k = 0; k < rest.length; k += 3) await Promise.all(rest.slice(k, k + 3).map((i) => drawSlide(i, base)));
+      job.status = 'done';
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'image', url: job.slides[0].url, title: `Carrossel: ${tema}`.slice(0, 80), prompt: job.slides.map((s) => s.titulo).join(' | ').slice(0, 500) });
+    } catch (e: any) {
+      logger.error('[AI Studio] Erro no carrossel:', e?.message);
+      job.status = 'error';
+      job.error = e?.message || 'Erro ao gerar carrossel';
+    }
+  });
+
+  app.get('/api/ai-studio/carousel/:id', authMiddleware, fullAccessMiddleware, (req: any, res) => {
+    const job = carouselJobs.get(req.params.id);
+    if (!job || job.userId !== req.user.id) return res.status(404).json({ message: 'Carrossel não encontrado' });
+    const { userId, createdAt, ...pub } = job;
+    res.json(pub);
+  });
+
   // Gerar copy persuasiva
   app.post('/api/ai-studio/copy', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
     try {

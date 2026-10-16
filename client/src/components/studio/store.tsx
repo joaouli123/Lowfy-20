@@ -22,7 +22,7 @@ const EMPTY_BRIEF: Brief = {
 };
 
 const DEFAULT_OPTS = {
-  image: { quality: "high", format: "png", background: "auto", objetivo: "", texto: "", cta: "", cores: ["#059669", "#064e3b", "#f1f5f9", "#d1fae5"] as string[], observacoes: "", referencia: "" },
+  image: { quality: "high", format: "png", background: "auto", objetivo: "", texto: "", cta: "", cores: [] as string[], observacoes: "", referencia: "" },
   copy: { tipo: "anuncio", framework: "auto", variacoes: 3 },
   tts: { modelId: "eleven_multilingual_v2", stability: 0.5, similarityBoost: 0.75, style: 0, speed: 1 },
   video: { prompt: "", resolution: "720p", duration: "auto", imageUrl: "" },

@@ -144,6 +144,23 @@ export function langName(code?: string): string {
  * Monta um prompt de imagem rico a partir da descrição do produto/criativo,
  * aplicando boas práticas de criativo de anúncio (composição, foco, legibilidade).
  */
+const ESTILO_CRIATIVO: Record<string, string> = {
+  minimalista: "Estilo MINIMALISTA: fundo limpo de cor sólida ou gradiente suave, poucos elementos, muito espaço vazio, tipografia sans-serif fina e elegante.",
+  "fotográfico": "Estilo FOTOGRÁFICO: foto realista do produto em ambiente real, iluminação de estúdio, profundidade de campo, aparência de campanha publicitária.",
+  fotografico: "Estilo FOTOGRÁFICO: foto realista do produto em ambiente real, iluminação de estúdio, profundidade de campo, aparência de campanha publicitária.",
+  moderno: "Estilo MODERNO: composição dinâmica, formas geométricas, gradientes, tipografia bold, visual atual de redes sociais.",
+  elegante: "Estilo ELEGANTE / PREMIUM: tons sóbrios, contraste refinado, tipografia serifada sofisticada, acabamento de marca de luxo.",
+  vibrante: "Estilo VIBRANTE: cores saturadas e alegres, alto contraste, elementos gráficos chamativos, energia alta.",
+};
+const OBJETIVO_CRIATIVO: Record<string, string> = {
+  "Vender um produto": "Objetivo: VENDER — produto como herói da imagem e sensação de desejo/urgência.",
+  "Gerar leads": "Objetivo: GERAR CADASTROS — transmita benefício claro e confiança, convide a pessoa a deixar o contato.",
+  "Divulgar promoção": "Objetivo: PROMOÇÃO — destaque visual forte para o desconto/oferta, selo ou etiqueta de promoção.",
+  "Lançamento": "Objetivo: LANÇAMENTO — sensação de novidade e exclusividade.",
+  "Reconhecimento de marca": "Objetivo: MARCA — visual memorável e consistente, foco na identidade e não no preço.",
+  "Tráfego para o site": "Objetivo: CLIQUES — curiosidade e chamada clara para saber mais.",
+};
+
 export function buildAdImagePrompt(opts: {
   produto: string;
   estilo?: string;
@@ -158,21 +175,32 @@ export function buildAdImagePrompt(opts: {
   observacoes?: string;
   temReferencia?: boolean;
 }): string {
+  const lang = langName(opts.idioma);
+  const estilo = ESTILO_CRIATIVO[(opts.estilo || "").toLowerCase()] || (opts.estilo ? `Estilo visual: ${opts.estilo}.` : ESTILO_CRIATIVO.moderno);
+  const objetivo = OBJETIVO_CRIATIVO[opts.objetivo || ""] || (opts.objetivo ? `Objetivo: ${opts.objetivo}.` : "");
+
+  // Textos que vão estampados: exatamente estes, nada além.
+  const textos: string[] = [];
+  if (opts.headline) textos.push(`TÍTULO (maior destaque): "${opts.headline}"`);
+  if (opts.texto) textos.push(`TEXTO DE APOIO (menor que o título): "${opts.texto}"`);
+  if (opts.cta) textos.push(`BOTÃO de chamada para ação: "${opts.cta}"`);
+
   const partes = [
-    `Crie um criativo publicitário profissional e fotorrealista para anúncio de: ${opts.produto}.`,
-    opts.publico ? `Público-alvo: ${opts.publico}.` : "",
-    opts.estilo ? `Estilo visual: ${opts.estilo}.` : "Estilo moderno, alto contraste, com foco no produto.",
-    opts.headline
-      ? `Inclua o texto em destaque, perfeitamente legível e sem erros de ortografia: "${opts.headline}".`
-      : `Crie e inclua uma headline curta e chamativa (até 5 palavras) em ${langName(opts.idioma)}, perfeitamente legível e sem erros de ortografia.`,
-    opts.objetivo ? `Objetivo do anúncio: ${opts.objetivo}.` : "",
-    opts.texto ? `Texto de apoio (menor que a headline): "${opts.texto}".` : "",
-    opts.cta ? `Inclua um botão de chamada para ação com o texto "${opts.cta}".` : "",
-    opts.cores?.length ? `Use a paleta de cores da marca: ${opts.cores.join(", ")}.` : "",
-    opts.temReferencia ? "Use a imagem enviada como referência de estilo, composição e produto." : "",
-    opts.observacoes ? `Observações extras: ${opts.observacoes}.` : "",
-    opts.idioma && opts.idioma !== "pt-BR" ? `Qualquer texto na imagem deve estar em ${langName(opts.idioma)}.` : "",
-    "Composição limpa, iluminação de estúdio, cores vibrantes, espaço para o produto respirar. Qualidade de agência publicitária. Sem marcas d'água.",
+    `Crie um criativo de anúncio para redes sociais, com qualidade de agência de publicidade, para: ${opts.produto}.`,
+    opts.publico ? `Público-alvo: ${opts.publico} — a imagem precisa falar com essas pessoas.` : "",
+    objetivo,
+    estilo,
+    opts.cores?.length
+      ? `PALETA OBRIGATÓRIA (cores da marca): ${opts.cores.join(", ")}. Use essas cores como dominantes no fundo, nos elementos gráficos e no botão.`
+      : "",
+    opts.temReferencia
+      ? "A imagem enviada é a REFERÊNCIA: mantenha o produto exatamente como aparece nela (forma, cor, rótulo e detalhes) e use-a como guia de estilo."
+      : "",
+    textos.length
+      ? `TEXTOS NA IMAGEM — escreva exatamente estes, em ${lang}, com ortografia e acentuação corretas, perfeitamente legíveis, e NÃO adicione nenhum outro texto: ${textos.join(" | ")}.`
+      : `Crie um título curto e chamativo (até 5 palavras) em ${lang}, com ortografia e acentuação corretas, e não adicione outros textos.`,
+    opts.observacoes ? `Instruções extras do cliente (siga à risca): ${opts.observacoes}.` : "",
+    "Hierarquia visual clara: produto em destaque, título fácil de ler no celular, respiro nas margens (nada colado na borda). Sem marcas d'água, sem logotipos inventados.",
   ];
   return partes.filter(Boolean).join(" ");
 }
@@ -942,5 +970,69 @@ export function buildAdVideoPrompt(b: { produto?: string; objetivo?: string; pub
     b.observacoes ? `Observações: ${b.observacoes}.` : "",
     `Qualquer fala ou texto em ${langName(b.idioma)}.`,
     "Produto sempre em foco, qualidade de comercial de TV.",
+  ].filter(Boolean).join(" ");
+}
+
+// ---------- Carrossel: roteiro + slides com o mesmo visual ----------
+
+export interface CarouselParams {
+  tema: string;
+  produto?: string;
+  publico?: string;
+  objetivo?: string;
+  estilo?: string;
+  cores?: string[];
+  cta?: string;
+  observacoes?: string;
+  slides: number;
+  aspect: string;
+  idioma?: string;
+  referencia?: string;
+}
+
+export interface CarouselSlide { titulo: string; texto: string; url?: string; erro?: string }
+
+/** A IA escreve o roteiro: slide 1 = gancho, meio = conteúdo, último = chamada para ação. */
+export async function planCarousel(p: CarouselParams): Promise<CarouselSlide[]> {
+  const n = Math.max(3, Math.min(10, p.slides));
+  const system = "Você é um estrategista de conteúdo e copywriter de redes sociais especializado em carrosséis que prendem atenção e convertem.";
+  const user = `Crie o roteiro de um carrossel de ${n} slides para Instagram.
+- Tema: ${p.tema}
+${p.produto ? `- Produto/marca: ${p.produto}` : ""}
+${p.publico ? `- Público-alvo: ${p.publico}` : ""}
+${p.objetivo ? `- Objetivo: ${p.objetivo}` : ""}
+${p.cta ? `- Chamada final desejada: ${p.cta}` : ""}
+${p.observacoes ? `- Observações: ${p.observacoes}` : ""}
+Regras:
+- Slide 1 é a CAPA: um GANCHO forte que faz a pessoa arrastar.
+- Os slides 2 a ${n - 1} entregam o conteúdo: exatamente ${n - 2} itens, 1 ideia por slide, numerados quando for lista.
+- O slide ${n} é SÓ a chamada para ação (não coloque conteúdo novo nele).
+- Se a capa prometer um número ("5 erros", "3 dicas"...), esse número TEM que ser ${n - 2}: ajuste a promessa da capa para bater com os slides de conteúdo.
+Títulos com no máximo 7 palavras, textos com no máximo 22 palavras (precisam caber legíveis numa imagem). Idioma: ${langName(p.idioma)}.
+Responda SOMENTE com JSON: {"slides":[{"titulo":"...","texto":"..."}]} com exatamente ${n} itens.`;
+  const j = kie.kieReady() ? await kie.kieChat(system, user, { json: true, temperature: 0.8 }) : await llmJson(system, user, 0.8);
+  const slides = (Array.isArray(j?.slides) ? j.slides : [])
+    .map((s: any) => ({ titulo: String(s?.titulo || "").trim(), texto: String(s?.texto || "").trim() }))
+    .filter((s: CarouselSlide) => s.titulo || s.texto)
+    .slice(0, n);
+  if (slides.length < 2) throw new Error("A IA não conseguiu montar o roteiro do carrossel. Tente de novo.");
+  return slides;
+}
+
+export function buildCarouselSlidePrompt(p: CarouselParams, s: CarouselSlide, i: number, total: number, temBase: boolean): string {
+  const lang = langName(p.idioma);
+  const estilo = ESTILO_CRIATIVO[(p.estilo || "").toLowerCase()] || (p.estilo ? `Estilo visual: ${p.estilo}.` : ESTILO_CRIATIVO.moderno);
+  const papel = i === 0 ? "CAPA do carrossel (gancho, título bem grande)" : i === total - 1 ? "ÚLTIMO slide (chamada para ação, com botão)" : `slide ${i + 1} de ${total} (conteúdo)`;
+  return [
+    `Slide de carrossel de Instagram — ${papel}. Tema: ${p.tema}.${p.produto ? ` Produto/marca: ${p.produto}.` : ""}`,
+    temBase
+      ? "A imagem enviada é a CAPA deste mesmo carrossel. Mantenha a MESMA identidade visual: paleta de cores, tipografia, estilo gráfico, margens e posição do título e do texto. MAS crie uma imagem/ilustração NOVA que represente o assunto deste slide — não repita a mesma foto, pessoa ou cena da capa."
+      : estilo,
+    p.cores?.length ? `PALETA OBRIGATÓRIA: ${p.cores.join(", ")}.` : "",
+    `TEXTOS NA IMAGEM — escreva exatamente estes, em ${lang}, com ortografia e acentuação corretas, legíveis no celular, e NÃO adicione nenhum outro texto: TÍTULO: "${s.titulo}"${s.texto ? ` | TEXTO: "${s.texto}"` : ""}${i === total - 1 && p.cta ? ` | BOTÃO: "${p.cta}"` : ""}.`,
+    `Mostre um pequeno indicador "${i + 1}/${total}" discreto no canto.`,
+    i === 0 && !temBase ? "Inclua uma seta ou sinal sutil indicando para arrastar para o lado." : "",
+    p.observacoes ? `Instruções extras do cliente (siga à risca): ${p.observacoes}.` : "",
+    "Respiro nas margens, hierarquia clara, nada colado na borda. Sem marcas d'água.",
   ].filter(Boolean).join(" ");
 }
