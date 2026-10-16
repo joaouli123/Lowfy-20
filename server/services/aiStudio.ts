@@ -98,20 +98,12 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
       const fmt = params.format || "png";
       const [w, h] = aspect.split(":").map(Number);
       const ratio = w && h ? w / h : 1;
-      const size = Math.abs(ratio - 1) < 0.05 ? "1024x1024" : ratio > 1 ? "1536x1024" : "1024x1536";
-      // A imagem sai em 1:1/3:2/2:3 e depois é recortada: avisa onde fica a área útil.
-      const [sw, sh] = size.split("x").map(Number);
-      const corta = Math.abs(sw / sh - ratio) > 0.02;
-      const faixa = corta
-        ? (ratio > sw / sh
-          ? `IMPORTANTE: a imagem será recortada para ${aspect}: cerca de ${Math.round((1 - (sw / ratio) / sh) * 50)}% de cima e de baixo serão cortados. Coloque TODOS os textos, o produto e o botão dentro da faixa central, com margem de sobra; use as faixas de cima e de baixo só como continuação do fundo.`
-          : `IMPORTANTE: a imagem será recortada para ${aspect}: cerca de ${Math.round((1 - (sh * ratio) / sw) * 50)}% de cada lateral serão cortados. Coloque TODOS os textos, o produto e o botão dentro da faixa central, com margem de sobra; use as laterais só como continuação do fundo.`)
-        : "";
+      // gpt-image-2 aceita tamanho personalizado: gera já no formato exato (sem recorte).
+      const SIZES: Record<string, string> = { "1:1": "1024x1024", "4:5": "1024x1280", "9:16": "864x1536", "16:9": "1536x864", "3:2": "1536x1024", "2:3": "1024x1536" };
+      const size = SIZES[aspect] || (Math.abs(ratio - 1) < 0.05 ? "1024x1024" : ratio > 1 ? "1536x1024" : "1024x1536");
       const body: any = {
         model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
-        prompt: faixa ? `${params.prompt}
-
-${faixa}` : params.prompt,
+        prompt: params.prompt,
         size,
         quality: params.quality || "high",
         output_format: fmt,
@@ -125,7 +117,7 @@ ${faixa}` : params.prompt,
       const b64 = (res as any).data?.[0]?.b64_json;
       if (!b64) throw new Error("a OpenAI não devolveu a imagem");
       const mime = fmt === "jpeg" ? "image/jpeg" : fmt === "webp" ? "image/webp" : "image/png";
-      // A OpenAI só gera 1:1, 3:2 e 2:3: recorta no centro para o formato pedido (4:5, 9:16, 16:9).
+      // Garantia: se vier em outro formato, recorta no centro.
       return { buffer: await cropToAspect(Buffer.from(b64, "base64"), ratio, fmt), mime };
     } catch (e: any) {
       const msg = `Falha na geração de imagem (OpenAI): ${String(e?.message || e).slice(0, 120)}`;
