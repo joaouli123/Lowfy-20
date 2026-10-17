@@ -646,6 +646,9 @@ if (!isProduction) {
         logger.error('Gamification scheduler error:', error);
       });
 
+      // WhatsApp: campanhas que estavam rodando antes do reinício ficam pausadas (o admin retoma).
+      import('./whatsappCampaignDispatcher').then(({ pausarCampanhasOrfas }) => pausarCampanhasOrfas()).catch(() => {});
+
       // Hack Ads: confere as páginas monitoradas (1x por dia cada), uma coleta por vez.
       import('./hackAds/service').then(({ checkDuePages }) => {
         setTimeout(() => void checkDuePages().catch(() => {}), 90_000);

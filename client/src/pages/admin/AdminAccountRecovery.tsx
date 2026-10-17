@@ -85,7 +85,8 @@ const stateBadge = (state: string) => {
     case 'awaiting_admin': return <StatusBadge tone="danger" dot><Clock className="h-3 w-3" /> Aguardando análise</StatusBadge>;
     case 'collecting': return <StatusBadge tone="info" dot><MessageCircle className="h-3 w-3" /> Em conversa</StatusBadge>;
     case 'awaiting_email_otp': return <StatusBadge tone="warning" dot>Aguardando OTP</StatusBadge>;
-    case 'approved': return <StatusBadge tone="success" dot>Aprovada</StatusBadge>;
+    case 'approved': return <StatusBadge tone="warning" dot>Aprovada, aguardando envio</StatusBadge>;
+    case 'awaiting_delivery': return <StatusBadge tone="info" dot>Link enviado, aguardando o cliente</StatusBadge>;
     case 'completed': return <StatusBadge tone="success"><Check className="h-3 w-3" /> Concluída</StatusBadge>;
     case 'denied': return <StatusBadge tone="danger">Negada</StatusBadge>;
     case 'expired': return <StatusBadge tone="neutral">Expirada</StatusBadge>;

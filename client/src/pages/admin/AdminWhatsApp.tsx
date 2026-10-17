@@ -177,10 +177,16 @@ export default function AdminWhatsApp() {
   const audioInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
 
+  // Status sempre vivo: a cada 8s (2s enquanto conecta / espera o QR). Antes só atualizava durante o QR
+  // e ficava até 5 min desatualizado.
   const { data: status, isLoading, refetch } = useQuery<WhatsAppStatus>({
     queryKey: ['/api/admin/whatsapp/status'],
-    refetchInterval: isPolling ? 2000 : false,
+    refetchInterval: (q) => ((q.state.data as any)?.connecting || isPolling ? 2000 : 8000),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
+  // Conectou: para o modo "esperando QR".
+  useEffect(() => { if (status?.connected && isPolling) setIsPolling(false); }, [status?.connected, isPolling]);
 
   const { data: metrics } = useQuery<QueueMetrics>({
     queryKey: ['/api/admin/whatsapp/metrics'],
@@ -712,7 +718,14 @@ export default function AdminWhatsApp() {
                     {status?.phoneNumber && (
                       <p className="text-sm text-muted-foreground mt-1">
                         <Phone className="h-3 w-3 inline mr-1" />
-                        +55 {status.phoneNumber}
+                        +{status.phoneNumber}
+                      </p>
+                    )}
+                    {status?.connected && status?.lastConnected && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Conectado desde {new Date(status.lastConnected).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {' · '}{(status as any).inboundCount ?? 0} mensagem(ns) recebida(s)
+                        {(status as any).lastInboundAt ? `, a última às ${new Date((status as any).lastInboundAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}
                       </p>
                     )}
                   </div>

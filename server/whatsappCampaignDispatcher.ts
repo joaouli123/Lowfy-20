@@ -349,3 +349,19 @@ class WhatsAppCampaignDispatcher {
 }
 
 export const campaignDispatcher = new WhatsAppCampaignDispatcher();
+
+/**
+ * Campanhas em memória não sobrevivem a um reinício: as que estavam "running" ficariam travadas
+ * sem enviar. No boot, viram "paused" para o admin ver e retomar com um clique.
+ */
+export async function pausarCampanhasOrfas(): Promise<number> {
+  try {
+    const { pool } = await import('./db');
+    const r = await pool.query(`UPDATE whatsapp_campaigns SET status = 'paused', paused_at = now() WHERE status = 'running' RETURNING id`);
+    if (r.rowCount) logger.warn(`[Campaign] ${r.rowCount} campanha(s) em andamento pausada(s) após reinício do servidor`);
+    return r.rowCount || 0;
+  } catch (err: any) {
+    logger.warn('[Campaign] não conferiu campanhas órfãs:', err?.message);
+    return 0;
+  }
+}

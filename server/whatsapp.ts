@@ -1,4 +1,4 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import type { ConnectionState } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import { logger } from './utils/logger';
@@ -7,6 +7,9 @@ import fs from 'fs';
 import { whatsappQueue, QueueMetrics } from './whatsappQueue';
 
 interface WhatsAppStatus {
+  /** Mensagens recebidas desde que o servidor subiu e a última (para saber se o agente está ouvindo). */
+  inboundCount?: number;
+  lastInboundAt?: Date | null;
   connected: boolean;
   qrCode: string | null;
   phoneNumber: string | null;
@@ -101,10 +104,13 @@ class WhatsAppService {
     this.healthCheckInterval = setInterval(() => {
       if (this.status.connected && this.socket) {
         try {
-          const socketState = this.socket.ws?.readyState;
-          if (socketState !== 1) {
-            logger.warn(`[WhatsApp] Health check failed: WebSocket state is ${socketState}`);
-            this.handleConnectionLoss('Health check falhou');
+          // Baileys 7: socket.ws é um wrapper com `isOpen` (não tem readyState). Ler readyState dava
+          // sempre undefined e derrubava a conexão a cada 30s, em loop.
+          const ws: any = this.socket.ws;
+          const aberto = typeof ws?.isOpen === 'boolean' ? ws.isOpen : ws?.readyState === undefined ? true : ws.readyState === 1;
+          if (!aberto) {
+            logger.warn('[WhatsApp] Health check failed: WebSocket fechado');
+            this.handleConnectionLoss('Conexão caiu');
           }
         } catch (err) {
           logger.warn('[WhatsApp] Health check error:', err);
@@ -205,8 +211,11 @@ class WhatsAppService {
   }
 
   getStatus(): WhatsAppStatus {
-    return { ...this.status };
+    return { ...this.status, inboundCount: this.inboundCount, lastInboundAt: this.lastInboundAt };
   }
+
+  private inboundCount = 0;
+  private lastInboundAt: Date | null = null;
 
   isConnected(): boolean {
     return this.status.connected;
@@ -264,6 +273,15 @@ class WhatsAppService {
     return this.initializationPromise;
   }
   
+  /** Apaga os arquivos da sessão (sem apagar a pasta, que é um volume persistente). */
+  private clearSessionFiles(): void {
+    try {
+      for (const f of fs.readdirSync(this.sessionPath)) fs.rmSync(path.join(this.sessionPath, f), { recursive: true, force: true });
+    } catch (err) {
+      logger.warn('[WhatsApp] Não apagou a sessão antiga:', err);
+    }
+  }
+
   private async cleanupSocket(): Promise<void> {
     if (this.socket) {
       try {
@@ -287,8 +305,12 @@ class WhatsAppService {
 
     try {
       const { state, saveCreds } = await useMultiFileAuthState(this.sessionPath);
+      // Versão atual do protocolo do WhatsApp Web (versão velha leva a fechamentos 405).
+      let version: [number, number, number] | undefined;
+      try { version = (await fetchLatestBaileysVersion()).version as any; } catch { /* usa a versão embutida */ }
 
       this.socket = makeWASocket({
+        ...(version ? { version } : {}),
         auth: state,
         printQRInTerminal: false,
         browser: ['Lowfy', 'Desktop', '1.0.0'],
@@ -387,6 +409,9 @@ class WhatsAppService {
           } else {
             logger.info('[WhatsApp] User logged out. Clearing session...');
             this.resetReconnectState();
+            this.clearSessionFiles();
+            this.status.error = 'O WhatsApp foi desconectado pelo celular. Clique em Conectar e leia o QR Code de novo.';
+            this.notifyStatusUpdate();
           }
         }
       });
@@ -400,9 +425,13 @@ class WhatsAppService {
           for (const msg of m.messages) {
             if (msg.key.fromMe) continue;
 
-            // Só conversas individuais (exclui grupos @g.us, broadcast, @lid)
-            const senderJid: string = msg.key.remoteJid || '';
-            if (!senderJid.endsWith('@s.whatsapp.net')) continue;
+            // Só conversas individuais (exclui grupos @g.us e broadcast). No Baileys 7 muitos contatos
+            // chegam como @lid (identificador oculto) com o número real em remoteJidAlt/senderPn.
+            const jidOriginal: string = msg.key.remoteJid || '';
+            const alt: string = (msg.key as any).remoteJidAlt || (msg.key as any).senderPn || '';
+            const senderJid: string = jidOriginal.endsWith('@s.whatsapp.net') ? jidOriginal
+              : jidOriginal.endsWith('@lid') && alt.endsWith('@s.whatsapp.net') ? alt : '';
+            if (!senderJid) continue;
 
             const senderPhone = senderJid.replace('@s.whatsapp.net', '');
             if (!/^\d{10,15}$/.test(senderPhone)) continue;
@@ -428,6 +457,8 @@ class WhatsAppService {
 
             // Texto ORIGINAL preservado — cada handler normaliza como precisar
             const rawText = text ? String(text) : MEDIA_PLACEHOLDER;
+            this.inboundCount++;
+            this.lastInboundAt = new Date();
 
             let consumed = false;
             for (const handler of this.inboundHandlers) {

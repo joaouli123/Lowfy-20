@@ -20725,14 +20725,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.listRecoveryRequestsByPhone(request.phone, 10),
       ]);
 
+      const mascara = (v: any) => v ? String(v).replace(/\D/g, '').replace(/^(\d{3})\d{6}(\d{2})$/, '$1.***.***-$2') : v;
       res.json({
-        request,
+        request: { ...request, collectedCpf: mascara((request as any).collectedCpf) },
         matchedUser: matchedUser ? {
           id: matchedUser.id,
           name: matchedUser.name,
           email: matchedUser.email,
           phone: matchedUser.phone,
-          cpf: matchedUser.cpf,
+          // CPF nunca vai inteiro para o navegador
+          cpf: matchedUser.cpf ? String(matchedUser.cpf).replace(/\D/g, '').replace(/^(\d{3})\d{6}(\d{2})$/, '$1.***.***-$2') : null,
           phoneVerified: matchedUser.phoneVerified,
           accountStatus: matchedUser.accountStatus,
           subscriptionStatus: matchedUser.subscriptionStatus,
@@ -20782,14 +20784,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const goal = request.goal || 'reset_password';
 
       if (goal === 'reset_password' || goal === 'combo' || req.body?.sendResetLink) {
-        results.resetLinkDelivered = await deliverResetLink(transitioned, user);
+        // deliverResetLink devolve { whatsapp, email }: antes o objeto inteiro era tratado como "entregue"
+        // (sempre verdadeiro) e o pedido virava "concluído" mesmo sem nada chegar ao cliente.
+        const entrega = await deliverResetLink(transitioned, user);
+        results.resetLink = entrega;
+        if (entrega.whatsapp || entrega.email) {
+          // Mesmo fluxo do reenvio automático: pergunta se o link funcionou (é aí que entra a senha provisória).
+          const { MSG } = await import('./services/accountRecovery/prompts');
+          await storage.updateRecoveryRequest(request.id, {
+            state: 'awaiting_delivery',
+            outcomeDelivered: true,
+            deliveryAttempts: (request.deliveryAttempts || 0) + 1,
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+          });
+          if (entrega.whatsapp) {
+            try { await whatsappService.sendConversationMessage(request.phone, MSG.askDeliveryWorked); } catch { /* best-effort */ }
+          }
+          results.entregue = true;
+        } else {
+          // Fica "aprovado e não entregue": a rotina reenvia quando o WhatsApp/e-mail voltar.
+          results.entregue = false;
+        }
       }
       if (goal === 'change_email' && request.requestedNewEmail) {
         const change = await createChangeRequest(transitioned, user, 'email', request.requestedNewEmail, false);
         const applied = await applyChangeRequest(change);
         results.emailChange = applied;
         if (applied.applied) {
-          try { await whatsappService.sendConversationMessage(request.phone, '✅ Identidade confirmada pela nossa equipe! O e-mail da sua conta foi atualizado.'); results.resetLinkDelivered = true; } catch {}
+          try { await whatsappService.sendConversationMessage(request.phone, '✅ Identidade confirmada pela nossa equipe! O e-mail da sua conta foi atualizado.'); results.trocaAvisada = true; } catch {}
         }
       }
       if (goal === 'change_phone' && request.requestedNewPhone) {
@@ -20797,16 +20819,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const applied = await applyChangeRequest(change);
         results.phoneChange = applied;
         if (applied.applied) {
-          try { await whatsappService.sendConversationMessage(request.phone, '✅ Identidade confirmada pela nossa equipe! O telefone da sua conta foi atualizado.'); results.resetLinkDelivered = true; } catch {}
+          try { await whatsappService.sendConversationMessage(request.phone, '✅ Identidade confirmada pela nossa equipe! O telefone da sua conta foi atualizado.'); results.trocaAvisada = true; } catch {}
         }
       }
 
-      if (results.resetLinkDelivered) {
-        await storage.updateRecoveryRequest(request.id, { state: 'completed', outcomeDelivered: true });
+      // Troca de e-mail/telefone aplicada: concluída (o aviso pelo WhatsApp é cortesia).
+      if ((results.emailChange?.applied || results.phoneChange?.applied) && results.resetLink === undefined) {
+        await storage.updateRecoveryRequest(request.id, { state: 'completed', outcomeDelivered: !!results.trocaAvisada });
       }
 
       logger.info(`[RECOVERY-ADMIN] ${request.id} aprovada por ${req.user.id}`, results);
-      res.json({ message: 'Solicitação aprovada', results });
+      const msg = results.resetLink && !results.entregue
+        ? 'Aprovada, mas o link não chegou ao cliente agora (WhatsApp e e-mail falharam). O sistema tenta de novo sozinho quando a conexão voltar.'
+        : 'Solicitação aprovada';
+      res.json({ message: msg, results });
     } catch (error: any) {
       logger.error('[RECOVERY-ADMIN] Erro no approve:', error);
       res.status(500).json({ message: 'Erro ao aprovar solicitação' });
