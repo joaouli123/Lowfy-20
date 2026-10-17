@@ -190,7 +190,7 @@ export async function startSearch(userId: string, p: { term: string; country: st
   const term = String(p.term || "").trim().slice(0, 100);
   if (term.length < 2) throw Object.assign(new Error("Digite o que você quer minerar (ex.: emagrecimento, renda extra)"), { status: 400 });
   const country = /^[A-Z]{2}$|^ALL$/.test(String(p.country || "").toUpperCase()) ? String(p.country).toUpperCase() : "BR";
-  const limit = Math.max(10, Math.min(100, Number(p.limit) || 50));
+  const limit = Math.max(10, Math.min(MAX_POR_BUSCA, Math.round(Number(p.limit)) || 50));
   const uso = await pool.query(`SELECT COUNT(*) FILTER (WHERE created_at > now() - interval '1 hour') AS hora, COUNT(*) FILTER (WHERE created_at > now() - interval '1 day') AS dia FROM hack_ads_searches WHERE user_id = $1`, [userId]);
   if (Number(uso.rows[0].hora) >= 12) throw Object.assign(new Error("Você fez muitas buscas nesta hora. Enquanto isso, explore a biblioteca com os filtros."), { status: 429 });
   if (Number(uso.rows[0].dia) >= 60) throw Object.assign(new Error("Limite de buscas de hoje atingido. Amanhã libera de novo."), { status: 429 });

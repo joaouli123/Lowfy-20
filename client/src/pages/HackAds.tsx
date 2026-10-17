@@ -249,7 +249,9 @@ function Minerador({ onDone }: { onDone: (r: { searchId: number; term: string })
 
   const minerar = async () => {
     try {
-      const r = await (await apiRequest("POST", "/api/hack-ads/search", { term, country, limit: Number(limit), active: ativos })).json();
+      const qtd = Math.max(10, Math.min(300, Math.round(Number(limit) || 50)));
+      setLimit(String(qtd));
+      const r = await (await apiRequest("POST", "/api/hack-ads/search", { term, country, limit: qtd, active: ativos })).json();
       setSt({ status: "queued", position: r.position, progress: 0 });
       setJob({ id: r.jobId, term: term.trim(), searchId: r.searchId });
     } catch (e: any) {
@@ -270,9 +272,13 @@ function Minerador({ onDone }: { onDone: (r: { searchId: number; term: string })
           <select className={sel} value={country} onChange={(e) => setCountry(e.target.value)} disabled={!!job} aria-label="País">
             {PAISES.map((p) => <option key={p.v} value={p.v}>{p.l}</option>)}
           </select>
-          <select className={sel} value={limit} onChange={(e) => setLimit(e.target.value)} disabled={!!job} aria-label="Quantidade">
-            {["30", "50", "100"].map((n) => <option key={n} value={n}>{n} anúncios</option>)}
-          </select>
+          <label className="h-11 flex items-center gap-2 rounded-lg border bg-background pl-3 pr-2 text-sm" title="Quantos anúncios trazer da Meta (10 a 300)">
+            <Input type="number" inputMode="numeric" min={10} max={300} step={10} value={limit} disabled={!!job}
+              onChange={(e) => setLimit(e.target.value)}
+              onBlur={() => setLimit(String(Math.max(10, Math.min(300, Math.round(Number(limit) || 50)))))}
+              className="h-8 w-16 border-0 px-0 text-sm font-semibold focus-visible:ring-0 shadow-none" aria-label="Quantos anúncios minerar" data-testid="input-hack-limit" />
+            <span className="text-muted-foreground whitespace-nowrap">anúncios</span>
+          </label>
           <label className="h-11 flex items-center gap-2 rounded-lg border px-3 text-sm col-span-2 sm:col-span-1 whitespace-nowrap">
             <Switch checked={ativos} onCheckedChange={setAtivos} disabled={!!job} /> Só ativos
           </label>
@@ -284,7 +290,7 @@ function Minerador({ onDone }: { onDone: (r: { searchId: number; term: string })
       {job && st && (
         <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin text-primary" />
-          {st.status === "queued" ? `Na fila (${st.position}º). Outras buscas estão rodando, já já é a sua.` : `Coletando "${job.term}" na Biblioteca da Meta… ${st.progress} anúncios`}
+          {st.status === "queued" ? `Na fila (${st.position}º). Outras buscas estão rodando, já já é a sua.` : `Coletando "${job.term}" na Biblioteca da Meta… ${st.progress} de ${limit} anúncios${Number(limit) > 100 ? " (quanto mais anúncios, mais demora; uns 20s a cada 50)" : ""}`}
         </div>
       )}
     </div>
@@ -304,6 +310,12 @@ function Filtros({ q, setQ, f, patchF, facets, aba, rotulo, limparRotulo }: any)
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10 pointer-events-none" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrar por texto da copy, página ou domínio" className="h-10 pl-9" />
         </div>
+        <label className="h-10 flex items-center gap-2 rounded-lg border bg-background pl-3 pr-2 text-sm whitespace-nowrap" title="Só criativos com pelo menos esse número de anúncios ativos">
+          <span className="text-muted-foreground">Mín. de anúncios</span>
+          <Input type="number" inputMode="numeric" min={0} value={f.min_dups} placeholder="0"
+            onChange={(e) => patchF({ min_dups: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+            className="h-7 w-14 border-0 px-0 text-sm font-semibold focus-visible:ring-0 shadow-none" aria-label="Mínimo de anúncios por criativo" data-testid="input-hack-min-dups" />
+        </label>
         <select className="h-10 rounded-lg border bg-background px-3 text-sm" value={aba === "alta" ? "duplicates" : f.sort} disabled={aba === "alta"} onChange={(e) => patchF({ sort: e.target.value })} aria-label="Ordenar">
           {ORDENS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
         </select>
