@@ -89,6 +89,14 @@ export default function MotionPage() {
   };
 
   const voice = useMemo(() => catalog.find((v) => v.voiceId === f.voice) || catalog[0], [catalog, f.voice]);
+
+  // Exemplo real (feito pelo próprio Motion) mostrado no preview até a pessoa gerar o dela.
+  const [exMotion, setExMotion] = useState<typeof DEFAULTS | null>(null);
+  useEffect(() => {
+    fetch("/studio-examples/motion-lowfy.json").then((r) => (r.ok ? r.json() : null)).then(setExMotion).catch(() => {});
+  }, []);
+  const mostra = f.html || !exMotion ? f : { ...f, ...exMotion, formato: exMotion.formato as Formato };
+  const eExemplo = !f.html && !!exMotion && busy !== "motion";
   const exemplo = () => patch({
     ideia: "3 erros que fazem você perder clientes no Instagram, para donos de pequenos negócios. Termina convidando para seguir o perfil.",
     formato: "9:16", duracao: "30", estilo: "bold",
@@ -290,10 +298,18 @@ export default function MotionPage() {
           <PreviewPanel
             busy={busy === "motion"}
             icon={Eye}
-            sub={f.html ? "Dê play para ver o motion com voz e legenda." : f.audioUrl ? "A dublagem está pronta. Agora crie a animação." : "O vídeo aparece aqui depois dos passos."}
+            sub={f.html ? "Dê play para ver o motion com voz e legenda." : eExemplo ? "Exemplo real feito aqui no Motion. Dê play! O seu aparece no lugar." : f.audioUrl ? "A dublagem está pronta. Agora crie a animação." : "O vídeo aparece aqui depois dos passos."}
             actions={<><DownloadButton url={f.audioUrl || null} label="Baixar áudio" /><Button variant="outline" className="h-10 w-full" disabled title="Em breve: exportar em MP4">MP4 em breve</Button></>}
           >
-            <MotionPlayer html={f.html} audioUrl={f.audioUrl} words={f.words} scenes={f.timed} duration={f.duration} formato={f.formato} busy={busy === "motion"} />
+            <div className="relative">
+              {eExemplo && <span className="absolute -top-2 right-0 z-20 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-[color-mix(in_srgb,var(--muted)_100%,transparent)] rounded px-1.5 py-0.5">Exemplo</span>}
+              <MotionPlayer
+                key={eExemplo ? "exemplo" : "meu"}
+                html={busy === "motion" && !f.html ? "" : mostra.html}
+                audioUrl={busy === "motion" && !f.html ? "" : mostra.audioUrl}
+                words={mostra.words} scenes={mostra.timed} duration={mostra.duration} formato={mostra.formato} busy={busy === "motion"}
+              />
+            </div>
           </PreviewPanel>
         }
       />
