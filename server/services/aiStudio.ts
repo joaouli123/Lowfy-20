@@ -967,8 +967,7 @@ ${p.cta ? `- Chamada para ação desejada: ${p.cta}` : ""}
 ${p.observacoes ? `- Observações: ${p.observacoes}` : ""}
 Regras do canal: ${c.regras}
 ${tamanho}
-${temaSensivel(`${p.descricao || ""} ${p.produto} ${p.publico || ""}`) ? "TEMA SENSÍVEL (saúde, crianças, deficiência ou finanças): linguagem respeitosa e acolhedora; não prometa cura, transformação ou resultado garantido; não aponte características pessoais do leitor; siga as políticas de anúncios da Meta.
-" : ""}NUNCA invente depoimentos, números de clientes, prêmios, prazos ou garantias que o cliente não informou — onde precisar, use um marcador entre colchetes como [depoimento de cliente] ou [prazo da garantia].
+${temaSensivel(`${p.descricao || ""} ${p.produto} ${p.publico || ""}`) ? "TEMA SENSÍVEL (saúde, crianças, deficiência ou finanças): linguagem respeitosa e acolhedora; não prometa cura, transformação ou resultado garantido; não aponte características pessoais do leitor; siga as políticas de anúncios da Meta. " : ""}NUNCA invente depoimentos, números de clientes, prêmios, prazos ou garantias que o cliente não informou — onde precisar, use um marcador entre colchetes como [depoimento de cliente] ou [prazo da garantia].
 Escreva TODO o conteúdo no idioma: ${langName(p.idioma)}.
 Responda SOMENTE com JSON neste formato: ${c.formato}`;
   let j: any;
