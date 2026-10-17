@@ -61,7 +61,6 @@ import {
   Video,
   AudioWaveform,
   Clapperboard,
-  Library
 } from "lucide-react";
 import type { Notification } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -157,7 +156,6 @@ export default function Sidebar() {
         { name: "Motion", href: "/ai-studio/motion", icon: Clapperboard, testId: "nav-studio-motion" },
         { name: "E-books", href: "/ai-studio/ebook", icon: BookOpen, testId: "nav-studio-ebook" },
         { name: "Clone de voz", href: "/ai-studio/clone-de-voz", icon: AudioWaveform, testId: "nav-studio-vozes" },
-        { name: "Histórico", href: "/ai-studio/historico", icon: Library, testId: "nav-studio-historico" },
       ],
     },
     {

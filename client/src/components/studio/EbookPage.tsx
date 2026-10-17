@@ -12,8 +12,8 @@ import {
 import { useStudio } from "./store";
 import { postLong } from "./runners";
 import { FieldLabel, FormPanel, PageGrid, PageHeader, PillGroup, PreviewPanel, useLocalForm } from "./page-kit";
-import { ebookCss, fontLink, pageHtml, printEbook } from "./EbookRender";
-import type { EBook, EbookKind } from "./EbookRender";
+import { ebookCss, paginate, printEbook, PALETAS } from "./EbookRender";
+import type { EBook, EbookKind, Paleta, Sheet } from "./EbookRender";
 
 const KINDS: { v: EbookKind; label: string; desc: string; icon: any }[] = [
   { v: "guia", label: "Guia / ensino", desc: "Passo a passo, dicas e exemplos", icon: GraduationCap },
@@ -33,10 +33,10 @@ const EXEMPLOS: Record<EbookKind, { tema: string; publico: string }> = {
 };
 
 interface Chapter { title: string; sections: { heading: string; brief: string }[] }
-interface Outline { title: string; subtitle: string; chapters: Chapter[] }
+interface Outline { title: string; subtitle: string; sinopse?: string; paletas?: Paleta[]; chapters: Chapter[] }
 
 const DEFAULTS = {
-  passo: 1, kind: "guia" as EbookKind, tema: "", publico: "", autor: "", paginas: "20", estilo: "editorial", imagens: true,
+  passo: 1, kind: "guia" as EbookKind, tema: "", publico: "", autor: "", paginas: "20", estilo: "editorial", imagens: true, accent: "", paleta: "",
   outline: null as Outline | null, jobId: "", ebook: null as EBook | null,
 };
 
@@ -47,9 +47,12 @@ const PASSOS = [
   { n: 4, label: "Capa e PDF", icon: BookOpen },
 ];
 
-// Custo aproximado em imagens (cada uma ~1 crédito de geração): ajuda a pessoa a decidir.
+// Custo aproximado em imagens: ajuda a pessoa a decidir. Capa e contracapa sempre entram.
 const estimaImagens = (kind: EbookKind, paginas: number, imagens: boolean) =>
-  kind === "colorir" || kind === "infantil" ? Math.max(4, paginas - 3) + 1 : imagens ? Math.max(3, Math.round((paginas - 3) / 2.2)) + 1 : 1;
+  kind === "colorir" || kind === "infantil" ? Math.max(4, paginas - 4) + 2
+    : !imagens ? 2
+    : kind === "receitas" ? Math.max(4, paginas - 5) + 2
+    : Math.max(3, Math.round((paginas - 5) / 2.4)) + 2;
 
 export default function EbookPage() {
   const { brief } = useStudio();
@@ -60,6 +63,8 @@ export default function EbookPage() {
   const [progress, setProgress] = useState<{ step: string; done: number; total: number } | null>(null);
   const [page, setPage] = useState(0);
   const [redo, setRedo] = useState<string | null>(null);
+  const [sheets, setSheets] = useState<Sheet[]>([]);
+  const [montando, setMontando] = useState(false);
 
   const kind = f.kind;
   const illustrated = kind === "colorir" || kind === "infantil";
@@ -90,7 +95,7 @@ export default function EbookPage() {
     if (!f.outline) return;
     try {
       const r = await apiRequest("POST", "/api/ebook/v2/build", {
-        brief: { kind, tema: f.tema, publico: f.publico, autor: f.autor, paginas: Number(f.paginas), estilo, imagens: f.imagens, idioma: brief.lang },
+        brief: { kind, tema: f.tema, publico: f.publico, autor: f.autor, paginas: Number(f.paginas), estilo, imagens: f.imagens, idioma: brief.lang, ...corEscolhida() },
         outline: f.outline,
       });
       const d = (await r.json()) as { jobId: string };
@@ -129,6 +134,25 @@ export default function EbookPage() {
   const ebook = f.ebook;
   const pages = ebook?.pages || [];
 
+  // Cor do livro: a escolhida, ou a 1ª sugestão da IA para o tema.
+  const corEscolhida = () => {
+    if (f.accent) return { accent: f.accent, paleta: f.paleta };
+    const s = f.outline?.paletas?.[0];
+    return s ? { accent: s.accent, paleta: s.nome } : {};
+  };
+
+  // Diagramação em folhas A4 (medida no navegador; refaz quando o livro muda).
+  useEffect(() => {
+    if (!ebook?.pages?.length) { setSheets([]); return; }
+    let vivo = true;
+    setMontando(true);
+    const t = setTimeout(() => {
+      paginate(ebook).then((s) => { if (vivo) { setSheets(s); setPage((p) => Math.min(p, Math.max(0, s.length - 1))); } })
+        .catch(() => {}).finally(() => vivo && setMontando(false));
+    }, 250);
+    return () => { vivo = false; clearTimeout(t); };
+  }, [ebook]);
+
   // ---- 4: ajustes ----
   const refazerImagem = async (pi: number, bi: number) => {
     if (!ebook) return;
@@ -137,7 +161,11 @@ export default function EbookPage() {
     const key = `${pi}-${bi}`;
     setRedo(key);
     try {
-      const d = await postLong<{ url: string }>("/api/ebook/v2/redo-image", { kind, prompt: blk.imagePrompt, cover: ebook.pages[pi].type === "cover", estilo });
+      const tipo = ebook.pages[pi].type;
+      const capa = ebook.pages.find((x) => x.type === "cover")?.blocks.find((x) => x.type === "image")?.imageUrl;
+      const d = await postLong<{ url: string }>("/api/ebook/v2/redo-image", {
+        kind, prompt: blk.imagePrompt, cover: tipo === "cover" || tipo === "back", estilo, ref: tipo === "back" ? capa : undefined,
+      });
       const next = structuredClone(ebook);
       next.pages[pi].blocks[bi] = { ...blk, imageUrl: d.url };
       patch({ ebook: next });
@@ -249,7 +277,7 @@ export default function EbookPage() {
                     <Button variant="outline" className="h-10" disabled={!!busy} onClick={() => void salvar()}>
                       {busy === "save" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} Salvar
                     </Button>
-                    <Button className="h-11 sm:h-10 sm:min-w-[200px]" onClick={() => printEbook(ebook)}><Download className="w-4 h-4 mr-2" /> Baixar PDF</Button>
+                    <Button className="h-11 sm:h-10 sm:min-w-[200px]" onClick={() => void printEbook(ebook, sheets)}><Download className="w-4 h-4 mr-2" /> Baixar PDF</Button>
                   </div>
                 )}
               </div>
@@ -283,18 +311,29 @@ export default function EbookPage() {
                   <div><FieldLabel>Número de páginas</FieldLabel><PillGroup options={PAGINAS} value={f.paginas} onChange={(v) => patch({ paginas: v })} /></div>
                   <div><FieldLabel>Estilo do livro</FieldLabel><PillGroup options={ESTILOS} value={estilo} onChange={(v) => patch({ estilo: v })} /></div>
                 </div>
+                <div>
+                  <FieldLabel optional>Cores do livro</FieldLabel>
+                  <Cores value={f.accent} sugestaoIa onChange={(c) => patch({ accent: c?.accent || "", paleta: c?.nome || "" })} />
+                  <p className="text-[11px] text-muted-foreground mt-1.5">{f.accent ? `Paleta ${f.paleta || "personalizada"} na capa, nos títulos e nos destaques.` : "A IA sugere cores que combinam com o tema no próximo passo."}</p>
+                </div>
                 {!illustrated && (
                   <label className="flex items-center gap-2.5 text-sm cursor-pointer">
                     <input type="checkbox" checked={f.imagens} onChange={(e) => patch({ imagens: e.target.checked })} className="w-4 h-4 accent-[var(--primary)]" />
-                    Ilustrar a abertura de cada capítulo
+                    {kind === "receitas" ? "Foto profissional em cada receita" : "Ilustrar a abertura de cada capítulo"}
                   </label>
                 )}
-                <p className="text-[11px] text-muted-foreground">Este livro vai gerar cerca de <b>{nImgs} imagens</b> (capa{illustrated ? " e uma por página" : f.imagens ? " e uma por capítulo" : ""}). Livros ilustrados levam mais tempo.</p>
+                <p className="text-[11px] text-muted-foreground">Este livro vai gerar cerca de <b>{nImgs} imagens</b>: capa e contracapa com o título já diagramado{illustrated ? ", e uma ilustração por página" : f.imagens ? (kind === "receitas" ? ", e uma foto por receita" : ", e uma por capítulo") : ""}. Livros com muitas imagens levam mais tempo.</p>
               </div>
             )}
 
             {f.passo === 2 && f.outline && (
               <div className="space-y-3">
+                {!!f.outline.paletas?.length && (
+                  <div className="rounded-xl border p-3">
+                    <p className="text-[12px] font-semibold mb-2">Cores sugeridas para este tema</p>
+                    <Cores value={f.accent || f.outline.paletas[0].accent} opcoes={f.outline.paletas} extras onChange={(c) => patch({ accent: c?.accent || "", paleta: c?.nome || "" })} />
+                  </div>
+                )}
                 <div className="grid gap-2">
                   <Input value={f.outline.title} onChange={(e) => patch({ outline: { ...f.outline!, title: e.target.value } })} className="h-11 text-base font-semibold" aria-label="Título" />
                   <Input value={f.outline.subtitle} onChange={(e) => patch({ outline: { ...f.outline!, subtitle: e.target.value } })} className="h-9 text-sm" aria-label="Subtítulo" />
@@ -339,9 +378,14 @@ export default function EbookPage() {
 
             {f.passo === 4 && ebook && (
               <div className="space-y-3">
-                <p className="text-sm"><b>{ebook.title}</b> · {pages.length} páginas</p>
+                <p className="text-sm"><b>{ebook.title}</b> · {montando && !sheets.length ? "diagramando…" : `${sheets.length} páginas A4`}</p>
+                <div>
+                  <FieldLabel>Cor dos títulos e destaques</FieldLabel>
+                  <Cores value={ebook.accent || ""} opcoes={ebook.paletas} extras onChange={(c) => { const next = { ...ebook, accent: c?.accent || undefined }; patch({ ebook: next }); void salvar(next, true); }} />
+                  <p className="text-[11px] text-muted-foreground mt-1.5">Muda o miolo na hora. A capa e a contracapa mantêm as cores com que foram criadas (use “Refazer capa” se quiser outra).</p>
+                </div>
                 <p className="text-[12px] text-muted-foreground">
-                  Passe o mouse numa ilustração do preview para refazer só ela. O PDF abre numa nova aba: escolha <b>“Salvar como PDF”</b> na janela de impressão.
+                  Use os botões sobre a página para refazer só aquela foto, a capa ou a contracapa. O PDF abre numa nova aba: escolha <b>“Salvar como PDF”</b> na janela de impressão.
                 </p>
               </div>
             )}
@@ -364,18 +408,18 @@ export default function EbookPage() {
           </FormPanel>
         }
         preview={
-          <PreviewPanel icon={Eye} sub={pages.length ? `Página ${page + 1} de ${pages.length}` : "Seu livro aparece aqui, página por página."}>
-            {pages.length ? (
+          <PreviewPanel icon={Eye} sub={sheets.length ? `Página ${page + 1} de ${sheets.length} · A4` : pages.length ? "Diagramando as páginas…" : "Seu livro aparece aqui, página por página."}>
+            {sheets.length && ebook ? (
               <>
                 <div className="relative">
-                  <PageView ebook={ebook!} index={Math.min(page, pages.length - 1)} redo={redo} onRedo={f.passo === 4 ? refazerImagem : undefined} />
+                  <PageView ebook={ebook} sheet={sheets[Math.min(page, sheets.length - 1)]} redo={redo} onRedo={f.passo === 4 ? refazerImagem : undefined} />
                   <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="absolute left-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/95 shadow flex items-center justify-center disabled:opacity-30" aria-label="Página anterior"><ChevronLeft className="w-5 h-5 text-slate-800" /></button>
-                  <button type="button" onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))} disabled={page >= pages.length - 1} className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/95 shadow flex items-center justify-center disabled:opacity-30" aria-label="Próxima página"><ChevronRight className="w-5 h-5 text-slate-800" /></button>
+                  <button type="button" onClick={() => setPage((p) => Math.min(sheets.length - 1, p + 1))} disabled={page >= sheets.length - 1} className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/95 shadow flex items-center justify-center disabled:opacity-30" aria-label="Próxima página"><ChevronRight className="w-5 h-5 text-slate-800" /></button>
                 </div>
                 <div className="flex gap-1.5 overflow-x-auto pb-1">
-                  {pages.map((_, i) => (
+                  {sheets.map((sh, i) => (
                     <button key={i} type="button" onClick={() => setPage(i)} className={`flex-shrink-0 w-12 rounded border-2 overflow-hidden transition ${i === page ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"}`} aria-label={`Ir para a página ${i + 1}`}>
-                      <PageView ebook={ebook!} index={i} mini />
+                      <PageView ebook={ebook} sheet={sh} mini />
                     </button>
                   ))}
                 </div>
@@ -394,8 +438,8 @@ export default function EbookPage() {
   );
 }
 
-/** Uma página do livro, em escala, renderizada com a mesma diagramação do PDF. */
-function PageView({ ebook, index, mini, redo, onRedo }: { ebook: EBook; index: number; mini?: boolean; redo?: string | null; onRedo?: (pi: number, bi: number) => void }) {
+/** Uma folha A4 do livro, em escala, com a mesma diagramação do PDF. */
+function PageView({ ebook, sheet, mini, redo, onRedo }: { ebook: EBook; sheet: Sheet; mini?: boolean; redo?: string | null; onRedo?: (pi: number, bi: number) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(mini ? 48 : 320);
   useEffect(() => {
@@ -404,38 +448,64 @@ function PageView({ ebook, index, mini, redo, onRedo }: { ebook: EBook; index: n
     ro.observe(box.current);
     return () => ro.disconnect();
   }, []);
-  // Fonte do tema (carrega uma vez).
-  useEffect(() => {
-    const href = fontLink(ebook);
-    if (!href || document.querySelector(`link[href="${href}"]`)) return;
-    const l = Object.assign(document.createElement("link"), { rel: "stylesheet", href });
-    document.head.appendChild(l);
-  }, [ebook.theme]);
-  const p = ebook.pages[index];
-  const html = useMemo(() => (p ? pageHtml(p, index + 1, ebook) : ""), [p, index, ebook]);
-  const css = useMemo(() => ebookCss(ebook), [ebook.theme]);
+  const css = useMemo(() => ebookCss(ebook), [ebook.theme, ebook.accent]);
   const PAGE_W = 793.7; // 210mm em px (96dpi)
   const scale = w / PAGE_W;
-  const imgIdx = p ? p.blocks.map((b, i) => (b.type === "image" ? i : -1)).filter((i) => i >= 0) : [];
+  const rotulo = (pi: number) => {
+    const t = ebook.pages[pi]?.type;
+    return t === "cover" ? "Refazer capa" : t === "back" ? "Refazer contracapa" : ebook.kind === "receitas" ? "Refazer foto" : "Refazer ilustração";
+  };
 
   return (
     <div ref={box} className={`relative w-full mx-auto ${mini ? "" : "max-w-[360px] rounded-md shadow-lg border"} overflow-hidden bg-white`} style={{ aspectRatio: "210 / 297" }}>
-      {!mini && <style>{css}</style>}
       <div className="eb absolute top-0 left-0 origin-top-left pointer-events-none" style={{ transform: `scale(${scale})`, width: PAGE_W }}>
-        {mini && <style>{css}</style>}
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        <style>{css}</style>
+        <div dangerouslySetInnerHTML={{ __html: sheet.html }} />
       </div>
-      {!mini && onRedo && imgIdx.length > 0 && (
-        <div className="absolute inset-x-0 bottom-0 p-2 flex justify-center gap-2 bg-gradient-to-t from-black/50 to-transparent">
-          {imgIdx.map((bi) => (
-            <button key={bi} type="button" onClick={() => onRedo(index, bi)} disabled={!!redo}
+      {!mini && onRedo && sheet.images.length > 0 && (
+        <div className="absolute inset-x-0 bottom-0 p-2 flex flex-wrap justify-center gap-2 bg-gradient-to-t from-black/50 to-transparent">
+          {sheet.images.map(({ pi, bi }) => (
+            <button key={`${pi}-${bi}`} type="button" onClick={() => onRedo(pi, bi)} disabled={!!redo}
               className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow disabled:opacity-60">
-              {redo === `${index}-${bi}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              {p.type === "cover" ? "Refazer capa" : "Refazer ilustração"}
+              {redo === `${pi}-${bi}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {rotulo(pi)}
             </button>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Escolha de cor: sugestões (da IA ou prontas), paletas da casa e cor livre. */
+function Cores({ value, onChange, opcoes, extras, sugestaoIa }: {
+  value: string; onChange: (c: Paleta | null) => void; opcoes?: Paleta[]; extras?: boolean; sugestaoIa?: boolean;
+}) {
+  const lista = [...(opcoes || []), ...(!opcoes?.length || extras ? PALETAS.filter((p) => !opcoes?.some((o) => o.accent.toLowerCase() === p.accent.toLowerCase())) : [])];
+  const v = value.toLowerCase();
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {sugestaoIa && (
+        <button type="button" onClick={() => onChange(null)}
+          className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full border text-[12px] font-medium transition ${!value ? "border-[color-mix(in_srgb,var(--primary)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent)_100%,transparent)] text-primary shadow-sm" : "hover:bg-muted"}`}>
+          <Sparkles className="w-3.5 h-3.5" /> A IA sugere
+        </button>
+      )}
+      {lista.map((p) => {
+        const ativo = v === p.accent.toLowerCase();
+        return (
+          <button key={p.accent + p.nome} type="button" onClick={() => onChange(p)} title={p.nome}
+            className={`inline-flex items-center gap-1.5 h-8 pl-1 pr-2.5 rounded-full border text-[12px] font-medium transition ${ativo ? "border-[color-mix(in_srgb,var(--primary)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent)_100%,transparent)] shadow-sm" : "hover:bg-muted"}`}>
+            <span className="w-6 h-6 rounded-full border border-black/10 flex items-center justify-center" style={{ background: p.accent }}>{ativo && <Check className="w-3.5 h-3.5 text-white" />}</span>
+            {p.nome}
+          </button>
+        );
+      })}
+      <label className="inline-flex items-center gap-1.5 h-8 pl-1 pr-2.5 rounded-full border text-[12px] font-medium hover:bg-muted cursor-pointer" title="Escolher outra cor">
+        <input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#0f766e"} onChange={(e) => onChange({ nome: "Personalizada", accent: e.target.value })}
+          className="w-6 h-6 rounded-full border-0 p-0 bg-transparent cursor-pointer [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-black/10" />
+        Outra
+      </label>
     </div>
   );
 }

@@ -6,6 +6,8 @@ const DIR = path.join(process.cwd(), "ai-generations");
 
 export interface Gen {
   id: string; userId: string; type: string;
+  /** Ferramenta do Estúdio que gerou (criativo, copy, narracao, avatar, video, motion). */
+  tool?: string;
   url?: string; text?: string; title: string; prompt?: string; meta?: any; createdAt: string;
 }
 
@@ -21,7 +23,17 @@ export async function saveGen(g: Omit<Gen, "id" | "createdAt">): Promise<void> {
   } catch {}
 }
 
-export async function listGens(userId: string, opts?: { type?: string; q?: string; limit?: number }): Promise<Gen[]> {
+/** Itens antigos não guardavam a ferramenta: deduz pelo tipo e título. */
+export function toolOf(g: Gen): string {
+  if (g.tool) return g.tool;
+  if (g.type === "image") return "criativo";
+  if (g.type === "copy") return "copy";
+  if (g.type === "audio") return g.title === "Dublagem do Motion" ? "motion" : "narracao";
+  if (g.type === "video") return g.title === "Avatar" ? "avatar" : "video";
+  return g.type;
+}
+
+export async function listGens(userId: string, opts?: { type?: string; tool?: string; q?: string; limit?: number }): Promise<Gen[]> {
   await ensure();
   const files = (await fs.readdir(DIR).catch(() => [] as string[])).filter((f) => f.endsWith(".json"));
   const out: Gen[] = [];
@@ -30,6 +42,7 @@ export async function listGens(userId: string, opts?: { type?: string; q?: strin
   }));
   let r = out;
   if (opts?.type && opts.type !== "all") r = r.filter((g) => g.type === opts.type);
+  if (opts?.tool) r = r.filter((g) => toolOf(g) === opts.tool);
   if (opts?.q) { const q = opts.q.toLowerCase(); r = r.filter((g) => (g.title || "").toLowerCase().includes(q) || (g.prompt || "").toLowerCase().includes(q) || (g.text || "").toLowerCase().includes(q)); }
   r.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
   return r.slice(0, opts?.limit || 200);

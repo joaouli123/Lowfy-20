@@ -6,14 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Sparkles, Clapperboard, BookOpen, Image as ImageIcon, Type, Mic, Video, UserSquare2, AudioWaveform,
-  Library, RotateCcw, Languages, Cpu, Check,
+  RotateCcw, Languages, Cpu, Check,
 } from "lucide-react";
 import { StudioProvider, useStudio } from "@/components/studio/store";
 import type { ToolId } from "@/components/studio/types";
 import BriefBar from "@/components/studio/BriefBar";
-import AssetDock from "@/components/studio/AssetDock";
+import ToolHistory from "@/components/studio/ToolHistory";
 import VoicesPanel from "@/components/studio/VoicesPanel";
-import LibraryPanel from "@/components/studio/LibraryPanel";
 import CriativoPage from "@/components/studio/CriativoPage";
 import CopyPage from "@/components/studio/CopyPage";
 import NarracaoPage from "@/components/studio/NarracaoPage";
@@ -43,7 +42,6 @@ export const STUDIO_PAGES: { id: ToolId; slug: string; label: string; icon: any 
   { id: "motion", slug: "motion", label: "Motion", icon: Clapperboard },
   { id: "ebook", slug: "ebook", label: "E-books", icon: BookOpen },
   { id: "vozes", slug: "clone-de-voz", label: "Clone de voz", icon: AudioWaveform },
-  { id: "biblioteca", slug: "historico", label: "Histórico", icon: Library },
 ];
 
 const LANGS = [
@@ -107,7 +105,7 @@ function StudioShell() {
       <>
         <AvisoIaEmTestes />
         <Full />
-        <AssetDock />
+        {current !== "ebook" && <ToolHistory tool={current} />}
       </>
     );
   }
@@ -123,12 +121,9 @@ function StudioShell() {
         onReset={resetProject}
       />
 
-      {current !== "biblioteca" && current !== "vozes" && <BriefBar />}
+      {current !== "vozes" && <BriefBar />}
 
       {current === "vozes" && <VoicesPanel />}
-      {current === "biblioteca" && <LibraryPanel />}
-
-      <AssetDock />
     </div>
   );
 }

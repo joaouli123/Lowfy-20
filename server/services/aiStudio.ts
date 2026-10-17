@@ -85,6 +85,8 @@ export interface GenerateImageParams {
   reference?: string;
   /** Proporção exata (ex.: "4:5"). Sem ela, deriva do size. */
   aspect?: string;
+  /** Modelo da OpenAI específico (ex.: capa de e-book com tipografia). Vai direto na OpenAI, com reserva no padrão. */
+  model?: string;
 }
 
 /**
@@ -97,7 +99,7 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
   let kieErr: any = null;
 
   // 1) Kie.ai (GPT Image 2) — bem mais barato que a OpenAI direto.
-  if (kie.kieReady() && !kie.kieSemCredito() && (preferKie() || !OPENAI_KEY)) {
+  if (kie.kieReady() && !kie.kieSemCredito() && (preferKie() || !OPENAI_KEY) && !(params.model && OPENAI_KEY)) {
     try {
       const ref = params.reference ? await kie.kieFileUrl(params.reference, { folder: "referencias" }) : null;
       const input: Record<string, any> = { prompt: params.prompt.slice(0, 20000), aspect_ratio: aspect, resolution: "1K" };
@@ -114,6 +116,9 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
 
   // 2) OpenAI direto (reserva). gpt-image-2: o gpt-image-1 foi desligado em 23/10/2026.
   if (OPENAI_KEY) {
+    const padrao = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
+    const modelos = params.model && params.model !== padrao ? [params.model, padrao] : [padrao];
+    for (let mi = 0; mi < modelos.length; mi++) {
     try {
       const fmt = params.format || "png";
       const [w, h] = aspect.split(":").map(Number);
@@ -122,7 +127,7 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
       const SIZES: Record<string, string> = { "1:1": "1024x1024", "4:5": "1024x1280", "9:16": "864x1536", "16:9": "1536x864", "3:2": "1536x1024", "2:3": "1024x1536", "3:4": "1152x1536", "4:3": "1536x1152" };
       const size = SIZES[aspect] || (Math.abs(ratio - 1) < 0.05 ? "1024x1024" : ratio > 1 ? "1536x1024" : "1024x1536");
       const body: any = {
-        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
+        model: modelos[mi],
         prompt: params.prompt,
         size,
         // "medium" sai ~3x mais rápido (35s vs 100s) com resultado equivalente nos criativos.
@@ -149,8 +154,10 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
       // Garantia: se vier em outro formato, recorta no centro.
       return { buffer: await cropToAspect(Buffer.from(b64, "base64"), ratio, fmt), mime };
     } catch (e: any) {
+      if (mi < modelos.length - 1) { logger.warn(`[Imagem] ${modelos[mi]} falhou, usando ${modelos[mi + 1]}: ${String(e?.message || e).slice(0, 120)}`); continue; }
       const msg = `Falha na geração de imagem (OpenAI): ${String(e?.message || e).slice(0, 120)}`;
       throw new Error(kieErr ? `${msg} | Kie: ${String(kieErr?.message || "").slice(0, 80)}` : msg);
+    }
     }
   }
 

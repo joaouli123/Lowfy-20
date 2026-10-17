@@ -19,10 +19,14 @@ export interface EbookBlock {
   imageUrl?: string;
   label?: string;
   stats?: { value: string; label: string }[];
+  ordered?: boolean;
+  cols?: number;
+  /** Capa/contracapa com o texto já desenhado pela IA de imagem. */
+  textInImage?: boolean;
 }
 
 export interface EbookPage {
-  type: "cover" | "toc" | "chapter" | "content" | "cta";
+  type: "cover" | "toc" | "intro" | "chapter" | "content" | "cta" | "back";
   title?: string;
   subtitle?: string;
   chapter?: number;

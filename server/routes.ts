@@ -6475,7 +6475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ext = mime.includes('webp') ? 'webp' : mime.includes('jpeg') ? 'jpg' : 'png';
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-criativos', mime, ext);
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'image', url, title: String(produto || finalPrompt || 'Criativo').slice(0, 80), prompt: finalPrompt });
+      void aiGenStore.saveGen({ userId: req.user.id, tool: 'criativo', type: 'image', url, title: String(produto || finalPrompt || 'Criativo').slice(0, 80), prompt: finalPrompt });
       res.json({ url, prompt: finalPrompt });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar imagem:', error?.message);
@@ -6539,7 +6539,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rest = job.slides.map((_, i) => i).slice(1);
       for (let k = 0; k < rest.length; k += 3) await Promise.all(rest.slice(k, k + 3).map((i) => drawSlide(i, base)));
       job.status = 'done';
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'image', url: job.slides[0].url, title: `Carrossel: ${tema}`.slice(0, 80), prompt: job.slides.map((s) => s.titulo).join(' | ').slice(0, 500) });
+      void aiGenStore.saveGen({ userId: req.user.id, tool: 'criativo', type: 'image', url: job.slides[0].url, title: `Carrossel: ${tema}`.slice(0, 80), prompt: job.slides.map((s) => s.titulo).join(' | ').slice(0, 500) });
     } catch (e: any) {
       logger.error('[AI Studio] Erro no carrossel:', e?.message);
       job.status = 'error';
@@ -6620,7 +6620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!cenas.length) return res.status(400).json({ message: 'O roteiro está vazio' });
       const r = await motionService.motionVoice({ cenas, voice: req.body?.voice });
       const url = await new ObjectStorageService().uploadBuffer(r.audio, 'ai-audio', r.mime, 'mp3');
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'audio', url, title: 'Dublagem do Motion', prompt: cenas.map((c: any) => c.fala).join(' ').slice(0, 500) });
+      void aiGenStore.saveGen({ userId: req.user.id, tool: 'motion', type: 'audio', url, title: 'Dublagem do Motion', prompt: cenas.map((c: any) => c.fala).join(' ').slice(0, 500) });
       res.json({ audioUrl: url, words: r.words, scenes: r.scenes, duration: r.duration, checagem: r.checagem });
     } catch (error: any) {
       logger.error('[Motion] dublagem:', error?.message);
@@ -6673,7 +6673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Informe o produto e o tipo de copy' });
       }
       const result = await aiStudio.generateCopy({ produto, publico, dor, beneficios, oferta, tipo, framework, tom, variacoes, idioma: req.body?.idioma });
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'copy', text: (result.variacoes || []).join('\n\n'), title: String(produto || 'Copy').slice(0, 80), prompt: String(tipo || '') });
+      void aiGenStore.saveGen({ userId: req.user.id, tool: 'copy', type: 'copy', text: (result.variacoes || []).join('\n\n'), title: String(produto || 'Copy').slice(0, 80), prompt: String(tipo || '') });
       res.json({ variacoes: result.variacoes });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar copy:', error?.message);
@@ -6694,7 +6694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { buffer, mime } = await aiStudio.generateNarration({ text, voice, provider, instructions, modelId, stability, similarityBoost, style, speed, idioma: req.body?.idioma });
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-audio', mime, mime.includes('wav') ? 'wav' : 'mp3');
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'audio', url, title: 'Narração', prompt: String(text).slice(0, 80) });
+      void aiGenStore.saveGen({ userId: req.user.id, tool: 'narracao', type: 'audio', url, title: 'Narração', prompt: String(text).slice(0, 80) });
       res.json({ url });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar narração:', error?.message);
@@ -6726,7 +6726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tom: b.tom, canal: b.canal, cta: b.cta, tamanho: b.tamanho, observacoes: b.observacoes, idioma: b.idioma,
       });
       const text = JSON.stringify(result).slice(0, 20000);
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'copy', text, title: String(b.produto || b.descricao || 'Copy').slice(0, 80), prompt: String(b.canal || '') });
+      void aiGenStore.saveGen({ userId: req.user.id, tool: 'copy', type: 'copy', text, title: String(b.produto || b.descricao || 'Copy').slice(0, 80), prompt: String(b.canal || '') });
       res.json(result);
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar copy-kit:', error?.message);
@@ -6751,7 +6751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { buffer, mime } = await aiStudio.generateTalkingAvatar({ imageUrl, text, audioUrl, size, voice, idioma: req.body?.idioma } as any);
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-avatares', mime, 'mp4');
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'video', url, title: 'Avatar', prompt: String(text || '').slice(0, 80) });
+      void aiGenStore.saveGen({ userId: req.user.id, tool: 'avatar', type: 'video', url, title: 'Avatar', prompt: String(text || '').slice(0, 80) });
       res.json({ url });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar avatar:', error?.message);
@@ -6769,7 +6769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { buffer, mime } = await aiStudio.generateAdVideo({ prompt, imageUrl, script, size, voice, resolution, duration, idioma: req.body?.idioma } as any);
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(buffer, 'ai-videos', mime, 'mp4');
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'video', url, title: String(prompt || 'Vídeo').slice(0, 80), prompt: String(prompt || '').slice(0, 80) });
+      void aiGenStore.saveGen({ userId: req.user.id, tool: 'video', type: 'video', url, title: String(prompt || 'Vídeo').slice(0, 80), prompt: String(prompt || '').slice(0, 80) });
       res.json({ url });
     } catch (error: any) {
       logger.error('[AI Studio] Erro ao gerar vídeo:', error?.message);
@@ -6779,7 +6779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Histórico de gerações do Estúdio (com filtro por tipo e busca)
   app.get('/api/ai-studio/history', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
-    try { res.json(await aiGenStore.listGens(req.user.id, { type: req.query.type as string, q: req.query.q as string })); }
+    try { res.json(await aiGenStore.listGens(req.user.id, { type: req.query.type as string, tool: req.query.tool as string, q: req.query.q as string })); }
     catch { res.json([]); }
   });
   app.delete('/api/ai-studio/history/:id', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
@@ -6963,6 +6963,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     idioma: b?.idioma,
     estilo: b?.estilo ? String(b.estilo).slice(0, 30) : undefined,
     imagens: b?.imagens !== false,
+    accent: /^#[0-9a-f]{6}$/i.test(String(b?.accent || '')) ? String(b.accent) : undefined,
+    paleta: b?.paleta ? String(b.paleta).slice(0, 30) : undefined,
   });
 
   app.post('/api/ebook/v2/outline', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
@@ -6984,6 +6986,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!o?.title || !Array.isArray(o?.chapters) || !o.chapters.length) return res.status(400).json({ message: 'Aprove o sumário antes de gerar o livro' });
     const outline: ebookBuilder.EbookOutline = {
       title: String(o.title).slice(0, 120), subtitle: String(o.subtitle || '').slice(0, 180),
+      sinopse: String(o.sinopse || '').slice(0, 320),
+      paletas: (Array.isArray(o.paletas) ? o.paletas : []).slice(0, 3).map((p: any) => ({ nome: String(p?.nome || '').slice(0, 30), accent: String(p?.accent || '').slice(0, 7) })),
       chapters: o.chapters.slice(0, 14).map((c: any) => ({
         title: String(c?.title || '').slice(0, 120),
         sections: (Array.isArray(c?.sections) ? c.sections : []).slice(0, 12).map((x: any) => ({ heading: String(x?.heading || '').slice(0, 120), brief: String(x?.brief || '').slice(0, 240) })),
@@ -7022,9 +7026,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/ebook/v2/redo-image', authMiddleware, fullAccessMiddleware, studioLimit, studioAsync, async (req: any, res) => {
     try {
-      const { kind, prompt, cover, estilo } = req.body || {};
+      const { kind, prompt, cover, estilo, ref } = req.body || {};
       if (!prompt || String(prompt).trim().length < 3) return res.status(400).json({ message: 'Descreva a imagem' });
-      const img = await ebookBuilder.ebookRedoImage(ebookKinds.has(kind) ? kind : 'guia', String(prompt).slice(0, 800), !!cover, estilo);
+      // Contracapa: a capa entra como referência (mesma identidade visual). Só imagens do próprio storage.
+      const refUrl = typeof ref === 'string' && /^\/objects\/ebooks-img\/[\w.-]+$/.test(ref) ? `http://127.0.0.1:${process.env.PORT || 5000}${ref}` : undefined;
+      const img = await ebookBuilder.ebookRedoImage(ebookKinds.has(kind) ? kind : 'guia', String(prompt).slice(0, 4000), !!cover, estilo, refUrl);
       const url = await new ObjectStorageService().uploadBuffer(img.buffer, 'ebooks-img', img.mime, img.mime.includes('png') ? 'png' : 'webp');
       res.json({ url });
     } catch (error: any) {
