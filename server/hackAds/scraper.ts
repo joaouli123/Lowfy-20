@@ -164,7 +164,17 @@ async function launch(): Promise<Browser> {
 
 export interface ScrapeResult { ads: ScrapedAd[]; loaded: number; results: number | null; url: string }
 
+/** A Biblioteca às vezes vem sem cartões (instabilidade da Meta): tenta mais uma vez antes de desistir. */
 async function scrape(url: URL, limit: number, onProgress?: (n: number) => void): Promise<ScrapeResult> {
+  try { return await scrapeOnce(url, limit, onProgress); }
+  catch (e: any) {
+    if (!/não carregou/.test(String(e?.message))) throw e;
+    await new Promise((r) => setTimeout(r, 5000));
+    return scrapeOnce(url, limit, onProgress);
+  }
+}
+
+async function scrapeOnce(url: URL, limit: number, onProgress?: (n: number) => void): Promise<ScrapeResult> {
   const browser = await launch();
   try {
     const ctx = await browser.newContext({ locale: "en-US", viewport: { width: 1365, height: 900 }, userAgent: undefined });
@@ -179,6 +189,7 @@ async function scrape(url: URL, limit: number, onProgress?: (n: number) => void)
     } catch {
       const body = await page.locator("body").innerText().catch(() => "");
       if (/No ads match|No results|Nenhum anúncio|Nenhum resultado/i.test(body)) return { ads: [], loaded: 0, results: 0, url: url.href };
+      logger.warn(`[Hack Ads] sem cartões em ${url.href} :: ${body.replace(/\s+/g, " ").slice(0, 300)}`);
       if (/log in|entrar|checkpoint|captcha/i.test(body.slice(0, 2000))) throw new Error("A Meta pediu verificação nesta busca. Tente de novo em alguns minutos.");
       throw new Error("A Biblioteca de Anúncios não carregou os cartões. Tente de novo em instantes.");
     }

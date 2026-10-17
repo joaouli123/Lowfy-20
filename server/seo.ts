@@ -65,7 +65,7 @@ const PUBLIC_PAGES: Record<string, PageMeta> = {
 // Rotas do app (área logada, checkout, etc.): existem, mas não devem ser indexadas.
 const APP_ROUTES = [
   "/admin", "/ai-studio", "/ai-tools", "/assinatura", "/ativar-conta", "/checkout", "/clonador", "/courses", "/dashboard",
-  "/ebooks", "/forum", "/indicacoes", "/marketplace", "/modelos-n8n", "/notifications", "/plrs", "/plugins", "/presell",
+  "/ebooks", "/forum", "/hack-ads", "/indicacoes", "/marketplace", "/modelos-n8n", "/notifications", "/plrs", "/plugins", "/presell",
   "/presell-builder", "/presell-dashboard", "/profile", "/q", "/quiz-builder", "/quiz-interativo", "/reset-password",
   "/services", "/set-password", "/subscription", "/support", "/templates", "/timeline", "/users",
 ];
