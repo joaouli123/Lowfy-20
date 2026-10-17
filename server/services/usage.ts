@@ -147,11 +147,12 @@ export async function usdBrl(): Promise<{ rate: number; source: string }> {
   if (s.usdBrl && s.usdBrl > 0) return { rate: s.usdBrl, source: "fixa (configurada)" };
   if (Date.now() - fx.at > 6 * 60 * 60_000) {
     try {
-      const r = await fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL", { signal: AbortSignal.timeout(5000) });
+      const r = await fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(5000) });
       const j: any = await r.json();
-      const rate = Number(j?.USDBRL?.bid);
+      const rate = Number(j?.rates?.BRL);
       if (rate > 1) fx = { rate, at: Date.now(), source: "cotação do dia" };
-    } catch { /* mantém a última */ }
+      else fx.at = Date.now() - 5 * 60 * 60_000; // tenta de novo em 1h
+    } catch { fx.at = Date.now() - 5 * 60 * 60_000; }
   }
   return { rate: fx.rate, source: fx.source };
 }

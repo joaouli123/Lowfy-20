@@ -21,6 +21,16 @@ function period(q: any): [string, string] {
   const from = ok(q.startDate) ? q.startDate : new Date(Date.now() - 30 * 864e5).toLocaleDateString("en-CA", { timeZone: TZ });
   return [from, ok(q.endDate) ? q.endDate : today];
 }
+// Pagamentos confirmados: o histórico (lowfy_subscription_payments) mais o 1º pagamento de cada
+// assinatura, que muitas vezes só existe em lowfy_subscriptions.paid_at (sem contar duas vezes).
+const PAGAMENTOS = `(
+  SELECT p.user_id, p.amount AS cents, p.paid_at FROM lowfy_subscription_payments p WHERE p.status = 'paid' AND p.paid_at IS NOT NULL
+  UNION ALL
+  SELECT s.user_id, s.amount, s.paid_at FROM lowfy_subscriptions s
+  WHERE s.paid_at IS NOT NULL AND s.status NOT IN ('awaiting_payment', 'pending')
+    AND NOT EXISTS (SELECT 1 FROM lowfy_subscription_payments p WHERE p.subscription_id = s.id AND p.status = 'paid' AND COALESCE(p.billing_period, 1) = 1)
+)`;
+
 const groupOf = (g: any) => (g === "week" || g === "month" ? g : "day");
 const n = (v: any) => Number(v) || 0;
 
@@ -79,8 +89,8 @@ async function balances() {
 
 async function revenue(from: string, to: string, feePct: number) {
   const [pay, ref, com] = await Promise.all([
-    pool.query(`SELECT COALESCE(SUM(amount),0) AS cents, COUNT(*) AS qtd, COUNT(DISTINCT user_id) AS pagantes FROM lowfy_subscription_payments WHERE status = 'paid' AND ${RANGE("paid_at")}`, [from, to]),
-    pool.query(`SELECT COALESCE(SUM(amount),0) AS cents, COUNT(*) AS qtd FROM lowfy_subscription_payments WHERE status = 'refunded' AND ${RANGE("COALESCE(refunded_at, created_at)")}`, [from, to]),
+    pool.query(`SELECT COALESCE(SUM(cents),0) AS cents, COUNT(*) AS qtd, COUNT(DISTINCT user_id) AS pagantes FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")}`, [from, to]),
+    pool.query(`SELECT COALESCE(SUM(amount),0) AS cents, COUNT(*) AS qtd FROM lowfy_subscriptions WHERE status = 'refunded' AND ${RANGE("COALESCE(status_changed_at, updated_at)")}`, [from, to]),
     pool.query(`SELECT COALESCE(SUM(commission_amount_cents),0) AS cents FROM referral_commissions WHERE status NOT IN ('canceled','refunded') AND ${RANGE("created_at")}`, [from, to]).catch(() => ({ rows: [{ cents: 0 }] })),
   ]);
   const gross = n(pay.rows[0].cents) / 100;
@@ -105,7 +115,7 @@ export function registerAdminCostRoutes(app: Express) {
         pool.query(`SELECT to_char(date_trunc('${g}', created_at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, SUM(cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1 ORDER BY 1`, [from, to]),
         revenue(from, to, s.paymentFeePct),
         pool.query(`SELECT a.user_id AS id, u.name, u.email, SUM(a.cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage a LEFT JOIN users u ON u.id = a.user_id WHERE ${RANGE("a.created_at")} AND a.user_id IS NOT NULL GROUP BY 1,2,3 ORDER BY 4 DESC LIMIT 10`, [from, to]),
-        pool.query(`SELECT to_char(date_trunc('${g}', paid_at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, SUM(amount) AS cents FROM lowfy_subscription_payments WHERE status = 'paid' AND ${RANGE("paid_at")} GROUP BY 1`, [from, to]),
+        pool.query(`SELECT to_char(date_trunc('${g}', paid_at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, SUM(cents) AS cents FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")} GROUP BY 1`, [from, to]),
         balances(),
       ]);
       const usd = n(tot.rows[0].usd);
@@ -148,7 +158,7 @@ export function registerAdminCostRoutes(app: Express) {
         `WITH uso AS (
            SELECT user_id, SUM(cost_usd) AS usd, COUNT(*) AS ev, MAX(created_at) AS ultimo FROM ai_usage WHERE ${RANGE("created_at")} AND user_id IS NOT NULL GROUP BY 1
          ), pago AS (
-           SELECT user_id, SUM(amount) AS cents FROM lowfy_subscription_payments WHERE status = 'paid' AND ${RANGE("paid_at")} GROUP BY 1
+           SELECT user_id, SUM(cents) AS cents FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")} AND user_id IS NOT NULL GROUP BY 1
          )
          SELECT u.id, u.name, u.email, u.subscription_status AS status, u.access_plan AS plan,
                 COALESCE(uso.usd,0) AS usd, COALESCE(uso.ev,0) AS ev, uso.ultimo, COALESCE(pago.cents,0) AS cents
