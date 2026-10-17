@@ -75,6 +75,7 @@ import * as aiStudio from "./services/aiStudio";
 import * as motionService from "./services/motion";
 import * as motionAudio from "./services/motionAudio";
 import { registerAdminCostRoutes } from "./adminCosts";
+import { registerHackAdsRoutes } from "./hackAds/routes";
 import { generateEbook } from "./services/ebookStudio";
 import * as ebookBuilder from "./services/ebookBuilder";
 import * as ebookStore from "./ebookStore";
@@ -19816,6 +19817,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Consumo e custos de IA (plataforma e por usuário) + receita do período.
   registerAdminCostRoutes(app);
+  // Hack Ads: minerador de criativos da Biblioteca de Anúncios da Meta.
+  registerHackAdsRoutes(app);
 
   // ==================== EMAIL TEST ROUTE (DEVELOPMENT ONLY) ====================
   app.post('/api/admin/test-emails', adminMiddleware, async (req, res) => {

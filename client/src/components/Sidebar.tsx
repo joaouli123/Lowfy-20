@@ -226,10 +226,10 @@ export default function Sidebar() {
     },
     {
       name: "Hack Ads",
-      href: null,
+      href: "/hack-ads",
       icon: Target,
       testId: "nav-hack-ads",
-      badge: "em breve"
+      badge: "novo"
     },
   ];
 

@@ -41,6 +41,7 @@ function isCustomQuizHost(): boolean {
 const QuizBuilder = lazy(() => import("@/pages/QuizBuilder"));
 const QuizInterativo = lazy(() => import("./pages/QuizInterativo"));
 const Plugins = lazy(() => import("./pages/Plugins"));
+const HackAds = lazy(() => import("./pages/HackAds"));
 const Templates = lazy(() => import("./pages/Templates"));
 const Services = lazy(() => import("./pages/Services"));
 const PageCloner = lazy(() => import("./pages/PageCloner"));
@@ -257,6 +258,7 @@ function Router() {
                 <Route path="/quiz-interativo" component={QuizInterativo} />
                 <Route path="/courses" component={Courses} />
                 <Route path="/plugins" component={Plugins} />
+                <Route path="/hack-ads" component={HackAds} />
                 <Route path="/templates" component={Templates} />
                 <Route path="/services" component={Services} />
                 <Route path="/marketplace" component={Marketplace} />

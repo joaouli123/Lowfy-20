@@ -14,7 +14,10 @@ import {
   json, // Import json for extraLinks
   real, // Import real for orcamentoDiario
   bigserial,
+  bigint,
   numeric,
+  date,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1753,6 +1756,89 @@ export const platformSettings = pgTable("platform_settings", {
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Hack Ads (minerador de criativos) — tabelas criadas pela migração 0019_hack_ads.sql.
+// Consultas ficam em SQL em server/hackAds/service.ts; aqui só para o drizzle conhecer as tabelas.
+export const hackAds = pgTable("hack_ads", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  extId: varchar("ext_id", { length: 40 }).notNull().unique(),
+  pageId: varchar("page_id", { length: 40 }),
+  pageName: varchar("page_name", { length: 200 }),
+  pageKey: varchar("page_key", { length: 220 }).notNull(),
+  text: text("text"),
+  mediaType: varchar("media_type", { length: 10 }).notNull().default("unknown"),
+  imageUrl: text("image_url"), videoUrl: text("video_url"), avatarUrl: text("avatar_url"),
+  imageLocal: varchar("image_local", { length: 300 }), videoLocal: varchar("video_local", { length: 300 }), avatarLocal: varchar("avatar_local", { length: 300 }),
+  libraryUrl: text("library_url"),
+  destinationUrl: text("destination_url"),
+  domain: varchar("domain", { length: 200 }),
+  checkoutUrl: text("checkout_url"),
+  checkoutPlatform: varchar("checkout_platform", { length: 20 }),
+  countries: text("countries").array().notNull().default(sql`'{}'`),
+  language: varchar("language", { length: 5 }),
+  category: varchar("category", { length: 40 }),
+  startedAt: date("started_at"),
+  active: boolean("active"),
+  creativeUses: integer("creative_uses"),
+  creativeKey: varchar("creative_key", { length: 64 }).notNull(),
+  firstSeen: timestamp("first_seen", { withTimezone: true }).notNull().defaultNow(),
+  lastSeen: timestamp("last_seen", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("idx_hack_ads_last_seen").on(t.lastSeen),
+  index("idx_hack_ads_page_key").on(t.pageKey),
+  index("idx_hack_ads_creative_key").on(t.creativeKey),
+  index("idx_hack_ads_started").on(t.startedAt),
+  index("idx_hack_ads_category").on(t.category),
+  index("idx_hack_ads_domain").on(t.domain),
+]);
+export const hackAdsObservations = pgTable("hack_ads_observations", {
+  adId: bigint("ad_id", { mode: "number" }).notNull().references(() => hackAds.id, { onDelete: "cascade" }),
+  dia: date("dia").notNull().default(sql`CURRENT_DATE`),
+  creativeUses: integer("creative_uses"),
+  active: boolean("active"),
+}, (t) => [primaryKey({ columns: [t.adId, t.dia] })]);
+export const hackAdsSearches = pgTable("hack_ads_searches", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  term: varchar("term", { length: 120 }).notNull(),
+  country: varchar("country", { length: 3 }).notNull(),
+  requested: integer("requested").notNull(),
+  found: integer("found").notNull().default(0),
+  added: integer("added").notNull().default(0),
+  status: varchar("status", { length: 12 }).notNull().default("queued"),
+  error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+}, (t) => [index("idx_hack_ads_searches_user").on(t.userId, t.createdAt)]);
+export const hackAdsSearchAds = pgTable("hack_ads_search_ads", {
+  searchId: bigint("search_id", { mode: "number" }).notNull().references(() => hackAdsSearches.id, { onDelete: "cascade" }),
+  adId: bigint("ad_id", { mode: "number" }).notNull().references(() => hackAds.id, { onDelete: "cascade" }),
+}, (t) => [primaryKey({ columns: [t.searchId, t.adId] })]);
+export const hackAdsFavorites = pgTable("hack_ads_favorites", {
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  adId: bigint("ad_id", { mode: "number" }).notNull().references(() => hackAds.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.adId] })]);
+export const hackAdsPages = pgTable("hack_ads_pages", {
+  pageKey: varchar("page_key", { length: 220 }).primaryKey(),
+  pageId: varchar("page_id", { length: 40 }),
+  pageName: varchar("page_name", { length: 200 }).notNull(),
+  lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+  lastError: text("last_error"),
+});
+export const hackAdsPageSnapshots = pgTable("hack_ads_page_snapshots", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  pageKey: varchar("page_key", { length: 220 }).notNull().references(() => hackAdsPages.pageKey, { onDelete: "cascade" }),
+  checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
+  activeCards: integer("active_cards").notNull(),
+  activeAds: integer("active_ads").notNull(),
+  capped: boolean("capped").notNull().default(false),
+}, (t) => [index("idx_hack_ads_snapshots_page").on(t.pageKey, t.checkedAt)]);
+export const hackAdsMonitors = pgTable("hack_ads_monitors", {
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pageKey: varchar("page_key", { length: 220 }).notNull().references(() => hackAdsPages.pageKey, { onDelete: "cascade" }),
+  addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.pageKey] })]);
 
 // N8N Automations
 export const n8nAutomations = pgTable("n8n_automations", {

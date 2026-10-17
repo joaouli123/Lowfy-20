@@ -17,7 +17,8 @@ export type FeatureType =
   | "plugins"
   | "templates"
   | "suporte"
-  | "assinatura";
+  | "assinatura"
+  | "hack-ads";
 
 const FREE_PLAN_ALLOWED_FEATURES: FeatureType[] = [
   "timeline",
@@ -40,6 +41,7 @@ const BASIC_PLAN_ALLOWED_FEATURES: FeatureType[] = [
 ];
 
 const PREMIUM_ONLY_FEATURES: FeatureType[] = [
+  "hack-ads",
   "clonador",
   "presell-builder",
   "quiz",

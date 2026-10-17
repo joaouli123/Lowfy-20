@@ -646,6 +646,14 @@ if (!isProduction) {
         logger.error('Gamification scheduler error:', error);
       });
 
+      // Hack Ads: confere as páginas monitoradas (1x por dia cada), uma coleta por vez.
+      import('./hackAds/service').then(({ checkDuePages }) => {
+        setTimeout(() => void checkDuePages().catch(() => {}), 90_000);
+        setInterval(() => void checkDuePages().catch(() => {}), 30 * 60_000);
+      }).catch(error => {
+        logger.error('Hack Ads scheduler error:', error);
+      });
+
       import('./balance-scheduler').then(({ startBalanceReleaseScheduler }) => {
         startBalanceReleaseScheduler();
       }).catch(error => {
