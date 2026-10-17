@@ -161,6 +161,13 @@ export default function Sidebar() {
       ],
     },
     {
+      name: "Hack Ads",
+      href: "/hack-ads",
+      icon: Target,
+      testId: "nav-hack-ads",
+      badge: "novo"
+    },
+    {
       name: "Criador de Ebooks",
       href: "/ai-studio/ebook",
       icon: BookOpen,
@@ -223,13 +230,6 @@ export default function Sidebar() {
       icon: Sparkles,
       testId: "nav-agente-ia",
       badge: "em breve"
-    },
-    {
-      name: "Hack Ads",
-      href: "/hack-ads",
-      icon: Target,
-      testId: "nav-hack-ads",
-      badge: "novo"
     },
   ];
 
@@ -529,6 +529,11 @@ export default function Sidebar() {
                   {!isSidebarCollapsed && (
                     <>
                       <span>{item.name}</span>
+                      {(item as any).badge && !hasSub && (
+                        <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4 ml-auto bg-emerald-100 text-emerald-700">
+                          {(item as any).badge}
+                        </Badge>
+                      )}
                       {hasSub && (
                         <>
                           {expanded ? (
