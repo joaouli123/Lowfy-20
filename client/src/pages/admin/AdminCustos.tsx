@@ -450,6 +450,19 @@ function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void 
               <p className="text-[11px] text-muted-foreground mt-1.5">Vídeo e avatar continuam na Kie (é o único provedor deles). Voz continua na ElevenLabs.</p>
             </div>
 
+            <div>
+              <Label>Quem pode usar a IA (gerar criativo, copy, voz, vídeo, Motion, e-book)</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {([["admin", "Só a equipe", "Só administradores geram. Ninguém mais gasta seus créditos."], ["assinantes", "Assinantes", "Todos com plano completo podem gerar (com os limites por hora)."]] as const).map(([v, t, d]) => (
+                  <button key={v} type="button" onClick={() => set({ iaAcesso: v })}
+                    className={`rounded-lg border p-3 text-left text-sm transition ${(s.iaAcesso || "admin") === v ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:bg-muted/50"}`}>
+                    <p className="font-medium">{t}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{d}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Dólar fixo (R$)" hint={`Vazio = cotação do dia (hoje ${q.data?.fx?.rate?.toFixed(2)})`} value={s.usdBrl ?? ""} onChange={(v) => set({ usdBrl: v === "" ? null : num(v) })} />
               <Field label="Taxa do pagamento (%)" hint="Média do gateway" value={s.paymentFeePct} onChange={(v) => set({ paymentFeePct: num(v) })} />

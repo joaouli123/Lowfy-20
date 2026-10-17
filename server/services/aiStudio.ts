@@ -42,6 +42,9 @@ function gemini(): GoogleGenAI {
  */
 export const kieFirst = () => kie.kieReady() && !kie.kieSemCredito() && (preferKie() || (!OPENAI_KEY && !GEMINI_KEY));
 
+/** Kie como reserva de texto: só se escolhida no admin ou se não houver OpenAI nem Gemini. */
+const kieTexto = () => preferKie() || (!OPENAI_KEY && !GEMINI_KEY);
+
 /** Anota o consumo de uma resposta de chat da OpenAI. */
 function usageOpenAI(model: string, res: any) {
   recordUsage({ provider: "openai", model, kind: "text", inputTokens: res?.usage?.prompt_tokens || 0, outputTokens: res?.usage?.completion_tokens || 0 });
@@ -445,7 +448,8 @@ ${user}`, config: { responseMimeType: "application/json", temperature } as any }
       },
     },
     {
-      name: "kie", key: kie.kieKey(), run: async () => ({ data: await kie.kieChat(system, user, { json: true, temperature }), model: "kie", promptTokens: 0, completionTokens: 0 }),
+      // Kie fica fora do texto (o crédito dela é para vídeo/avatar), salvo se escolhida no admin ou sem outra opção.
+      name: "kie", key: kieTexto() ? kie.kieKey() : "", run: async () => ({ data: await kie.kieChat(system, user, { json: true, temperature }), model: "kie", promptTokens: 0, completionTokens: 0 }),
     },
   ]);
 }
@@ -470,7 +474,7 @@ ${user}`, config: { temperature } as any });
         return (res as any).text || "";
       },
     },
-    { name: "kie", key: kie.kieKey(), run: () => kie.kieChat(system, user, { temperature }) },
+    { name: "kie", key: kieTexto() ? kie.kieKey() : "", run: () => kie.kieChat(system, user, { temperature }) },
   ]);
 }
 
@@ -585,7 +589,7 @@ export async function generateNarration(params: GenerateTTSParams): Promise<{ bu
   // ElevenLabs direto primeiro: todas as vozes da conta (inclusive clonadas). Kie como reserva.
   if (ELEVENLABS_KEY) {
     try { return await elevenNarration(params); }
-    catch (e: any) { if (!kie.kieReady()) throw e; logger.warn(`[TTS] ElevenLabs falhou, usando Kie: ${e?.message}`); }
+    catch (e: any) { if (!kie.kieReady() || !preferKie()) throw e; logger.warn(`[TTS] ElevenLabs falhou, usando Kie: ${e?.message}`); }
   }
   const r = await narrationUrl(params);
   if (r) return kie.kieDownload(r);

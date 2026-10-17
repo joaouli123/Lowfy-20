@@ -52,6 +52,22 @@ const LANGS = [
   { v: "es-ES", label: "Español" },
 ];
 
+/** Enquanto a IA paga está só com a equipe, quem não é admin vê o aviso (e não toma erro ao gerar). */
+function AvisoIaEmTestes() {
+  const { data } = useQuery<{ iaLiberada?: boolean }>({
+    queryKey: ["/api/ai-studio/capabilities"],
+    queryFn: async () => (await apiRequest("GET", "/api/ai-studio/capabilities")).json(),
+    staleTime: 60_000,
+  });
+  if (!data || data.iaLiberada !== false) return null;
+  return (
+    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <p className="font-semibold">As ferramentas de IA estão em fase de testes com a equipe</p>
+      <p className="mt-0.5 text-amber-800">Você pode explorar as telas e os exemplos. A geração será liberada para os assinantes em breve.</p>
+    </div>
+  );
+}
+
 export default function AIStudio() {
   return (
     <StudioProvider>
@@ -89,6 +105,7 @@ function StudioShell() {
   if (Full) {
     return (
       <>
+        <AvisoIaEmTestes />
         <Full />
         <AssetDock />
       </>
@@ -97,6 +114,7 @@ function StudioShell() {
 
   return (
     <div className="space-y-4 pb-4">
+      <AvisoIaEmTestes />
       <StudioHeader
         projectName={projectName}
         setProjectName={setProjectName}

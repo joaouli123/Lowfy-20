@@ -137,7 +137,7 @@ export function registerAdminCostRoutes(app: Express) {
         series: [...days].sort().map((d) => ({ date: d, costBrl: n((costMap.get(d) as any)?.usd) * fx.rate, revenueBrl: revMap.get(d) || 0, events: n((costMap.get(d) as any)?.ev) })),
         topUsers: top.rows.map((r: any) => ({ id: r.id, name: r.name, email: r.email, costUsd: n(r.usd), events: n(r.ev), alert: n(r.usd) >= s.alertUserUsd })),
         balances: bal,
-        settings: { preferProvider: s.preferProvider, alertUserUsd: s.alertUserUsd, paymentFeePct: s.paymentFeePct },
+        settings: { preferProvider: s.preferProvider, alertUserUsd: s.alertUserUsd, paymentFeePct: s.paymentFeePct, iaAcesso: s.iaAcesso },
       });
     } catch (e: any) {
       logger.error("[Admin Custos] visão geral:", e?.message);
@@ -217,6 +217,7 @@ export function registerAdminCostRoutes(app: Express) {
       const b = req.body || {};
       const patch: Partial<CostSettings> = {};
       if (b.preferProvider === "openai" || b.preferProvider === "kie") patch.preferProvider = b.preferProvider;
+      if (b.iaAcesso === "admin" || b.iaAcesso === "assinantes") patch.iaAcesso = b.iaAcesso;
       if (b.usdBrl === null || b.usdBrl === "") patch.usdBrl = null;
       else if (n(b.usdBrl) > 1 && n(b.usdBrl) < 20) patch.usdBrl = n(b.usdBrl);
       if (n(b.paymentFeePct) >= 0 && n(b.paymentFeePct) <= 30 && b.paymentFeePct != null) patch.paymentFeePct = n(b.paymentFeePct);

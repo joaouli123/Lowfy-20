@@ -82,6 +82,8 @@ export interface CostSettings {
   paymentFeePct: number;
   /** Alerta quando um usuário passa desse custo (US$) no período. */
   alertUserUsd: number;
+  /** Quem pode usar as ferramentas de IA que gastam crédito: só a equipe (admin) ou os assinantes. */
+  iaAcesso: "admin" | "assinantes";
 }
 
 const DEFAULT_SETTINGS: CostSettings = {
@@ -90,6 +92,7 @@ const DEFAULT_SETTINGS: CostSettings = {
   prices: DEFAULT_PRICES,
   paymentFeePct: 5,
   alertUserUsd: 5,
+  iaAcesso: "admin",
 };
 
 let settingsCache: CostSettings = DEFAULT_SETTINGS;
@@ -205,6 +208,11 @@ export function recordUsage(e: UsageEvent): void {
     [userId, tool, e.provider, (e.model || "").slice(0, 60) || null, e.kind, units || (e.kind === "image" ? 1 : 0), unit,
       Math.round(e.inputTokens || 0), Math.round(e.outputTokens || 0), Number(cost.toFixed(6)), e.meta ? JSON.stringify(e.meta) : null],
   ).catch((err) => logger.warn(`[Consumo] não registrou ${e.provider}/${tool}: ${err?.message}`));
+}
+
+/** IA paga liberada para este usuário? (admin sempre; assinantes só quando o admin liberar) */
+export function iaLiberada(user: any): boolean {
+  return !!user?.isAdmin || settingsNow().iaAcesso === "assinantes";
 }
 
 /** Kie primeiro? Só quando escolhida no admin e com crédito (sem crédito, cai direto na OpenAI). */

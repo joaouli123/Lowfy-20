@@ -75,6 +75,7 @@ import * as aiStudio from "./services/aiStudio";
 import * as motionService from "./services/motion";
 import * as motionAudio from "./services/motionAudio";
 import { registerAdminCostRoutes } from "./adminCosts";
+import { iaLiberada } from "./services/usage";
 import { registerHackAdsRoutes } from "./hackAds/routes";
 import { generateEbook } from "./services/ebookStudio";
 import * as ebookBuilder from "./services/ebookBuilder";
@@ -360,6 +361,22 @@ const twoFactorLimiter = createDistributedRateLimiter({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // IA paga (gasta crédito de OpenAI/ElevenLabs/Anthropic/Kie): por enquanto só a equipe usa.
+  // O admin libera para os assinantes em Admin → Consumo e custos → "Quem pode usar a IA".
+  const IA_PAGA = [
+    /^\/api\/ai-studio\/(image|carousel|copy|copy-kit|tts|video|avatar|clone-voice|motion\/(brief|script|voice|audio|animate))\/?$/,
+    /^\/api\/ebook\/(v2\/(outline|build|redo-image)|generate|gen-image)\/?$/,
+    /^\/api\/landing\/(generate|vibe)\/?$/,
+    /^\/api\/quiz\/generate\/?$/,
+  ];
+  app.use((req: any, res, next) => {
+    if (req.method !== 'POST' || !IA_PAGA.some((r) => r.test(req.path))) return next();
+    authMiddleware(req, res, () => {
+      if (iaLiberada(req.user)) return next();
+      res.status(403).json({ code: 'IA_SO_EQUIPE', message: 'As ferramentas de IA estão em fase de testes com a equipe. Em breve liberadas para os assinantes.' });
+    });
+  });
+
   // Middleware para cookies (tracking de visualizações únicas)
   app.use(cookieParser());
 
@@ -6441,8 +6458,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     validate: false, message: { message: 'Você atingiu o limite de vídeos/carrosséis por hora. Tente de novo daqui a pouco.' },
   });
 
-  app.get('/api/ai-studio/capabilities', authMiddleware, async (_req, res) => {
-    res.json(aiStudio.aiStudioCapabilities());
+  app.get('/api/ai-studio/capabilities', authMiddleware, async (req: any, res) => {
+    res.json({ ...aiStudio.aiStudioCapabilities(), iaLiberada: iaLiberada(req.user) });
   });
 
   // Gerar imagem de criativo
