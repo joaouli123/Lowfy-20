@@ -1781,6 +1781,7 @@ export const hackAds = pgTable("hack_ads", {
   active: boolean("active"),
   creativeUses: integer("creative_uses"),
   creativeKey: varchar("creative_key", { length: 64 }).notNull(),
+  platforms: text("platforms").array().notNull().default(sql`'{}'`),
   firstSeen: timestamp("first_seen", { withTimezone: true }).notNull().defaultNow(),
   lastSeen: timestamp("last_seen", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

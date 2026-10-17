@@ -1,0 +1,158 @@
+diff --git a/server/routes.ts b/server/routes.ts
+index d197f44..324d0db 100644
+--- a/server/routes.ts
++++ b/server/routes.ts
+@@ -58,6 +58,7 @@ import {
+   passwordResetTokens,
+   sessions,
+   lowfySubscriptions,
++  lowfySubscriptionPayments,
+   referralCodes,
+   referralCommissions,
+   referralWallet, referralTransactions,
+@@ -5099,9 +5100,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
+               return;
+             }
+ 
+-            // IDEMPOTENCY: Skip if already active with paidAt set
+-            if (lowfySubscription.status === 'active' && lowfySubscription.paidAt) {
+-              logger.debug(`[Asaas-Subscriptions Webhook] ℹ️  Subscription ${lowfySubscription.id} already processed (idempotent)`);
++            // IDEMPOTÊNCIA POR PAGAMENTO (não por estado da assinatura): a Asaas manda PAYMENT_CONFIRMED e,
++            // dias depois, PAYMENT_RECEIVED do MESMO pagamento. Antes, qualquer pagamento de uma assinatura
++            // já ativa era ignorado — e com isso as renovações mensais nunca eram registradas.
++            const valorPagoCents = Math.round(Number(payment?.value || 0) * 100) || lowfySubscription.amount;
++            const pagoEm = new Date(payment?.confirmedDate || payment?.paymentDate || payment?.clientPaymentDate || payment?.dateCreated || Date.now());
++            const renovacoesAnteriores: string[] = Array.isArray((lowfySubscription.webhookData as any)?.renewalPaymentIds)
++              ? (lowfySubscription.webhookData as any).renewalPaymentIds : [];
++            const [pagamentoJaRegistrado] = await db
++              .select({ id: lowfySubscriptionPayments.id })
++              .from(lowfySubscriptionPayments)
++              .where(and(eq(lowfySubscriptionPayments.provider, 'asaas'), eq(lowfySubscriptionPayments.providerPaymentId, paymentId)))
++              .limit(1);
++            if (pagamentoJaRegistrado || renovacoesAnteriores.includes(paymentId) || (lowfySubscription.paidAt && lowfySubscription.providerTransactionId === paymentId)) {
++              logger.debug(`[Asaas-Subscriptions Webhook] ℹ️  Pagamento ${paymentId} já processado (idempotente)`);
++              return;
++            }
++
++            // RENOVAÇÃO: a assinatura já tinha sido paga e chegou um pagamento novo (ciclo seguinte,
++            // ou pagamento de uma cobrança que tinha atrasado). Sem e-mail de ativação, sem novo
++            // "Purchase" no Facebook; registra o pagamento, avança o período e estende o acesso.
++            if (lowfySubscription.paidAt) {
++              const periodo = (lowfySubscription.currentPeriod || 1) + 1;
++              const vencimento = payment?.dueDate ? new Date(`${payment.dueDate}T12:00:00Z`) : pagoEm;
++              const proximaCobranca = lowfySubscription.plan === 'anual' ? addYears(vencimento, 1) : addMonths(vencimento, 1);
++
++              if (lowfySubscription.userId) {
++                await storage.createSubscriptionPayment({
++                  subscriptionId: lowfySubscription.id,
++                  userId: lowfySubscription.userId,
++                  provider: 'asaas',
++                  providerPaymentId: paymentId,
++                  status: 'paid',
++                  amount: valorPagoCents,
++                  paymentMethod: lowfySubscription.paymentMethod || 'credit_card',
++                  billingPeriod: periodo,
++                  paidAt: pagoEm,
++                  dueDate: vencimento,
++                });
++              }
++
++              await storage.updateLowfySubscription(lowfySubscription.id, {
++                status: 'active',
++                statusChangedAt: lowfySubscription.status === 'active' ? lowfySubscription.statusChangedAt : new Date(),
++                currentPeriod: periodo,
++                paidAt: pagoEm,
++                nextPaymentDate: proximaCobranca,
++                accessValidUntil: proximaCobranca,
++                // Mantém os dados do checkout (EMQ etc.); guarda os pagamentos de renovação já processados.
++                webhookData: {
++                  ...((lowfySubscription.webhookData as any) || {}),
++                  renewalPaymentIds: [...renovacoesAnteriores, paymentId].slice(-60),
++                  lastRenewal: { event, paymentId, processedAt: receivedAt },
++                },
++              });
++
++              if (lowfySubscription.userId) {
++                await db
++                  .update(users)
++                  .set({
++                    subscriptionStatus: 'active',
++                    subscriptionExpiresAt: proximaCobranca,
++                    accountStatus: 'active',
++                    accessPlan: sql`COALESCE(${users.accessPlan}, 'full')`,
++                    updatedAt: new Date(),
++                  })
++                  .where(eq(users.id, lowfySubscription.userId));
++
++                if (io) {
++                  io.to(`user:${lowfySubscription.userId}`).emit('subscription_activated', { subscriptionId: lowfySubscription.id, status: 'active' });
++                }
++
++                // Comissão de afiliado da renovação (a idempotência do storage é por assinatura + período).
++                if (lowfySubscription.referralCode) {
++                  try {
++                    const referralCodeRecord = await storage.getReferralCodeByCode(lowfySubscription.referralCode);
++                    if (referralCodeRecord && referralCodeRecord.userId !== lowfySubscription.userId) {
++                      const commissionPercentage = 50;
++                      await storage.createReferralCommission({
++                        referrerId: referralCodeRecord.userId,
++                        referredUserId: lowfySubscription.userId,
++                        subscriptionId: lowfySubscription.id,
++                        subscriptionAmountCents: valorPagoCents,
++                        commissionPercentage,
++                        commissionAmountCents: Math.floor(valorPagoCents * commissionPercentage / 100),
++                        status: 'pending',
++                        type: 'renewal',
++                        metadata: { provider: 'asaas', plan: lowfySubscription.plan, current_period: periodo },
++                      });
++                    }
++                  } catch (refError) {
++                    logger.error(`[Asaas-Subscriptions Webhook] ❌ Erro na comissão da renovação:`, refError);
++                  }
++                }
++              }
++
++              try {
++                const emailHtml = generateSubscriptionRenewedEmail(
++                  lowfySubscription.buyerName,
++                  lowfySubscription.plan as 'mensal' | 'anual',
++                  valorPagoCents / 100,
++                  periodo,
++                  proximaCobranca.toISOString()
++                );
++                await sendEmail({ to: lowfySubscription.buyerEmail, subject: '✅ Assinatura Renovada - Lowfy', html: emailHtml });
++              } catch (emailError) {
++                logger.error(`[Asaas-Subscriptions Webhook] ❌ Falha no e-mail de renovação:`, emailError);
++              }
++
++              logger.info(`[Asaas-Subscriptions Webhook] 🔁 Assinatura ${lowfySubscription.id} renovada: período ${periodo}, acesso até ${proximaCobranca.toISOString()}`);
+               return;
+             }
+ 
+@@ -5145,6 +5252,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
+               }
+             }
+ 
++            // Histórico: o 1º pagamento também entra em lowfy_subscription_payments (receita e idempotência).
++            if (lowfySubscription.userId) {
++              try {
++                await storage.createSubscriptionPayment({
++                  subscriptionId: lowfySubscription.id,
++                  userId: lowfySubscription.userId,
++                  provider: 'asaas',
++                  providerPaymentId: paymentId,
++                  status: 'paid',
++                  amount: valorPagoCents,
++                  paymentMethod: lowfySubscription.paymentMethod || 'credit_card',
++                  billingPeriod: 1,
++                  paidAt,
++                  dueDate: payment?.dueDate ? new Date(`${payment.dueDate}T12:00:00Z`) : paidAt,
++                });
++              } catch (payError: any) {
++                logger.warn(`[Asaas-Subscriptions Webhook] ⚠️ Não registrou o 1º pagamento:`, payError?.message);
++              }
++            }
++
+             // Update user subscription status if linked
+             if (lowfySubscription.userId) {
+               const expiresAt = new Date(nextPaymentDate);

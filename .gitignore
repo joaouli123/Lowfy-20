@@ -35,3 +35,4 @@ objects-data/
 # Runtime do quiz (em prod usa volume)
 quizzes/
 quiz-leads/
+server/zz-*.ts

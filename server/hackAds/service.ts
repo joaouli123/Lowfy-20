@@ -65,8 +65,8 @@ async function upsert(ads: ScrapedAd[], country: string): Promise<{ ids: number[
     const chk = a.destination_url ? checkoutDe(a.destination_url) : null;
     const r = await pool.query(
       `INSERT INTO hack_ads (ext_id, page_id, page_name, page_key, text, media_type, image_url, video_url, avatar_url, library_url,
-         destination_url, domain, checkout_url, checkout_platform, countries, language, category, started_at, active, creative_uses, creative_key)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+         destination_url, domain, checkout_url, checkout_platform, countries, language, category, started_at, active, creative_uses, creative_key, platforms)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
        ON CONFLICT (ext_id) DO UPDATE SET
          page_id = COALESCE(NULLIF(EXCLUDED.page_id,''), hack_ads.page_id),
          page_name = COALESCE(NULLIF(EXCLUDED.page_name,''), hack_ads.page_name),
@@ -87,12 +87,13 @@ async function upsert(ads: ScrapedAd[], country: string): Promise<{ ids: number[
          started_at = COALESCE(EXCLUDED.started_at, hack_ads.started_at),
          active = COALESCE(EXCLUDED.active, hack_ads.active),
          creative_uses = COALESCE(EXCLUDED.creative_uses, hack_ads.creative_uses),
+         platforms = CASE WHEN cardinality(EXCLUDED.platforms) > 0 THEN EXCLUDED.platforms ELSE hack_ads.platforms END,
          last_seen = now()
        RETURNING id, (xmax = 0) AS inserted`,
       [a.external_id, a.page_id || null, a.page_name || null, pageKey, a.text || null, a.media_type, a.image_url || null, a.video_url || null,
         a.avatar_url || null, a.library_url, a.destination_url || null, a.destination_url ? dominioDe(a.destination_url) : null,
         chk?.url || null, chk?.plataforma || null, country && country !== "ALL" ? [country] : [], inferirIdioma(a.text), inferirCategoria(a.page_name, a.text),
-        a.started_at, a.active, a.creative_uses, creativeKeyDe(pageKey, a.text, a.external_id)],
+        a.started_at, a.active, a.creative_uses, creativeKeyDe(pageKey, a.text, a.external_id), a.platforms || []],
     );
     const id = Number(r.rows[0].id);
     ids.push(id);
@@ -163,6 +164,15 @@ export async function mediaLocal(adId: number, kind: Kind): Promise<string | nul
   return baixando.get(key)!;
 }
 
+/** Onde está a mídia: cópia nossa (se já guardada) e o link original da Meta (se ainda válido para exibir). */
+export async function mediaFor(adId: number, kind: Kind): Promise<{ local: string | null; remote: string | null }> {
+  const [urlCol, localCol] = COL[kind];
+  const r = await pool.query(`SELECT ${urlCol} AS url, ${localCol} AS local FROM hack_ads WHERE id = $1`, [adId]);
+  const row = r.rows[0];
+  if (!row) return { local: null, remote: null };
+  return { local: row.local || null, remote: row.url && CDN_OK(row.url) ? row.url : null };
+}
+
 async function cacheImagens(ids: number[]) {
   const lista = [...ids];
   const worker = async () => { for (let id = lista.shift(); id != null; id = lista.shift()) { await mediaLocal(id, "image"); await mediaLocal(id, "avatar"); } };
@@ -193,7 +203,7 @@ export async function listSearches(userId: string) {
 export interface Filtros {
   q?: string; search_by?: string; category?: string; country?: string; media?: string; language?: string;
   min_days?: string; min_dups?: string; min_page_ads?: string; from?: string; to?: string; checkout?: string; platform?: string;
-  active?: string; favorites?: string; search_id?: string; domain?: string; sort?: string; dir?: string; limit?: string; offset?: string; page_key?: string;
+  active?: string; favorites?: string; search_id?: string; placement?: string; domain?: string; sort?: string; dir?: string; limit?: string; offset?: string; page_key?: string;
 }
 
 export async function listAds(userId: string, f: Filtros, modo: "library" | "trending" = "library") {
@@ -219,6 +229,8 @@ export async function listAds(userId: string, f: Filtros, modo: "library" | "tre
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(f.to || ""))) where.push(`a.started_at <= ${arg(f.to)}::date`);
   if (f.checkout === "1") where.push(`a.checkout_url IS NOT NULL`);
   if (f.platform) where.push(`a.checkout_platform = ${arg(String(f.platform).slice(0, 20))}`);
+  const plats = lista(f.placement, 6).filter((x) => /^[a-z_]{3,20}$/.test(x));
+  if (plats.length) where.push(`a.platforms && ${arg(plats)}::text[]`);
   if (f.active === "1" || modo === "trending") where.push(`a.active IS TRUE`);
   if (modo === "trending") where.push(`a.last_seen > now() - interval '21 days'`);
   if (f.domain) where.push(`a.domain ILIKE ${arg(`%${String(f.domain).slice(0, 100)}%`)}`);
@@ -254,7 +266,7 @@ export async function listAds(userId: string, f: Filtros, modo: "library" | "tre
       FROM base b WHERE b.rk = 1
     )
     SELECT g.id, g.ext_id, g.page_id, g.page_name, g.page_key, g.text, g.media_type, g.library_url, g.destination_url, g.domain,
-      g.checkout_url, g.checkout_platform, g.countries, g.language, g.category, g.started_at, g.active, g.creative_uses,
+      g.checkout_url, g.checkout_platform, g.countries, g.language, g.category, g.started_at, g.active, g.creative_uses, g.platforms,
       g.first_seen, g.last_seen, g.duplicates, g.page_ads,
       (g.image_url IS NOT NULL OR g.image_local IS NOT NULL) AS has_image, (g.video_url IS NOT NULL OR g.video_local IS NOT NULL) AS has_video,
       (g.avatar_url IS NOT NULL OR g.avatar_local IS NOT NULL) AS has_avatar,
@@ -276,7 +288,7 @@ function row(r: any) {
   return {
     id: Number(r.id), extId: r.ext_id, pageId: r.page_id, pageName: r.page_name, pageKey: r.page_key, text: r.text || "",
     mediaType: r.media_type, libraryUrl: r.library_url, destinationUrl: r.destination_url, domain: r.domain,
-    checkoutUrl: r.checkout_url, checkoutPlatform: r.checkout_platform, countries: r.countries || [], language: r.language,
+    checkoutUrl: r.checkout_url, checkoutPlatform: r.checkout_platform, countries: r.countries || [], platforms: r.platforms || [], language: r.language,
     category: r.category, startedAt: r.started_at, active: r.active, days: dias, duplicates: dups, pageAds: Number(r.page_ads) || 1,
     hot: dups >= 40, selo, firstSeen: r.first_seen, lastSeen: r.last_seen,
     hasImage: !!r.has_image, hasVideo: !!r.has_video, hasAvatar: !!r.has_avatar, favorite: !!r.favorite, monitored: !!r.monitored,
@@ -314,9 +326,10 @@ export async function facets() {
       (SELECT COUNT(DISTINCT page_key) FROM hack_ads) AS paginas,
       (SELECT json_agg(x) FROM (SELECT category AS v, COUNT(*) AS n FROM hack_ads WHERE category IS NOT NULL GROUP BY 1 ORDER BY 2 DESC) x) AS categorias,
       (SELECT json_agg(x) FROM (SELECT c AS v, COUNT(*) AS n FROM hack_ads, unnest(countries) c GROUP BY 1 ORDER BY 2 DESC LIMIT 40) x) AS paises,
-      (SELECT json_agg(x) FROM (SELECT checkout_platform AS v, COUNT(*) AS n FROM hack_ads WHERE checkout_platform IS NOT NULL GROUP BY 1 ORDER BY 2 DESC) x) AS plataformas`);
+      (SELECT json_agg(x) FROM (SELECT checkout_platform AS v, COUNT(*) AS n FROM hack_ads WHERE checkout_platform IS NOT NULL GROUP BY 1 ORDER BY 2 DESC) x) AS plataformas,
+      (SELECT json_agg(x) FROM (SELECT p AS v, COUNT(*) AS n FROM hack_ads, unnest(platforms) p GROUP BY 1 ORDER BY 2 DESC) x) AS veiculacao`);
   const x = r.rows[0];
-  return { total: Number(x.total), paginas: Number(x.paginas), categorias: x.categorias || [], paises: x.paises || [], plataformas: x.plataformas || [] };
+  return { total: Number(x.total), paginas: Number(x.paginas), categorias: x.categorias || [], paises: x.paises || [], plataformas: x.plataformas || [], veiculacao: x.veiculacao || [] };
 }
 
 // ---------------- salvos ----------------

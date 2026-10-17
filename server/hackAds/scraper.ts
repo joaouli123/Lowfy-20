@@ -25,6 +25,16 @@ export interface ScrapedAd {
   platforms: string[];
 }
 
+// Começo do desenho de cada ícone de plataforma na Biblioteca (ver client/src/pages/hackAdsPlatforms.ts).
+const ICONES: Record<string, string> = {
+  "M12 6.022C12 2": "facebook",
+  "M6 3.227a2.773": "instagram",
+  "M6 0C2.706 0 0": "messenger",
+  "M6.006.06c1.72": "threads",
+  "M6 0c3.17 0 5.": "audience_network",
+  "M4.28 2.92a.52": "whatsapp",
+};
+
 const MONTHS: Record<string, number> = { jan: 1, feb: 2, fev: 2, mar: 3, apr: 4, abr: 4, may: 5, mai: 5, jun: 6, jul: 7, aug: 8, ago: 8, sep: 9, set: 9, oct: 10, out: 10, nov: 11, dec: 12, dez: 12 };
 
 export function startedAt(text: string): string | null {
@@ -73,7 +83,15 @@ const PARSE_IN_PAGE = `(() => {
       }
       if (sponsoredName) break;
     }
-    const platformIcons = Array.from(card.querySelectorAll('[style*="mask-image"], [aria-label]')).map(e => (e.getAttribute('aria-label') || '')).filter(Boolean);
+    // Plataformas: os ícones (SVG) logo depois do rótulo "Platforms/Plataformas"; guardamos o começo do desenho.
+    const platformIcons = [];
+    const pl = Array.from(card.querySelectorAll('span')).find(sp => /^(?:Platforms|Plataformas)$/.test((sp.textContent || '').trim()));
+    if (pl && pl.nextElementSibling) {
+      for (const svg of Array.from(pl.nextElementSibling.querySelectorAll('svg'))) {
+        const d = Array.from(svg.querySelectorAll('path')).map(x => x.getAttribute('d') || '').find(x => x && x !== 'M0 0H12V12H0z');
+        if (d) platformIcons.push(d.slice(0, 14));
+      }
+    }
     out.push({
       id: m[1],
       text: (card.innerText || '').slice(0, 12000),
@@ -125,13 +143,9 @@ export function toAd(c: RawCard): ScrapedAd {
   const uses = c.text.match(/(\d+)\s+(?:ads? use|anúncios? usam)/i);
   const status = /\bInactive\b|\bInativo\b/.test(c.text) ? false : /\bActive\b|\bAtivo\b/.test(c.text) ? true : null;
   const plats = new Set<string>();
-  for (const p of c.platformIcons) {
-    const s = p.toLowerCase();
-    if (s.includes("facebook")) plats.add("facebook");
-    if (s.includes("instagram")) plats.add("instagram");
-    if (s.includes("messenger")) plats.add("messenger");
-    if (s.includes("audience")) plats.add("audience_network");
-    if (s.includes("threads")) plats.add("threads");
+  for (const d of c.platformIcons) {
+    const nome = Object.entries(ICONES).find(([k]) => d.startsWith(k))?.[1];
+    if (nome) plats.add(nome);
   }
   return {
     external_id: c.id,
@@ -151,6 +165,8 @@ export function toAd(c: RawCard): ScrapedAd {
   };
 }
 
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+
 async function launch(): Promise<Browser> {
   const base = {
     headless: true,
@@ -166,18 +182,25 @@ export interface ScrapeResult { ads: ScrapedAd[]; loaded: number; results: numbe
 
 /** A Biblioteca às vezes vem sem cartões (instabilidade da Meta): tenta mais uma vez antes de desistir. */
 async function scrape(url: URL, limit: number, onProgress?: (n: number) => void): Promise<ScrapeResult> {
+  const temporario = (e: any) => /não carregou|net::ERR|Timeout|timed out|Target page|closed/i.test(String(e?.message));
   try { return await scrapeOnce(url, limit, onProgress); }
   catch (e: any) {
-    if (!/não carregou/.test(String(e?.message))) throw e;
+    if (!temporario(e)) throw e;
+    logger.warn(`[Hack Ads] 1ª tentativa falhou (${String(e?.message).slice(0, 120)}); tentando de novo`);
     await new Promise((r) => setTimeout(r, 5000));
-    return scrapeOnce(url, limit, onProgress);
+    try { return await scrapeOnce(url, limit, onProgress); }
+    catch (e2: any) {
+      if (temporario(e2)) throw new Error("A Biblioteca de Anúncios da Meta não respondeu agora. Tente de novo em alguns minutos.");
+      throw e2;
+    }
   }
 }
 
 async function scrapeOnce(url: URL, limit: number, onProgress?: (n: number) => void): Promise<ScrapeResult> {
   const browser = await launch();
   try {
-    const ctx = await browser.newContext({ locale: "en-US", viewport: { width: 1365, height: 900 }, userAgent: undefined });
+    // A Meta recusa (página em branco) o user agent "HeadlessChrome": usamos o de um Chrome comum.
+    const ctx = await browser.newContext({ locale: "en-US", viewport: { width: 1365, height: 900 }, userAgent: UA });
     await ctx.route("**/*", (route) => {
       const t = route.request().resourceType();
       return t === "image" || t === "media" || t === "font" ? route.abort() : route.continue();

@@ -15,12 +15,13 @@ import {
   MoreVertical, RefreshCw, Trash2, TrendingUp, TrendingDown, Minus, Pause, Link2, ShoppingCart, History, CheckCircle2, FlaskConical,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { PLATAFORMAS } from "./hackAdsPlatforms";
 
 // ---------------- tipos ----------------
 interface Ad {
   id: number; extId: string; pageId: string | null; pageName: string | null; pageKey: string; text: string; mediaType: string;
   libraryUrl: string; destinationUrl: string | null; domain: string | null; checkoutUrl: string | null; checkoutPlatform: string | null;
-  countries: string[]; language: string | null; category: string | null; startedAt: string | null; active: boolean | null;
+  countries: string[]; platforms: string[]; language: string | null; category: string | null; startedAt: string | null; active: boolean | null;
   days: number | null; duplicates: number; pageAds: number; hot: boolean; selo: "teste" | "validado" | null;
   hasImage: boolean; hasVideo: boolean; hasAvatar: boolean; favorite: boolean; monitored: boolean; lastSeen: string;
 }
@@ -69,11 +70,11 @@ function HackAdsApp() {
   const [q, setQ] = useState("");
   const [qDeb, setQDeb] = useState("");
   useEffect(() => { const t = setTimeout(() => setQDeb(q), 350); return () => clearTimeout(t); }, [q]);
-  const [f, setF] = useState({ sort: "recent", media: "", category: "", country: "", min_days: "", min_dups: "", checkout: "", platform: "", active: "", search_id: "", page_key: "", from: "", to: "" });
+  const [f, setF] = useState({ sort: "recent", media: "", category: "", country: "", min_days: "", min_dups: "", checkout: "", platform: "", placement: "", active: "", search_id: "", page_key: "", from: "", to: "" });
   const [rotulo, setRotulo] = useState<{ search?: string; page?: string }>({});
   const patchF = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
 
-  const { data: facets } = useQuery<{ total: number; paginas: number; categorias: { v: string; n: number }[]; paises: { v: string; n: number }[]; plataformas: { v: string; n: number }[] }>({
+  const { data: facets } = useQuery<{ total: number; paginas: number; categorias: { v: string; n: number }[]; paises: { v: string; n: number }[]; plataformas: { v: string; n: number }[]; veiculacao: { v: string; n: number }[] }>({
     queryKey: ["/api/hack-ads/facets"], queryFn: () => getJson("/api/hack-ads/facets"), staleTime: 60_000,
   });
 
@@ -121,7 +122,7 @@ function HackAdsApp() {
   const acoes = { favoritar: (a: Ad) => favoritar.mutate({ id: a.id, on: !a.favorite }), monitorar: (a: Ad) => monitorar.mutate(a.id), abrir: (a: Ad) => setDetalhe(a.id), verPagina };
 
   return (
-    <div className="max-w-[1400px] mx-auto p-4 md:p-8 space-y-5" data-testid="hack-ads-page">
+    <div className="space-y-5" data-testid="hack-ads-page">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2.5"><Target className="w-7 h-7 text-primary" /> Hack Ads</h1>
@@ -133,7 +134,7 @@ function HackAdsApp() {
       <Minerador onDone={(r) => { atualizar(); verBusca(r.searchId, r.term); }} />
 
       {/* abas */}
-      <div className="flex gap-1 border-b overflow-x-auto">
+      <div className="flex gap-1 border-b overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([["biblioteca", "Biblioteca"], ["alta", "Em alta"], ["salvos", "Salvos"], ["monitorando", "Monitorando"], ["buscas", "Minhas buscas"]] as [Aba, string][]).map(([v, l]) => (
           <button key={v} type="button" onClick={() => setAba(v)} className={`px-3.5 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition ${aba === v ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             {l}
@@ -216,7 +217,7 @@ function Minerador({ onDone }: { onDone: (r: { searchId: number; term: string })
     <div className="rounded-xl border bg-card p-4 md:p-5 shadow-sm">
       <div className="flex flex-col lg:flex-row gap-2.5">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10 pointer-events-none" />
           <Input value={term} onChange={(e) => setTerm(e.target.value)} onKeyDown={(e) => e.key === "Enter" && term.trim().length >= 2 && !job && void minerar()}
             placeholder="O que você quer minerar? Ex.: emagrecimento, renda extra, skincare, pet" className="h-11 pl-10 text-[15px]" disabled={!!job} data-testid="input-hack-term" />
         </div>
@@ -249,20 +250,20 @@ function Minerador({ onDone }: { onDone: (r: { searchId: number; term: string })
 function Filtros({ q, setQ, f, patchF, facets, aba, rotulo, limparRotulo }: any) {
   const chip = (on: boolean) => `h-8 px-3 rounded-full border text-xs font-medium transition whitespace-nowrap ${on ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted"}`;
   const validado = f.min_days === "7" && f.min_dups === "3";
-  const nFiltros = ["category", "country", "platform", "from", "to", "active"].filter((k) => f[k]).length + (f.min_days && !validado ? 1 : 0);
+  const nFiltros = ["category", "country", "platform", "placement", "from", "to", "active"].filter((k) => f[k]).length + (f.min_days && !validado ? 1 : 0);
   const cats: string[] = f.category ? f.category.split(",") : [];
   return (
     <div className="space-y-2.5">
       <div className="flex flex-col md:flex-row gap-2.5">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10 pointer-events-none" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrar por texto da copy, página ou domínio" className="h-10 pl-9" />
         </div>
         <select className="h-10 rounded-lg border bg-background px-3 text-sm" value={aba === "alta" ? "duplicates" : f.sort} disabled={aba === "alta"} onChange={(e) => patchF({ sort: e.target.value })} aria-label="Ordenar">
           {ORDENS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
         </select>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 items-center">
+      <div className="flex gap-2 overflow-x-auto pb-1 items-center [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {(rotulo.search || rotulo.page) && (
           <span className="h-8 pl-3 pr-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center gap-1 whitespace-nowrap">
             {rotulo.search ? `Busca: ${rotulo.search}` : `Página: ${rotulo.page}`}
@@ -287,6 +288,22 @@ function Filtros({ q, setQ, f, patchF, facets, aba, rotulo, limparRotulo }: any)
                   return <button key={c.v} type="button" className={chip(on)} onClick={() => patchF({ category: (on ? cats.filter((x: string) => x !== c.v) : [...cats, c.v]).join(",") })}>{c.v} <span className="opacity-60">{c.n}</span></button>;
                 })}
                 {!facets?.categorias?.length && <p className="text-xs text-muted-foreground">Aparece conforme a base cresce.</p>}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold mb-1.5">Onde roda</p>
+              <div className="flex flex-wrap gap-1.5">
+                {PLATAFORMAS.map((p) => {
+                  const sel: string[] = f.placement ? f.placement.split(",") : [];
+                  const on = sel.includes(p.id);
+                  const n = facets?.veiculacao?.find((x: any) => x.v === p.id)?.n;
+                  return (
+                    <button key={p.id} type="button" className={`${chip(on)} flex items-center gap-1.5`} onClick={() => patchF({ placement: (on ? sel.filter((x) => x !== p.id) : [...sel, p.id]).join(",") })}>
+                      <svg viewBox="0 0 12 12" width={12} height={12} fill={on ? "currentColor" : p.cor}>{p.paths.map((d, i) => <path key={i} d={d} fillRule="evenodd" clipRule="evenodd" />)}</svg>
+                      {p.nome}{n ? <span className="opacity-60">{n}</span> : null}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -326,7 +343,7 @@ function Filtros({ q, setQ, f, patchF, facets, aba, rotulo, limparRotulo }: any)
                 <Input type="date" className="h-9" value={f.to} onChange={(e) => patchF({ to: e.target.value })} />
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="w-full" onClick={() => patchF({ category: "", country: "", platform: "", min_days: "", min_dups: "", from: "", to: "", active: "", checkout: "", media: "" })}>Limpar filtros</Button>
+            <Button variant="ghost" size="sm" className="w-full" onClick={() => patchF({ category: "", country: "", platform: "", placement: "", min_days: "", min_dups: "", from: "", to: "", active: "", checkout: "", media: "" })}>Limpar filtros</Button>
           </PopoverContent>
         </Popover>
       </div>
@@ -347,12 +364,30 @@ function Vazio({ aba, filtrando }: { aba: Aba; filtrando: boolean }) {
   );
 }
 
+// ---------------- plataformas ----------------
+function PlatformIcons({ ids, size = 14, nomes = false }: { ids: string[]; size?: number; nomes?: boolean }) {
+  const lista = PLATAFORMAS.filter((p) => ids.includes(p.id));
+  if (!lista.length) return null;
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {lista.map((p) => (
+        <span key={p.id} title={p.nome} className={`inline-flex items-center gap-1 ${nomes ? "h-6 pl-1.5 pr-2 rounded-full border bg-card text-[11px] font-medium" : ""}`}>
+          <svg viewBox="0 0 12 12" width={size} height={size} fill={p.cor} aria-label={p.nome} role="img">
+            {p.paths.map((d, i) => <path key={i} d={d} fillRule="evenodd" clipRule="evenodd" />)}
+          </svg>
+          {nomes && p.nome}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ---------------- cartão ----------------
 function Avatar({ a, size = 36 }: { a: { id: number; hasAvatar: boolean; pageName: string | null }; size?: number }) {
   const [erro, setErro] = useState(false);
   const ini = (a.pageName || "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return a.hasAvatar && !erro
-    ? <img src={media(a.id, "avatar")} alt="" onError={() => setErro(true)} className="rounded-full object-cover border bg-muted flex-shrink-0" style={{ width: size, height: size }} />
+    ? <img src={media(a.id, "avatar")} alt="" referrerPolicy="no-referrer" onError={() => setErro(true)} className="rounded-full object-cover border bg-muted flex-shrink-0" style={{ width: size, height: size }} />
     : <span className="rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center flex-shrink-0 text-xs" style={{ width: size, height: size }}>{ini}</span>;
 }
 
@@ -396,15 +431,19 @@ function AdCard({ a, favoritar, monitorar, abrir, verPagina }: { a: Ad; favorita
       </div>
       <button type="button" onClick={() => abrir(a)} className="relative aspect-square bg-muted overflow-hidden group">
         {a.hasImage && !erroImg ? (
-          <img src={media(a.id, "image")} alt="" loading="lazy" onError={() => setErroImg(true)} className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition" />
+          <img src={media(a.id, "image")} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setErroImg(true)} className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition" />
         ) : (
-          <div className="absolute inset-0 p-5 flex items-center justify-center text-left text-sm text-muted-foreground line-clamp-[10]">{a.text || "Sem prévia"}</div>
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-slate-100 p-5 flex flex-col">
+            <span className="self-start text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-white/80 border rounded-full px-2 py-0.5">Prévia só na Biblioteca da Meta</span>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-600 text-left line-clamp-[9] whitespace-pre-line">{a.text || "Anúncio sem texto"}</p>
+          </div>
         )}
-        {a.mediaType === "video" && (
+        {a.mediaType === "video" && a.hasImage && !erroImg && (
           <span className="absolute inset-0 flex items-center justify-center"><span className="w-12 h-12 rounded-full bg-black/55 text-white flex items-center justify-center backdrop-blur-sm"><Play className="w-5 h-5 fill-current ml-0.5" /></span></span>
         )}
       </button>
       <div className="p-3 space-y-2.5 flex-1 flex flex-col">
+        {a.platforms?.length > 0 && <div className="flex items-center gap-2 text-[11px] text-muted-foreground">Roda em <PlatformIcons ids={a.platforms} size={15} /></div>}
         <Selos a={a} />
         {a.text && <p className="text-[13px] text-muted-foreground line-clamp-3 whitespace-pre-line">{a.text}</p>}
         <div className="mt-auto pt-1 flex items-center gap-1.5">
@@ -438,10 +477,15 @@ function Detalhe({ id, onClose, acoes }: { id: number | null; onClose: () => voi
           <div className="grid md:grid-cols-[1.05fr_1fr] max-h-[92vh] overflow-y-auto md:overflow-hidden">
             <div className="bg-black flex items-center justify-center md:max-h-[92vh]">
               {a.mediaType === "video" && a.hasVideo ? (
-                <video key={a.id} src={media(a.id, "video")} poster={a.hasImage ? media(a.id, "image") : undefined} controls playsInline className="w-full max-h-[70vh] md:max-h-[92vh]" />
+                <video key={a.id} src={media(a.id, "video")} poster={a.hasImage ? media(a.id, "image") : undefined} controls playsInline className="w-full max-h-[55vh] md:max-h-[92vh]" />
               ) : a.hasImage ? (
-                <img src={media(a.id, "image")} alt="" className="w-full max-h-[70vh] md:max-h-[92vh] object-contain" />
-              ) : <p className="text-white/70 p-10 text-sm">Sem mídia</p>}
+                <img src={media(a.id, "image")} alt="" referrerPolicy="no-referrer" className="w-full max-h-[55vh] md:max-h-[92vh] object-contain" />
+              ) : (
+                <div className="p-10 text-center">
+                  <p className="text-white/80 text-sm">A Meta não mostra a prévia deste anúncio na busca (comum em anúncios de parceria).</p>
+                  <a href={a.libraryUrl} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 mt-3 text-sm text-white underline"><ExternalLink className="w-4 h-4" /> Ver o criativo na Biblioteca da Meta</a>
+                </div>
+              )}
             </div>
             <div className="p-5 space-y-4 md:overflow-y-auto md:max-h-[92vh]">
               <div className="flex items-center gap-3">
@@ -452,6 +496,12 @@ function Detalhe({ id, onClose, acoes }: { id: number | null; onClose: () => voi
                 </div>
               </div>
               <Selos a={a} />
+              {a.platforms?.length > 0 && (
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1">Onde roda</p>
+                  <PlatformIcons ids={a.platforms} size={14} nomes />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 {[["Dias no ar", a.days ?? "—"], ["Anúncios deste criativo", a.duplicates], ["Anúncios da página na base", a.pageAds], ["Começou em", fmtData(a.startedAt)]].map(([l, v]) => (
                   <div key={String(l)} className="rounded-lg border p-2.5"><p className="text-[11px] text-muted-foreground">{l}</p><p className="text-lg font-semibold tabular-nums">{v}</p></div>
@@ -488,7 +538,7 @@ function Detalhe({ id, onClose, acoes }: { id: number | null; onClose: () => voi
                 <Button variant={a.favorite ? "default" : "outline"} onClick={() => acoes.favoritar(a)}>{a.favorite ? <BookmarkCheck className="w-4 h-4 mr-2" /> : <Bookmark className="w-4 h-4 mr-2" />}{a.favorite ? "Salvo" : "Salvar"}</Button>
                 <Button variant="outline" onClick={() => acoes.monitorar(a)} disabled={a.monitored}><Radar className="w-4 h-4 mr-2" />{a.monitored ? "Monitorando" : "Monitorar página"}</Button>
                 {(a.hasVideo || a.hasImage) && (
-                  <a href={media(a.id, a.mediaType === "video" && a.hasVideo ? "video" : "image")} download className="col-span-2">
+                  <a href={`${media(a.id, a.mediaType === "video" && a.hasVideo ? "video" : "image")}?download=1`} download className="col-span-2">
                     <Button variant="outline" className="w-full"><Download className="w-4 h-4 mr-2" /> Baixar {a.mediaType === "video" ? "vídeo" : "imagem"}</Button>
                   </a>
                 )}
@@ -502,7 +552,7 @@ function Detalhe({ id, onClose, acoes }: { id: number | null; onClose: () => voi
                   <div className="grid grid-cols-4 gap-1.5">
                     {d!.related.slice(0, 8).map((r) => (
                       <button key={r.id} type="button" onClick={() => acoes.abrir(r)} className="relative aspect-square rounded-md overflow-hidden bg-muted border">
-                        {r.hasImage && <img src={media(r.id, "image")} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />}
+                        {r.hasImage && <img src={media(r.id, "image")} alt="" loading="lazy" referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover" />}
                         {r.mediaType === "video" && <Play className="absolute bottom-1 right-1 w-3.5 h-3.5 text-white fill-white drop-shadow" />}
                       </button>
                     ))}
@@ -568,7 +618,7 @@ function Monitorando({ verPagina }: { verPagina: (a: { pageKey: string; pageName
               )}
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold tabular-nums leading-none">{m.activeAds ?? "—"}</p>
+              <p className="text-2xl font-bold tabular-nums leading-none">{m.activeAds != null ? m.activeAds.toLocaleString("pt-BR") : "—"}</p>
               <p className="text-[11px] text-muted-foreground">ativos</p>
             </div>
             <DropdownMenu>

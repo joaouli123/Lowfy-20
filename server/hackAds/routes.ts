@@ -4,8 +4,10 @@ import { logger } from "../utils/logger";
 import * as hack from "./service";
 
 /** Rotas do Hack Ads (minerador de criativos da Biblioteca de Anúncios da Meta). */
-export function registerHackAdsRoutes(app: Express) {
-  const guard = [authMiddleware, fullAccessMiddleware];
+export function registerHackAdsRoutes(app: Express, opts: { auth?: any; guard?: any[] } = {}) {
+  // opts só existe para testar a tela localmente com um usuário de mentira; produção usa o login real.
+  const auth = opts.auth || authMiddleware;
+  const guard = opts.guard || [authMiddleware, fullAccessMiddleware];
   const fail = (res: any, e: any, msg: string) => {
     if (!e?.status) logger.error(`[Hack Ads] ${msg}:`, e?.message);
     res.status(e?.status || 500).json({ message: e?.status ? e.message : msg });
@@ -17,7 +19,7 @@ export function registerHackAdsRoutes(app: Express) {
     catch (e) { fail(res, e, "Erro ao iniciar a busca"); }
   });
 
-  app.get("/api/hack-ads/jobs/:id", authMiddleware, (req: any, res) => {
+  app.get("/api/hack-ads/jobs/:id", auth, (req: any, res) => {
     const j = hack.jobInfo(req.params.id);
     if (!j || (j.userId && j.userId !== req.user.id)) return res.status(404).json({ message: "Busca não encontrada" });
     res.json({ status: j.status, position: j.position, progress: j.progress, result: j.result, error: j.error, kind: j.kind });
@@ -47,11 +49,24 @@ export function registerHackAdsRoutes(app: Express) {
   });
 
   // Mídia: serve a cópia guardada; na 1ª vez baixa do CDN da Meta (os links de lá expiram).
-  app.get("/api/hack-ads/media/:id/:kind", authMiddleware, async (req: any, res) => {
+  app.get("/api/hack-ads/media/:id/:kind", auth, async (req: any, res) => {
     const kind = String(req.params.kind);
     if (!["image", "video", "avatar"].includes(kind)) return res.status(400).end();
     try {
-      const local = await hack.mediaLocal(Number(req.params.id), kind as any);
+      const id = Number(req.params.id);
+      const m = await hack.mediaFor(id, kind as any);
+      if (m.local) {
+        res.set("Cache-Control", "private, max-age=86400");
+        return res.redirect(302, m.local);
+      }
+      // Ainda não guardada: para exibir, manda direto para o CDN da Meta (instantâneo) e guarda em segundo
+      // plano. Para baixar (?download=1), espera a cópia nossa, que tem o mesmo domínio do site.
+      if (m.remote && req.query.download !== "1") {
+        void hack.mediaLocal(id, kind as any);
+        res.set("Cache-Control", "no-store");
+        return res.redirect(302, m.remote);
+      }
+      const local = await hack.mediaLocal(id, kind as any);
       if (!local) return res.status(404).json({ message: "Mídia indisponível (o link da Meta expirou)" });
       res.set("Cache-Control", "private, max-age=86400");
       res.redirect(302, local);
