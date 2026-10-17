@@ -168,6 +168,34 @@ export default function CriativoPage() {
     : missingOf([["produto ou serviço", v.produto]]);
 
   // Alterna entre os exemplos a cada clique (fone ↔ perfume), sem gastar IA.
+  // Trocou o produto de um exemplo: limpa o que ainda é do exemplo (pétalas, cores, textos...)
+  // para não vazar no criativo da pessoa. O que ela mesma mudou continua.
+  const trocarProduto = (produto: string) => {
+    const exs = isCar
+      ? [{ brief: CAROUSEL_EXAMPLE.brief, opts: CAROUSEL_EXAMPLE.opts }]
+      : POST_EXAMPLES.map((e) => ({ brief: e.brief as Record<string, any>, opts: e.opts as Record<string, any> }));
+    const ex = exs.find((e) => e.brief.produto === v.produto);
+    if (!ex || produto === v.produto) return setV({ produto });
+    const igual = (a: any, b: any) => JSON.stringify(a) === JSON.stringify(b);
+    const limpar: Record<string, any> = { produto };
+    if (igual(v.publico, ex.brief.publico)) limpar.publico = "";
+    if (igual(v.estilo, ex.brief.estilo)) limpar.estilo = "";
+    if (igual(v.cores, ex.opts.cores)) limpar.cores = [];
+    if (igual(v.observacoes, ex.opts.observacoes)) limpar.observacoes = "";
+    if (igual(v.cta, ex.opts.cta)) limpar.cta = "";
+    if (igual(v.objetivo, ex.opts.objetivo)) limpar.objetivo = "";
+    setV(limpar);
+    if (!isCar) {
+      const textos: Record<string, any> = {};
+      if (brief.headline === (ex.brief as any).headline) patchBrief({ headline: "" });
+      if (o.texto === (ex.opts as any).texto) textos.texto = "";
+      if (Object.keys(textos).length) patchOpts("image", textos);
+      if (brief.headline === (ex.brief as any).headline && o.texto === (ex.opts as any).texto) setTextModeState("ia");
+    } else if (car.tema === CAROUSEL_EXAMPLE.tema) {
+      patchCar({ tema: "" });
+    }
+  };
+
   const exampleIdx = useRef(0);
   const example = () => {
     if (isCar) {
@@ -270,7 +298,7 @@ export default function CriativoPage() {
               <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-3 [&>*]:min-w-0">
                 <div>
                   <FieldLabel required={!isCar} optional={isCar}>{isCar ? "Produto ou marca" : "Produto ou serviço"}</FieldLabel>
-                  <Input value={v.produto} onChange={(e) => setV({ produto: e.target.value })} placeholder="Ex.: tênis esportivo branco" />
+                  <Input value={v.produto} onChange={(e) => trocarProduto(e.target.value)} placeholder="Ex.: tênis esportivo branco" />
                 </div>
                 <div>
                   <FieldLabel optional>Para quem</FieldLabel>

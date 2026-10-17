@@ -191,7 +191,7 @@ const OBJETIVO_CRIATIVO: Record<string, string> = {
   "Reconhecimento de marca":
     "TIPO DE CRIATIVO: BRANDING / RECONHECIMENTO DE MARCA. Estrutura obrigatória: foco no estilo de vida e na sensação que a marca transmite, não no preço; composição limpa e sofisticada, muito respiro; poucas palavras (uma frase de impacto ou slogan); fotografia aspiracional com pessoas ou ambiente; nada de selos de desconto. Sensação: memorável, bonito, de marca grande.",
   "Tráfego para o site":
-    "TIPO DE CRIATIVO: TRÁFEGO / CLIQUE PARA O SITE. Estrutura obrigatória: título que desperta curiosidade ou promete uma informação útil (\"Descubra…\", \"Veja como…\"); elementos que remetem a clicar e navegar (seta, cursor, mockup de site no celular ou notebook); chamada clara do tipo \"Saiba mais\" / \"Acesse o site\" em botão destacado. Sensação: \"preciso clicar para ver\".",
+    "TIPO DE CRIATIVO: TRÁFEGO / CLIQUE PARA O SITE. Estrutura obrigatória: título que desperta curiosidade ou promete uma informação útil (\"Descubra…\", \"Veja como…\"); o produto bem apresentado; uma seta ou indicação sutil de \"clique\"; chamada clara do tipo \"Saiba mais\" / \"Acesse o site\" em botão destacado. Não desenhe celular, tela ou aplicativo a menos que o produto SEJA um aplicativo. Sensação: \"preciso clicar para ver\".",
 };
 // Sem objetivo escolhido: criativo de venda, que é o caso mais comum.
 const OBJETIVO_PADRAO = OBJETIVO_CRIATIVO["Vender um produto"];
@@ -203,6 +203,14 @@ export function safeZone(aspect?: string): string {
   if (aspect === "4:5") return "ZONA SEGURA (Feed 4:5): margem mínima de 6% em todas as bordas; nada de texto encostado nos cantos; o botão fica acima dos 8% inferiores.";
   return "ZONA SEGURA (Feed 1:1): margem mínima de 6% em todas as bordas; nada de texto ou produto cortado ou encostado nos cantos.";
 }
+
+// Produto digital aparece como produto (capa 3D, mockup), não como um app inventado.
+const REGRAS_PRODUTO = "Mostre o produto de forma fiel ao que ele é: e-book/livro digital como capa de livro em 3D (ou tablet com a capa), curso como certificado/aulas, serviço com pessoas ou resultado. NUNCA invente um aplicativo, interface ou tela de celular que não existe.";
+
+// Saúde, crianças, deficiência, finanças pessoais: linguagem respeitosa e dentro das regras da Meta.
+const REGRAS_SENSIVEL = "TEMA SENSÍVEL: use linguagem respeitosa, acolhedora e informativa. NÃO prometa cura, transformação ou resultado garantido; não trate condição de saúde ou deficiência como problema a ser corrigido; não aponte características pessoais do leitor (\"seu filho tem…\", \"você está acima do peso\"). Prefira títulos de apoio e informação (ex.: \"Guia prático para pais\", \"Entenda e acolha\"). Imagens com pessoas reais e diversas em clima positivo e acolhedor.";
+const SENSIVEL = /(autis|tdah|tea|defici[eê]n|s[ií]ndrome|doen[çc]a|sa[uú]de mental|depress|ansiedad|diabet|c[aâ]ncer|emagrec|dieta|obesi|gravidez|gestant|beb[eê]|crian[çc]|filh[oa]s?|terapia|tratamento|cura|d[ií]vida|cr[eé]dito|empr[eé]stimo)/i;
+export const temaSensivel = (txt: string) => SENSIVEL.test(txt || "");
 
 export function buildAdImagePrompt(opts: {
   produto: string;
@@ -231,6 +239,8 @@ export function buildAdImagePrompt(opts: {
 
   const partes = [
     `Crie um criativo de anúncio para redes sociais, com qualidade de agência de publicidade, para: ${opts.produto}.`,
+    REGRAS_PRODUTO,
+    temaSensivel(`${opts.produto} ${opts.publico || ""} ${opts.observacoes || ""}`) ? REGRAS_SENSIVEL : "",
     opts.publico ? `Público-alvo: ${opts.publico} — a imagem precisa falar com essas pessoas.` : "",
     objetivo,
     "Siga a ESTRUTURA DO TIPO DE CRIATIVO acima à risca — ela é a prioridade da composição. O estilo visual abaixo só define a estética.",
@@ -957,7 +967,8 @@ ${p.cta ? `- Chamada para ação desejada: ${p.cta}` : ""}
 ${p.observacoes ? `- Observações: ${p.observacoes}` : ""}
 Regras do canal: ${c.regras}
 ${tamanho}
-NUNCA invente depoimentos, números de clientes, prêmios, prazos ou garantias que o cliente não informou — onde precisar, use um marcador entre colchetes como [depoimento de cliente] ou [prazo da garantia].
+${temaSensivel(`${p.descricao || ""} ${p.produto} ${p.publico || ""}`) ? "TEMA SENSÍVEL (saúde, crianças, deficiência ou finanças): linguagem respeitosa e acolhedora; não prometa cura, transformação ou resultado garantido; não aponte características pessoais do leitor; siga as políticas de anúncios da Meta.
+" : ""}NUNCA invente depoimentos, números de clientes, prêmios, prazos ou garantias que o cliente não informou — onde precisar, use um marcador entre colchetes como [depoimento de cliente] ou [prazo da garantia].
 Escreva TODO o conteúdo no idioma: ${langName(p.idioma)}.
 Responda SOMENTE com JSON neste formato: ${c.formato}`;
   let j: any;
