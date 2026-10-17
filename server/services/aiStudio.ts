@@ -77,7 +77,7 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
   let kieErr: any = null;
 
   // 1) Kie.ai (GPT Image 2) — bem mais barato que a OpenAI direto.
-  if (kie.kieReady()) {
+  if (kie.kieReady() && !(OPENAI_KEY && kie.kieSemCredito())) {
     try {
       const ref = params.reference ? await kie.kieFileUrl(params.reference, { folder: "referencias" }) : null;
       const input: Record<string, any> = { prompt: params.prompt.slice(0, 20000), aspect_ratio: aspect, resolution: "1K" };
@@ -105,7 +105,8 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
         model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
         prompt: params.prompt,
         size,
-        quality: params.quality || "high",
+        // "medium" sai ~3x mais rápido (35s vs 100s) com resultado equivalente nos criativos.
+        quality: params.quality || "medium",
         output_format: fmt,
         n: 1,
       };

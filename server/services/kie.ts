@@ -13,6 +13,9 @@ const UPLOAD_API = "https://kieai.redpandaai.co";
 
 export const kieKey = () => process.env.KIE_API_KEY || "";
 export const kieReady = () => !!kieKey();
+// Sem crédito ou chave recusada: pula a Kie por 10 min (evita uma ida e volta perdida a cada geração).
+let semCreditoAte = 0;
+export const kieSemCredito = () => Date.now() < semCreditoAte;
 
 const headers = () => ({ Authorization: `Bearer ${kieKey()}`, "Content-Type": "application/json" });
 
@@ -23,6 +26,7 @@ async function kieJson(url: string, init: RequestInit): Promise<any> {
   const code = j?.code ?? r.status;
   if (!r.ok || (code !== 200 && code !== undefined)) {
     const msg = j?.msg || j?.message || `HTTP ${r.status}`;
+    if (code === 402 || code === 401) semCreditoAte = Date.now() + 10 * 60_000;
     if (code === 402) throw new Error("Créditos da Kie.ai esgotados. Recarregue em kie.ai/billing.");
     if (code === 401) throw new Error("Chave da Kie.ai inválida (KIE_API_KEY).");
     throw new Error(`Kie.ai (${code}): ${String(msg).slice(0, 160)}`);

@@ -22,7 +22,7 @@ const EMPTY_BRIEF: Brief = {
 };
 
 const DEFAULT_OPTS = {
-  image: { quality: "high", format: "png", background: "auto", objetivo: "", texto: "", cta: "", cores: [] as string[], observacoes: "", referencia: "" },
+  image: { quality: "medium", format: "png", background: "auto", objetivo: "", texto: "", cta: "", cores: [] as string[], observacoes: "", referencia: "" },
   copy: { tipo: "anuncio", framework: "auto", variacoes: 3 },
   tts: { modelId: "eleven_multilingual_v2", stability: 0.5, similarityBoost: 0.75, style: 0, speed: 1 },
   video: { prompt: "", resolution: "720p", duration: "auto", imageUrl: "" },
@@ -125,7 +125,8 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   const [brief, setBrief] = useState<Brief>({ ...EMPTY_BRIEF, ...(saved.brief || {}) });
   const [script, setScript] = useState<string>(saved.script || "");
   const [opts, setOpts] = useState<Opts>({
-    image: { ...DEFAULT_OPTS.image, ...(saved.opts?.image || {}) },
+    // A qualidade não tem mais seletor: sempre o padrão (projetos salvos guardavam "high", ~3x mais lento).
+    image: { ...DEFAULT_OPTS.image, ...(saved.opts?.image || {}), quality: DEFAULT_OPTS.image.quality },
     copy: { ...DEFAULT_OPTS.copy, ...(saved.opts?.copy || {}) },
     tts: { ...DEFAULT_OPTS.tts, ...(saved.opts?.tts || {}) },
     video: { ...DEFAULT_OPTS.video, ...(saved.opts?.video || {}) },
