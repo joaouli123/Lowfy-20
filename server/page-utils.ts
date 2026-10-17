@@ -725,7 +725,9 @@ ${bodyEnd}
     });
 
     const result = JSON.parse(response!.choices[0].message.content?.trim() || '{}');
-    
+    const { recordUsage } = await import('./services/usage');
+    recordUsage({ provider: 'openai', model: 'gpt-4o-mini', kind: 'text', tool: 'clonador/pixels', inputTokens: response!.usage?.prompt_tokens || 0, outputTokens: response!.usage?.completion_tokens || 0 });
+
     logger.debug('[AI-Injection] ✅ Resposta recebida da IA');
     logger.debug('[AI-Injection] 📊 Tokens usados:', response!.usage?.total_tokens);
 

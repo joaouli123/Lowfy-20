@@ -13,6 +13,8 @@ import {
   uuid, // Import uuid for defaultRandom()
   json, // Import json for extraLinks
   real, // Import real for orcamentoDiario
+  bigserial,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1722,6 +1724,35 @@ export const insertOpenAITokenUsageSchema = createInsertSchema(openaiTokenUsage)
 
 export type OpenAITokenUsage = typeof openaiTokenUsage.$inferSelect;
 export type InsertOpenAITokenUsage = z.infer<typeof insertOpenAITokenUsageSchema>;
+
+// Consumo de IA por chamada (custo estimado em US$) — gravado por server/services/usage.ts.
+// Tabela criada pela migração 0018_ai_usage.sql.
+export const aiUsage = pgTable("ai_usage", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  tool: varchar("tool", { length: 40 }).notNull(),
+  provider: varchar("provider", { length: 20 }).notNull(),
+  model: varchar("model", { length: 60 }),
+  kind: varchar("kind", { length: 16 }).notNull(),
+  units: real("units").notNull().default(0),
+  unit: varchar("unit", { length: 16 }),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  meta: jsonb("meta"),
+}, (table) => [
+  index("idx_ai_usage_created").on(table.createdAt),
+  index("idx_ai_usage_user_created").on(table.userId, table.createdAt),
+  index("idx_ai_usage_tool").on(table.tool),
+]);
+
+// Configurações da plataforma (chave → JSON). Ex.: 'ai_costs' (preços e provedor preferido).
+export const platformSettings = pgTable("platform_settings", {
+  key: varchar("key", { length: 60 }).primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // N8N Automations
 export const n8nAutomations = pgTable("n8n_automations", {

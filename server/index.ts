@@ -14,6 +14,7 @@ import { customDomainMappings } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { acquireSchedulerLeadership } from "./utils/scheduler-lock";
 import { seoRedirects, renderIndexHtml } from "./seo";
+import { usageMiddleware } from "./services/usage";
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -83,6 +84,8 @@ if (isProduction) {
 }
 
 app.use(cookieParser());
+// Consumo de IA: liga cada chamada paga ao usuário e à ferramenta do pedido.
+app.use(usageMiddleware);
 
 app.use(express.json({
   limit: '10mb',

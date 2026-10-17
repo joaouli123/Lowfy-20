@@ -1,4 +1,5 @@
 import { logger } from "../utils/logger";
+import { recordUsage, kieKind } from "./usage";
 
 /**
  * Kie.ai — agregador de modelos (imagem, vídeo, voz, avatar e chat) numa conta só.
@@ -83,6 +84,7 @@ export async function kieRun(model: string, input: Record<string, any>, opts: { 
       if (!parsed && typeof d.resultJson === "string") { try { parsed = JSON.parse(d.resultJson); } catch { parsed = {}; } }
       const urls: string[] = parsed?.resultUrls || parsed?.resultUrl ? [].concat(parsed.resultUrls || parsed.resultUrl) : [];
       if (!urls.length) throw new Error("Kie.ai: tarefa concluída sem arquivo");
+      recordUsage({ provider: "kie", model, kind: kieKind(model), credits: Number(d.creditsConsumed) || 0, meta: { taskId } });
       return { urls, raw: parsed, credits: d.creditsConsumed };
     }
     if (d.state === "fail") {
@@ -203,6 +205,8 @@ export async function kieChat(system: string, user: string, opts: { json?: boole
       const j: any = await r.json().catch(() => ({}));
       const text = chatText(j);
       if (!text) throw new Error(j?.msg || `HTTP ${r.status}`);
+      const u = j?.usage || {};
+      recordUsage({ provider: "kie", model: m.model, kind: "text", inputTokens: u.prompt_tokens ?? u.input_tokens ?? 0, outputTokens: u.completion_tokens ?? u.output_tokens ?? 0, ...(j?.credits_consumed != null ? { credits: Number(j.credits_consumed) } : {}), meta: { via: "kie-chat" } });
       if (!opts.json) return text;
       const clean = text.replace(/```json|```/g, "").trim();
       const start = clean.indexOf("{");
@@ -231,6 +235,7 @@ export async function kieClaude(system: string, user: string, opts: { model?: st
   });
   const j: any = await r.json().catch(() => ({}));
   const text = Array.isArray(j?.content) ? j.content.map((c: any) => c?.text || "").join("") : "";
+  if (text) recordUsage({ provider: "kie", model: String(j?.model || opts.model || "claude-opus-5-5"), kind: "text", inputTokens: j?.usage?.input_tokens || 0, outputTokens: j?.usage?.output_tokens || 0, meta: { via: "kie-claude" } });
   if (!text) {
     if (j?.code === 402) throw new Error("Créditos da Kie.ai esgotados. Recarregue em kie.ai/billing.");
     throw new Error(`Claude (Kie) não respondeu: ${String(j?.msg || j?.error?.message || `HTTP ${r.status}`).slice(0, 160)}`);

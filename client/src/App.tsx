@@ -103,7 +103,7 @@ const AdminCheckoutAbandonado = lazy(() => import("@/pages/admin/AdminCheckoutAb
 const AdminAfiliados = lazy(() => import("@/pages/admin/AdminAfiliados"));
 const AdminVendedores = lazy(() => import("@/pages/admin/AdminVendedores"));
 const AdminSubscriptionRefunds = lazy(() => import("@/pages/admin/AdminSubscriptionRefunds"));
-const AdminAIUsage = lazy(() => import("@/pages/admin/AdminAIUsage"));
+const AdminCustos = lazy(() => import("@/pages/admin/AdminCustos"));
 const AdminWhatsApp = lazy(() => import("@/pages/admin/AdminWhatsApp"));
 const AdminAccountRecovery = lazy(() => import("@/pages/admin/AdminAccountRecovery"));
 
@@ -317,7 +317,7 @@ function Router() {
                   {() => <AdminRoute><AdminSubscriptionRefunds /></AdminRoute>}
                 </Route>
                 <Route path="/admin/ai-usage">
-                  {() => <AdminRoute><AdminAIUsage /></AdminRoute>}
+                  {() => <AdminRoute><AdminCustos /></AdminRoute>}
                 </Route>
                 <Route path="/admin/whatsapp">
                   {() => <AdminRoute><AdminWhatsApp /></AdminRoute>}

@@ -361,7 +361,7 @@ export default function Sidebar() {
       testId: "nav-admin-subscription-refunds"
     },
     {
-      name: "Uso de IA (OpenAI)",
+      name: "Consumo e custos",
       href: "/admin/ai-usage",
       icon: Sparkles,
       testId: "nav-admin-ai-usage"

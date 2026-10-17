@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import * as kie from "./kie";
-import { langName, llmJson } from "./aiStudio";
+import { langName, llmJson, kieFirst } from "./aiStudio";
+import { recordUsage } from "./usage";
 import { logger } from "../utils/logger";
 
 /**
@@ -34,7 +35,7 @@ Para cada cena: "texto" = o que o narrador fala (frases curtas e naturais para o
 ${p.anterior?.length ? `O cliente NÃO gostou deste roteiro, faça outro com abordagem e gancho diferentes: ${p.anterior.map((c) => c.texto).join(" / ")}` : ""}
 Idioma da narração: ${langName(p.idioma)}.
 Responda SOMENTE com JSON: {"cenas":[{"texto":"...","visual":"..."}]}`;
-  const j = kie.kieReady() ? await kie.kieChat(system, user, { json: true, temperature: 0.9 }) : await llmJson(system, user, 0.9);
+  const j = await (kieFirst() ? kie.kieChat(system, user, { json: true, temperature: 0.9 }).catch(() => llmJson(system, user, 0.9)) : llmJson(system, user, 0.9));
   const out = (Array.isArray(j?.cenas) ? j.cenas : [])
     .map((c: any) => ({ texto: String(c?.texto || "").trim(), visual: String(c?.visual || "").trim() }))
     .filter((c: MotionScene) => c.texto);
@@ -56,6 +57,7 @@ export async function motionVoice(p: { cenas: MotionScene[]; voice?: string }): 
   });
   const j: any = await r.json().catch(() => ({}));
   if (!r.ok || !j?.audio_base64) throw new Error(`ElevenLabs (${r.status}): ${JSON.stringify(j?.detail || j).slice(0, 160)}`);
+  recordUsage({ provider: "elevenlabs", model: "eleven_multilingual_v2", kind: "tts", chars: full.length, meta: { voice } });
 
   const chars: string[] = j.alignment?.characters || [];
   const st: number[] = j.alignment?.character_start_times_seconds || [];
@@ -171,6 +173,8 @@ async function claude(system: string, user: string, maxTokens: number): Promise<
     messages: [{ role: "user", content: user }],
   } as any);
   const msg: any = await stream.finalMessage();
+  const u = msg.usage || {};
+  recordUsage({ provider: "anthropic", model: msg.model || "claude-opus-5-5", kind: "text", inputTokens: (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0), outputTokens: u.output_tokens || 0 });
   if (msg.stop_reason === "refusal") throw new Error("O Claude recusou gerar esta animação. Ajuste o roteiro e tente de novo.");
   const text = (msg.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
   if (!text) throw new Error(`Claude não devolveu a animação (motivo: ${msg.stop_reason}).`);

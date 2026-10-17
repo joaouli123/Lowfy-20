@@ -73,6 +73,7 @@ import axios from "axios";
 import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
 import * as aiStudio from "./services/aiStudio";
 import * as motionService from "./services/motion";
+import { registerAdminCostRoutes } from "./adminCosts";
 import { generateEbook } from "./services/ebookStudio";
 import * as ebookBuilder from "./services/ebookBuilder";
 import * as ebookStore from "./ebookStore";
@@ -19748,6 +19749,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Erro ao buscar logs de uso' });
     }
   });
+
+  // Consumo e custos de IA (plataforma e por usuário) + receita do período.
+  registerAdminCostRoutes(app);
 
   // ==================== EMAIL TEST ROUTE (DEVELOPMENT ONLY) ====================
   app.post('/api/admin/test-emails', adminMiddleware, async (req, res) => {

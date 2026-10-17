@@ -2,6 +2,7 @@ import OpenAI, { toFile } from "openai";
 import { GoogleGenAI } from "@google/genai";
 import { logger } from "../utils/logger";
 import * as kie from "./kie";
+import { recordUsage, preferKie } from "./usage";
 import { spawn } from "child_process";
 import { promises as fsp } from "fs";
 import os from "os";
@@ -33,6 +34,22 @@ function gemini(): GoogleGenAI {
   if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY não configurada");
   if (!_gemini) _gemini = new GoogleGenAI({ apiKey: GEMINI_KEY });
   return _gemini;
+}
+
+/**
+ * Kie primeiro só quando escolhida no admin (Consumo e custos) e com crédito; sem OpenAI e
+ * sem Gemini ela continua sendo a única opção de texto.
+ */
+export const kieFirst = () => kie.kieReady() && !kie.kieSemCredito() && (preferKie() || (!OPENAI_KEY && !GEMINI_KEY));
+
+/** Anota o consumo de uma resposta de chat da OpenAI. */
+function usageOpenAI(model: string, res: any) {
+  recordUsage({ provider: "openai", model, kind: "text", inputTokens: res?.usage?.prompt_tokens || 0, outputTokens: res?.usage?.completion_tokens || 0 });
+}
+/** Anota o consumo de uma resposta do Gemini. */
+function usageGemini(model: string, res: any) {
+  const u = res?.usageMetadata || {};
+  recordUsage({ provider: "gemini", model, kind: "text", inputTokens: u.promptTokenCount || 0, outputTokens: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0) });
 }
 
 export function aiStudioCapabilities() {
@@ -77,7 +94,7 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
   let kieErr: any = null;
 
   // 1) Kie.ai (GPT Image 2) — bem mais barato que a OpenAI direto.
-  if (kie.kieReady() && !(OPENAI_KEY && kie.kieSemCredito())) {
+  if (kie.kieReady() && !kie.kieSemCredito() && (preferKie() || !OPENAI_KEY)) {
     try {
       const ref = params.reference ? await kie.kieFileUrl(params.reference, { folder: "referencias" }) : null;
       const input: Record<string, any> = { prompt: params.prompt.slice(0, 20000), aspect_ratio: aspect, resolution: "1K" };
@@ -117,6 +134,14 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
         : await openai().images.generate(body);
       const b64 = (res as any).data?.[0]?.b64_json;
       if (!b64) throw new Error("a OpenAI não devolveu a imagem");
+      const u = (res as any).usage;
+      recordUsage({
+        provider: "openai", model: body.model, kind: "image", quality: body.quality,
+        inputTokens: u?.input_tokens_details?.text_tokens ?? (u ? u.input_tokens : 0),
+        imageInputTokens: u?.input_tokens_details?.image_tokens || 0,
+        outputTokens: u?.output_tokens || 0,
+        meta: { size, ref: !!ref },
+      });
       const mime = fmt === "jpeg" ? "image/jpeg" : fmt === "webp" ? "image/webp" : "image/png";
       // Garantia: se vier em outro formato, recorta no centro.
       return { buffer: await cropToAspect(Buffer.from(b64, "base64"), ratio, fmt), mime };
@@ -303,8 +328,8 @@ ${fw}
 Escreva TODO o conteúdo no idioma: ${langName(params.idioma)}.
 Devolva como JSON: {"variacoes": ["...", "..."]}. Cada variação deve ser ${tamanhoPorTipo(params.tipo)}.`;
 
-  // Kie.ai primeiro (mais barato); OpenAI/Gemini direto como reserva.
-  if (kie.kieReady()) {
+  // Kie.ai só se escolhida no admin; OpenAI/Gemini direto como padrão.
+  if (kieFirst()) {
     try {
       const j = await kie.kieChat(COPY_SYSTEM, userPrompt, { json: true, temperature: 0.9 });
       return { variacoes: parseVariacoes(JSON.stringify(j), n), tokens: 0 };
@@ -323,6 +348,7 @@ Devolva como JSON: {"variacoes": ["...", "..."]}. Cada variação deve ser ${tam
       temperature: 0.9,
       response_format: { type: "json_object" },
     });
+    usageOpenAI(res.model || "gpt-4o", res);
     const text = res.choices[0]?.message?.content || "";
     return { variacoes: parseVariacoes(text, n), tokens: res.usage?.total_tokens || 0 };
   }
@@ -334,6 +360,7 @@ Devolva como JSON: {"variacoes": ["...", "..."]}. Cada variação deve ser ${tam
     contents: `${COPY_SYSTEM}\n\n${userPrompt}`,
     config: { responseMimeType: "application/json", temperature: 0.9 } as any,
   });
+  usageGemini(model, res);
   const text = (res as any).text || "";
   return { variacoes: parseVariacoes(text, n), tokens: (res as any).usageMetadata?.totalTokenCount || 0 };
 }
@@ -402,6 +429,7 @@ export async function llmJsonWithUsage(
           model, temperature, response_format: { type: "json_object" },
           messages: [{ role: "system", content: system }, { role: "user", content: user }],
         });
+        usageOpenAI(model, res);
         return { data: parseJson(res.choices[0]?.message?.content || "{}"), model, promptTokens: res.usage?.prompt_tokens || 0, completionTokens: res.usage?.completion_tokens || 0 };
       },
     },
@@ -412,6 +440,7 @@ export async function llmJsonWithUsage(
 
 ${user}`, config: { responseMimeType: "application/json", temperature } as any });
         const usage = (res as any).usageMetadata;
+        usageGemini(model, res);
         return { data: parseJson((res as any).text || "{}"), model, promptTokens: usage?.promptTokenCount || 0, completionTokens: usage?.candidatesTokenCount || 0 };
       },
     },
@@ -425,15 +454,19 @@ export async function llmText(system: string, user: string, temperature = 0.7): 
   return llmChain([
     {
       name: "openai", key: OPENAI_KEY, run: async () => {
-        const res = await openai().chat.completions.create({ model: process.env.OPENAI_COPY_MODEL || "gpt-4o", temperature, messages: [{ role: "system", content: system }, { role: "user", content: user }] });
+        const model = process.env.OPENAI_COPY_MODEL || "gpt-4o";
+        const res = await openai().chat.completions.create({ model, temperature, messages: [{ role: "system", content: system }, { role: "user", content: user }] });
+        usageOpenAI(model, res);
         return res.choices[0]?.message?.content || "";
       },
     },
     {
       name: "gemini", key: GEMINI_KEY, run: async () => {
-        const res = await gemini().models.generateContent({ model: process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash", contents: `${system}
+        const model = process.env.GEMINI_COPY_MODEL || "gemini-2.5-flash";
+        const res = await gemini().models.generateContent({ model, contents: `${system}
 
 ${user}`, config: { temperature } as any });
+        usageGemini(model, res);
         return (res as any).text || "";
       },
     },
@@ -588,7 +621,10 @@ async function elevenNarration(params: GenerateTTSParams): Promise<{ buffer: Buf
       headers: { "xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json", Accept: "audio/mpeg" },
       body: JSON.stringify(body),
     });
-    if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), mime: "audio/mpeg" };
+    if (r.ok) {
+      recordUsage({ provider: "elevenlabs", model: body.model_id, kind: "tts", chars: String(params.text || "").length, meta: { voiceId } });
+      return { buffer: Buffer.from(await r.arrayBuffer()), mime: "audio/mpeg" };
+    }
     const errText = await r.text().catch(() => "");
     throw new Error(`ElevenLabs (${r.status}): ${errText.slice(0, 120)}`);
   } catch (e: any) {
@@ -972,7 +1008,7 @@ ${temaSensivel(`${p.descricao || ""} ${p.produto} ${p.publico || ""}`) ? "TEMA S
 Escreva TODO o conteúdo no idioma: ${langName(p.idioma)}.
 Responda SOMENTE com JSON neste formato: ${c.formato}`;
   let j: any;
-  if (kie.kieReady()) {
+  if (kieFirst()) {
     try { j = await kie.kieChat(COPY_SYSTEM, user, { json: true, temperature: 0.85 }); }
     catch (e) { if (!OPENAI_KEY && !GEMINI_KEY) throw e; }
   }
@@ -1102,7 +1138,7 @@ Regras:
 - Se a capa prometer um número ("5 erros", "3 dicas"...), esse número TEM que ser ${n - 2}: ajuste a promessa da capa para bater com os slides de conteúdo.
 Títulos com no máximo 7 palavras, textos com no máximo 22 palavras (precisam caber legíveis numa imagem). Idioma: ${langName(p.idioma)}.
 Responda SOMENTE com JSON: {"slides":[{"titulo":"...","texto":"..."}]} com exatamente ${n} itens.`;
-  const j = kie.kieReady() ? await kie.kieChat(system, user, { json: true, temperature: 0.8 }) : await llmJson(system, user, 0.8);
+  const j = await (kieFirst() ? kie.kieChat(system, user, { json: true, temperature: 0.8 }).catch(() => llmJson(system, user, 0.8)) : llmJson(system, user, 0.8));
   const slides = (Array.isArray(j?.slides) ? j.slides : [])
     .map((s: any) => ({ titulo: String(s?.titulo || "").trim(), texto: String(s?.texto || "").trim() }))
     .filter((s: CarouselSlide) => s.titulo || s.texto)
