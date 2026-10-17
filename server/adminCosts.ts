@@ -100,14 +100,16 @@ async function revenue(from: string, to: string, feePct: number) {
   return { grossBrl: gross, refundsBrl: refunds, feesBrl: fees, commissionsBrl: commissions, netBrl: gross - refunds - fees - commissions, payments: n(pay.rows[0].qtd), payingUsers: n(pay.rows[0].pagantes) };
 }
 
-export function registerAdminCostRoutes(app: Express) {
-  app.get("/api/admin/costs/overview", authMiddleware, adminMiddleware, async (req: any, res) => {
+export function registerAdminCostRoutes(app: Express, opts: { guard?: any[] } = {}) {
+  // opts só existe para testar a tela localmente; produção usa o login de admin real.
+  const G = opts.guard || [authMiddleware, adminMiddleware];
+  app.get("/api/admin/costs/overview", ...G, async (req: any, res) => {
     try {
       const [from, to] = period(req.query);
       const g = groupOf(req.query.groupBy);
       const s = await loadSettings();
       const fx = await usdBrl();
-      const [tot, byProv, byTool, byKind, series, rev, top, revSeries, bal] = await Promise.all([
+      const [tot, byProv, byTool, byKind, series, rev, top, revSeries, bal, serProv] = await Promise.all([
         pool.query(`SELECT COALESCE(SUM(cost_usd),0) AS usd, COUNT(*) AS ev, COUNT(DISTINCT user_id) AS users FROM ai_usage WHERE ${RANGE("created_at")}`, [from, to]),
         pool.query(`SELECT provider, SUM(cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1 ORDER BY 2 DESC`, [from, to]),
         pool.query(`SELECT tool, SUM(cost_usd) AS usd, COUNT(*) AS ev, COUNT(DISTINCT user_id) AS users FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1 ORDER BY 2 DESC LIMIT 30`, [from, to]),
@@ -117,7 +119,15 @@ export function registerAdminCostRoutes(app: Express) {
         pool.query(`SELECT a.user_id AS id, u.name, u.email, SUM(a.cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage a LEFT JOIN users u ON u.id = a.user_id WHERE ${RANGE("a.created_at")} AND a.user_id IS NOT NULL GROUP BY 1,2,3 ORDER BY 4 DESC LIMIT 10`, [from, to]),
         pool.query(`SELECT to_char(date_trunc('${g}', paid_at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, SUM(cents) AS cents FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")} GROUP BY 1`, [from, to]),
         balances(),
+        pool.query(`SELECT to_char(date_trunc('${g}', created_at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, provider, SUM(cost_usd) AS usd FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1, 2 ORDER BY 1`, [from, to]),
       ]);
+      // Gasto por dia e por provedor (R$), para o gráfico empilhado.
+      const porDia = new Map<string, any>();
+      for (const r of serProv.rows) {
+        const row = porDia.get(r.d) || { date: r.d };
+        row[r.provider] = n(r.usd) * fx.rate;
+        porDia.set(r.d, row);
+      }
       const usd = n(tot.rows[0].usd);
       const costBrl = usd * fx.rate;
       const revMap = new Map(revSeries.rows.map((r: any) => [r.d, n(r.cents) / 100]));
@@ -134,6 +144,7 @@ export function registerAdminCostRoutes(app: Express) {
         byProvider: byProv.rows.map((r: any) => ({ provider: r.provider, costUsd: n(r.usd), events: n(r.ev) })),
         byTool: byTool.rows.map((r: any) => ({ tool: r.tool, costUsd: n(r.usd), events: n(r.ev), users: n(r.users), avgUsd: n(r.ev) ? n(r.usd) / n(r.ev) : 0 })),
         byKind: byKind.rows.map((r: any) => ({ kind: r.kind, costUsd: n(r.usd), events: n(r.ev) })),
+        seriesByProvider: [...porDia.values()],
         series: [...days].sort().map((d) => ({ date: d, costBrl: n((costMap.get(d) as any)?.usd) * fx.rate, revenueBrl: revMap.get(d) || 0, events: n((costMap.get(d) as any)?.ev) })),
         topUsers: top.rows.map((r: any) => ({ id: r.id, name: r.name, email: r.email, costUsd: n(r.usd), events: n(r.ev), alert: n(r.usd) >= s.alertUserUsd })),
         balances: bal,
@@ -145,7 +156,7 @@ export function registerAdminCostRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin/costs/users", authMiddleware, adminMiddleware, async (req: any, res) => {
+  app.get("/api/admin/costs/users", ...G, async (req: any, res) => {
     try {
       const [from, to] = period(req.query);
       const s = await loadSettings();
@@ -185,7 +196,7 @@ export function registerAdminCostRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin/costs/users/:id", authMiddleware, adminMiddleware, async (req: any, res) => {
+  app.get("/api/admin/costs/users/:id", ...G, async (req: any, res) => {
     try {
       const [from, to] = period(req.query);
       const fx = await usdBrl();
@@ -208,11 +219,11 @@ export function registerAdminCostRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin/costs/settings", authMiddleware, adminMiddleware, async (_req, res) => {
+  app.get("/api/admin/costs/settings", ...G, async (_req, res) => {
     res.json({ settings: await loadSettings(true), defaults: DEFAULT_PRICES, fx: await usdBrl(), hasOpenAIAdmin: !!process.env.OPENAI_ADMIN_KEY });
   });
 
-  app.put("/api/admin/costs/settings", authMiddleware, adminMiddleware, async (req: any, res) => {
+  app.put("/api/admin/costs/settings", ...G, async (req: any, res) => {
     try {
       const b = req.body || {};
       const patch: Partial<CostSettings> = {};

@@ -65,8 +65,8 @@ export function PeriodFilter({ value, onChange, showGroupBy, className }: Period
   };
 
   return (
-    <div className={cn("flex flex-col lg:flex-row lg:items-center gap-2.5", className)}>
-      <div className="flex items-center gap-1 flex-wrap rounded-lg border bg-card p-1 shadow-sm w-fit" data-testid="period-presets">
+    <div className={cn("flex flex-wrap items-center gap-2.5", className)}>
+      <div className="flex items-center gap-1 flex-wrap rounded-lg border bg-card p-1 shadow-sm max-w-full" data-testid="period-presets">
         {PRESETS.map((p) => (
           <button
             key={p.value}
@@ -85,25 +85,30 @@ export function PeriodFilter({ value, onChange, showGroupBy, className }: Period
         ))}
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <Input
-          type="date"
-          value={value.startDate}
-          onChange={(e) => onChange({ ...value, preset: "custom", startDate: e.target.value })}
-          className="h-9 w-[150px] text-sm"
-          data-testid="input-start-date"
-        />
+      {/* datas + agrupamento ficam juntos numa linha; se não couber, o grupo inteiro desce */}
+      <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:flex-nowrap sm:shrink-0">
+        <div className="flex-1 min-w-0 sm:flex-none sm:w-[140px]">
+          <Input
+            type="date"
+            value={value.startDate}
+            onChange={(e) => onChange({ ...value, preset: "custom", startDate: e.target.value })}
+            className="h-9 text-sm"
+            data-testid="input-start-date"
+          />
+        </div>
         <span className="text-muted-foreground text-sm">até</span>
-        <Input
-          type="date"
-          value={value.endDate}
-          onChange={(e) => onChange({ ...value, preset: "custom", endDate: e.target.value })}
-          className="h-9 w-[150px] text-sm"
-          data-testid="input-end-date"
-        />
+        <div className="flex-1 min-w-0 sm:flex-none sm:w-[140px]">
+          <Input
+            type="date"
+            value={value.endDate}
+            onChange={(e) => onChange({ ...value, preset: "custom", endDate: e.target.value })}
+            className="h-9 text-sm"
+            data-testid="input-end-date"
+          />
+        </div>
         {showGroupBy && (
           <Select value={value.groupBy} onValueChange={(g) => onChange({ ...value, groupBy: g as Period["groupBy"] })}>
-            <SelectTrigger className="h-9 w-[110px] text-sm" data-testid="select-group-by">
+            <SelectTrigger className="h-9 w-full sm:w-[132px] shrink-0 text-sm whitespace-nowrap" data-testid="select-group-by">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
