@@ -67,6 +67,9 @@ Responda SOMENTE com JSON válido:
 Tipos permitidos: heading, subheading, paragraph, list, callout, quote, stats, image, divider.
 NUNCA invente estatísticas, estudos ou citações de pessoas reais; stats só com dados práticos (tempo, porções, passos). Conteúdo real, sem meta-texto ("neste capítulo vamos..."). Só o JSON.`;
 
+const palavras = (pg: EbookPage) =>
+  pg.blocks.map((x) => [x.content || "", ...(x.items || [])].join(" ")).join(" ").split(/\s+/).filter(Boolean).length;
+
 /** A IA às vezes numera ("1. Título"); o layout já numera. */
 const semNumero = (t: string) => t.replace(/^\s*(cap[ií]tulo\s*)?\d+\s*[.):\-–]\s*/i, "").trim();
 
@@ -181,6 +184,27 @@ ${illustrated ? "TODA página deve ter exatamente 1 bloco image com imagePrompt 
       else if (!illustrated && idx > 0) blocks = blocks.filter((x) => x.type !== "image");
       content.push({ type: idx === 0 ? "chapter" : "content", title: String(p?.title || ch.title).slice(0, 120), chapter: i + 1, blocks });
     });
+    // Página de texto rasa vira página cheia: amplia mantendo o que já foi escrito.
+    if (!illustrated) {
+      const doCapitulo = content.filter((pg) => pg.chapter === i + 1);
+      await Promise.all(doCapitulo.map(async (pg) => {
+        if (palavras(pg) >= 300) return;
+        try {
+          const ext = await llmJson(CHAPTER_SYSTEM, `Esta é uma página do livro "${outline.title}" (capítulo "${ch.title}"), mas está curta (${palavras(pg)} palavras).
+Página atual: ${JSON.stringify({ title: pg.title, blocks: pg.blocks.filter((x) => x.type !== "image") })}
+Reescreva a página COMPLETA ampliando para 380 a 450 palavras: mantenha o que já existe, aprofunde com explicações, exemplos práticos e passo a passo, e inclua pelo menos 1 list ou callout. Tom: ${b.tom || "didático e acolhedor"}. Idioma: ${lang}. ${guide.chapter}
+Responda no mesmo formato JSON com "pages" contendo exatamente 1 página, sem blocos image.`, 0.7);
+          const nova = Array.isArray(ext?.pages) ? ext.pages[0] : null;
+          const blocks = sanitizeBlocks(nova?.blocks).filter((x) => x.type !== "image");
+          if (blocks.length && palavras({ ...pg, blocks }) > palavras(pg)) {
+            const imgs = pg.blocks.filter((x) => x.type === "image");
+            pg.blocks = [...blocks, ...imgs];
+          }
+        } catch (e: any) {
+          logger.warn(`[Ebook] ampliação falhou: ${e?.message}`);
+        }
+      }));
+    }
     done++;
     total = chapterSteps + 1 + content.reduce((n, pg) => n + pg.blocks.filter((x) => x.type === "image").length, 0);
     sync(`Escrevendo o capítulo ${Math.min(i + 2, outline.chapters.length)} de ${outline.chapters.length}…`, done, total);
