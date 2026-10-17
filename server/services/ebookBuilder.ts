@@ -172,6 +172,7 @@ Capítulo ${i + 1}: "${ch.title}". Seções: ${JSON.stringify(ch.sections)}.
 Instruções do tipo de livro: ${guide.chapter}
 Público: ${b.publico || "geral"}. Tom: ${b.tom || "didático e acolhedor"}. Idioma: ${lang}.
 Gere ${illustrated ? ch.sections.length || perChapter : perChapter} página(s) para este capítulo.
+${illustrated ? "" : "Cada página precisa PREENCHER uma folha A4: entre 350 e 450 palavras de conteúdo real, com 1 heading, 3 a 5 parágrafos e pelo menos 1 elemento de destaque (list, callout, quote ou stats). Nada de página curta ou rasa."}
 ${illustrated ? "TODA página deve ter exatamente 1 bloco image com imagePrompt detalhado da cena daquela página." : withImages ? "Inclua 1 bloco image (imagePrompt descritivo) só na PRIMEIRA página do capítulo." : "NÃO inclua blocos image."}`, 0.75);
     const pages: any[] = Array.isArray(data?.pages) ? data.pages : [];
     pages.slice(0, (illustrated ? ch.sections.length || perChapter : perChapter) + 1).forEach((p, idx) => {
@@ -207,7 +208,11 @@ ${illustrated ? "TODA página deve ter exatamente 1 bloco image com imagePrompt 
   // 3) Capa (só arte; o título é tipografia do layout)
   try {
     sync("Criando a capa…", done, total);
-    const prompt = `Arte de CAPA de livro ${illustrated ? "infantil" : "profissional"} sobre: ${outline.title} — ${outline.subtitle}. ${guide.illustration.replace(/sem texto/g, "")}. ${kind === "colorir" ? "Capa colorida e alegre mostrando alguns dos personagens/desenhos do livro." : "Composição vertical marcante, foco visual forte."} Deixe o TERÇO SUPERIOR com área limpa e calma para o título ser aplicado depois. Nenhum texto, letra ou número na imagem.`;
+    // A capa do livro de colorir é COLORIDA (como nas livrarias), não um desenho de linhas.
+    const estiloCapa = kind === "colorir"
+      ? "ilustração infantil TOTALMENTE COLORIDA, cores vivas e alegres, estilo de capa de livro infantil de livraria, mostrando os personagens/desenhos do livro"
+      : guide.illustration.replace(/,?\s*sem texto/g, "");
+    const prompt = `Arte de CAPA de livro ${illustrated ? "infantil" : "profissional"} sobre: ${outline.title} — ${outline.subtitle}. Estilo: ${estiloCapa}. ${illustrated ? "Visual encantador e acolhedor." : "Composição vertical marcante, foco visual forte, aparência de best-seller."} Deixe o TERÇO SUPERIOR com área limpa e calma para o título ser aplicado depois. Nenhum texto, letra ou número na imagem.`;
     const img = await generateAdImage({ prompt, aspect: "2:3", quality: "high", format: "webp" } as any);
     cover.blocks = [{ type: "image", imageUrl: await saveImage(img.buffer, img.mime), imagePrompt: prompt }];
   } catch (e: any) {
