@@ -3,7 +3,8 @@ import path from "path";
 import type { Ebook } from "./services/ebookStudio";
 
 /** Armazenamento simples de ebooks no volume (um JSON por ebook, keyed por slug). */
-const DIR = path.join(process.cwd(), "ebooks");
+// Fica dentro de ai-generations, que é um volume persistente (sobrevive aos deploys) e não é servido publicamente.
+const DIR = path.join(process.cwd(), "ai-generations", "ebooks");
 
 async function ensureDir() { await fs.mkdir(DIR, { recursive: true }).catch(() => {}); }
 
@@ -63,7 +64,7 @@ export async function listEbooks(userId: string): Promise<any[]> {
     if (!f.endsWith(".json")) continue;
     try {
       const e = JSON.parse(await fs.readFile(path.join(DIR, f), "utf8")) as StoredEbook;
-      if (e.userId === userId) out.push({ slug: e.slug, title: e.title, subtitle: e.subtitle, theme: e.theme, pageCount: e.pageCount, updatedAt: e.updatedAt });
+      if (e.userId === userId) out.push({ slug: e.slug, title: e.title, subtitle: e.subtitle, theme: e.theme, kind: (e as any).kind, cover: e.pages?.[0]?.blocks?.find((b: any) => b.imageUrl)?.imageUrl, pageCount: e.pageCount, updatedAt: e.updatedAt });
     } catch {}
   }
   return out.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));

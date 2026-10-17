@@ -440,6 +440,7 @@ export const LABELS: Record<ToolId, string> = {
   avatar: "Avatar",
   video: "Vídeo",
   motion: "Motion",
+  ebook: "E-books",
   vozes: "Vozes",
   biblioteca: "Biblioteca",
 };

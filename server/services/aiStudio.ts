@@ -99,7 +99,7 @@ export async function generateAdImage(params: GenerateImageParams): Promise<{ bu
       const [w, h] = aspect.split(":").map(Number);
       const ratio = w && h ? w / h : 1;
       // gpt-image-2 aceita tamanho personalizado: gera já no formato exato (sem recorte).
-      const SIZES: Record<string, string> = { "1:1": "1024x1024", "4:5": "1024x1280", "9:16": "864x1536", "16:9": "1536x864", "3:2": "1536x1024", "2:3": "1024x1536" };
+      const SIZES: Record<string, string> = { "1:1": "1024x1024", "4:5": "1024x1280", "9:16": "864x1536", "16:9": "1536x864", "3:2": "1536x1024", "2:3": "1024x1536", "3:4": "1152x1536", "4:3": "1536x1152" };
       const size = SIZES[aspect] || (Math.abs(ratio - 1) < 0.05 ? "1024x1024" : ratio > 1 ? "1536x1024" : "1024x1536");
       const body: any = {
         model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",

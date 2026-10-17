@@ -15,6 +15,7 @@ export type ToolId =
   | "avatar"
   | "video"
   | "motion"
+  | "ebook"
   | "vozes"
   | "biblioteca";
 

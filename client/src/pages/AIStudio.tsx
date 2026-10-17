@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Sparkles, Clapperboard, Image as ImageIcon, Type, Mic, Video, UserSquare2, AudioWaveform,
+  Sparkles, Clapperboard, BookOpen, Image as ImageIcon, Type, Mic, Video, UserSquare2, AudioWaveform,
   Library, RotateCcw, Languages, Cpu, Check,
 } from "lucide-react";
 import { StudioProvider, useStudio } from "@/components/studio/store";
@@ -20,6 +20,7 @@ import NarracaoPage from "@/components/studio/NarracaoPage";
 import AvatarPage from "@/components/studio/AvatarPage";
 import VideoPage from "@/components/studio/VideoPage";
 import MotionPage from "@/components/studio/MotionPage";
+import EbookPage from "@/components/studio/EbookPage";
 
 // Ferramentas com página própria (cabeçalho + formulário + preview).
 const FULL_PAGES: Partial<Record<ToolId, () => JSX.Element>> = {
@@ -29,6 +30,7 @@ const FULL_PAGES: Partial<Record<ToolId, () => JSX.Element>> = {
   avatar: AvatarPage,
   video: VideoPage,
   motion: MotionPage,
+  ebook: EbookPage,
 };
 
 /** Cada ferramenta do Estúdio é uma página própria (submenu no sidebar). */
@@ -39,6 +41,7 @@ export const STUDIO_PAGES: { id: ToolId; slug: string; label: string; icon: any 
   { id: "avatar", slug: "avatar", label: "Avatar", icon: UserSquare2 },
   { id: "video", slug: "video", label: "Vídeo", icon: Video },
   { id: "motion", slug: "motion", label: "Motion", icon: Clapperboard },
+  { id: "ebook", slug: "ebook", label: "E-books", icon: BookOpen },
   { id: "vozes", slug: "clone-de-voz", label: "Clone de voz", icon: AudioWaveform },
   { id: "biblioteca", slug: "historico", label: "Histórico", icon: Library },
 ];

@@ -74,6 +74,7 @@ import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
 import * as aiStudio from "./services/aiStudio";
 import * as motionService from "./services/motion";
 import { generateEbook } from "./services/ebookStudio";
+import * as ebookBuilder from "./services/ebookBuilder";
 import * as ebookStore from "./ebookStore";
 import * as aiGenStore from "./aiGenStore";
 import * as quizStore from "./quizStore";
@@ -6863,6 +6864,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.error('[Landing IA vibe] erro:', error?.message);
       const msg = /chave de IA|OPENAI|GEMINI/i.test(error?.message || '') ? 'O modo Vibe Code requer a chave do GPT/Gemini configurada.' : (error?.message || 'Erro ao gerar página');
       res.status(503).json({ message: msg });
+    }
+  });
+
+  // ===== Criador de E-books do Estúdio (v2): sumário → livro em segundo plano → ajustes =====
+  const ebookKinds = new Set(['guia', 'infantil', 'colorir', 'receitas', 'workbook']);
+  const parseEbookBrief = (b: any): ebookBuilder.EbookBrief => ({
+    kind: ebookKinds.has(b?.kind) ? b.kind : 'guia',
+    tema: String(b?.tema || '').slice(0, 1500),
+    publico: b?.publico ? String(b.publico).slice(0, 300) : undefined,
+    objetivo: b?.objetivo ? String(b.objetivo).slice(0, 300) : undefined,
+    tom: b?.tom ? String(b.tom).slice(0, 80) : undefined,
+    paginas: Math.max(6, Math.min(60, Number(b?.paginas) || 20)),
+    autor: b?.autor ? String(b.autor).slice(0, 80) : undefined,
+    idioma: b?.idioma,
+    estilo: b?.estilo ? String(b.estilo).slice(0, 30) : undefined,
+    imagens: b?.imagens !== false,
+  });
+
+  app.post('/api/ebook/v2/outline', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
+    try {
+      const brief = parseEbookBrief(req.body);
+      if (brief.tema.trim().length < 3) return res.status(400).json({ message: 'Conte sobre o que é o livro' });
+      res.json({ outline: await ebookBuilder.ebookOutline(brief) });
+    } catch (error: any) {
+      logger.error('[Ebook v2] sumário:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao criar o sumário' });
+    }
+  });
+
+  type EbookJob = { userId: string; status: 'running' | 'done' | 'error'; progress: ebookBuilder.BuildProgress; ebook?: any; slug?: string; error?: string; createdAt: number };
+  const ebookJobs = new Map<string, EbookJob>();
+  app.post('/api/ebook/v2/build', authMiddleware, fullAccessMiddleware, studioHeavyLimit, async (req: any, res) => {
+    const brief = parseEbookBrief(req.body?.brief);
+    const o = req.body?.outline;
+    if (!o?.title || !Array.isArray(o?.chapters) || !o.chapters.length) return res.status(400).json({ message: 'Aprove o sumário antes de gerar o livro' });
+    const outline: ebookBuilder.EbookOutline = {
+      title: String(o.title).slice(0, 120), subtitle: String(o.subtitle || '').slice(0, 180),
+      chapters: o.chapters.slice(0, 14).map((c: any) => ({
+        title: String(c?.title || '').slice(0, 120),
+        sections: (Array.isArray(c?.sections) ? c.sections : []).slice(0, 12).map((x: any) => ({ heading: String(x?.heading || '').slice(0, 120), brief: String(x?.brief || '').slice(0, 240) })),
+      })).filter((c: any) => c.title),
+    };
+    const now = Date.now();
+    ebookJobs.forEach((j, k) => { if (now - j.createdAt > 6 * 60 * 60 * 1000) ebookJobs.delete(k); });
+    const id = crypto.randomUUID();
+    const job: EbookJob = { userId: req.user.id, status: 'running', progress: { step: 'Começando…', done: 0, total: 1 }, createdAt: now };
+    ebookJobs.set(id, job);
+    res.json({ jobId: id });
+
+    const storage = new ObjectStorageService();
+    try {
+      const ebook = await ebookBuilder.ebookBuild(
+        brief, outline,
+        (buf, mime) => storage.uploadBuffer(buf, 'ebooks-img', mime, mime.includes('png') ? 'png' : mime.includes('jpeg') ? 'jpg' : 'webp'),
+        (eb, p) => { job.ebook = JSON.parse(JSON.stringify(eb)); job.progress = p; },
+      );
+      const stored = await ebookStore.saveEbook(ebook, req.user.id);
+      job.slug = stored.slug;
+      job.ebook = { ...ebook, slug: stored.slug };
+      job.status = 'done';
+    } catch (e: any) {
+      logger.error('[Ebook v2] montagem:', e?.message);
+      job.status = 'error';
+      job.error = e?.message || 'Erro ao gerar o livro';
+    }
+  });
+
+  app.get('/api/ebook/v2/build/:id', authMiddleware, fullAccessMiddleware, (req: any, res) => {
+    const job = ebookJobs.get(req.params.id);
+    if (!job || job.userId !== req.user.id) return res.status(404).json({ message: 'Livro não encontrado' });
+    res.json({ status: job.status, progress: job.progress, ebook: job.ebook, slug: job.slug, error: job.error });
+  });
+
+  app.post('/api/ebook/v2/redo-image', authMiddleware, fullAccessMiddleware, studioLimit, studioAsync, async (req: any, res) => {
+    try {
+      const { kind, prompt, cover, estilo } = req.body || {};
+      if (!prompt || String(prompt).trim().length < 3) return res.status(400).json({ message: 'Descreva a imagem' });
+      const img = await ebookBuilder.ebookRedoImage(ebookKinds.has(kind) ? kind : 'guia', String(prompt).slice(0, 800), !!cover, estilo);
+      const url = await new ObjectStorageService().uploadBuffer(img.buffer, 'ebooks-img', img.mime, img.mime.includes('png') ? 'png' : 'webp');
+      res.json({ url });
+    } catch (error: any) {
+      logger.error('[Ebook v2] imagem:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao gerar a imagem' });
     }
   });
 

@@ -155,13 +155,14 @@ export default function Sidebar() {
         { name: "Avatar", href: "/ai-studio/avatar", icon: UserSquare2, testId: "nav-studio-avatar" },
         { name: "Vídeo", href: "/ai-studio/video", icon: Video, testId: "nav-studio-video" },
         { name: "Motion", href: "/ai-studio/motion", icon: Clapperboard, testId: "nav-studio-motion" },
+        { name: "E-books", href: "/ai-studio/ebook", icon: BookOpen, testId: "nav-studio-ebook" },
         { name: "Clone de voz", href: "/ai-studio/clone-de-voz", icon: AudioWaveform, testId: "nav-studio-vozes" },
         { name: "Histórico", href: "/ai-studio/historico", icon: Library, testId: "nav-studio-historico" },
       ],
     },
     {
       name: "Criador de Ebooks",
-      href: "/ebooks",
+      href: "/ai-studio/ebook",
       icon: BookOpen,
       testId: "nav-ebooks"
     },

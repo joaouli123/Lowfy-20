@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation, useSearch } from "wouter";
+import { Switch, Route, Redirect, useLocation, useSearch } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HeroUIProvider } from "@heroui/react";
@@ -27,7 +27,6 @@ const Timeline = lazy(() => import("@/pages/Timeline"));
 const PLRs = lazy(() => import("@/pages/PLRs"));
 const AITools = lazy(() => import("@/pages/AITools"));
 const AIStudio = lazy(() => import("@/pages/AIStudio"));
-const EbookStudio = lazy(() => import("@/pages/EbookStudio"));
 const QuizPlay = lazy(() => import("@/pages/QuizPlay"));
 const HostQuizPlay = lazy(() => import("@/pages/QuizPlay").then((m) => ({ default: m.HostQuizPlay })));
 
@@ -250,7 +249,7 @@ function Router() {
                 <Route path="/ai-tools" component={AITools} />
                 <Route path="/ai-studio" component={AIStudio} />
                 <Route path="/ai-studio/:tool" component={AIStudio} />
-                <Route path="/ebooks" component={EbookStudio} />
+                <Route path="/ebooks">{() => <Redirect to="/ai-studio/ebook" />}</Route>
                 <Route path="/quiz-builder" component={QuizBuilder} />
                 <Route path="/clonador" component={PageCloner} />
                 <Route path="/presell-dashboard" component={PreSellDashboard} />
