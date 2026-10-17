@@ -189,7 +189,8 @@ export default function MotionPage() {
   useEffect(() => {
     fetch("/studio-examples/motion-lowfy.json").then((r) => (r.ok ? r.json() : null)).then(setExMotion).catch(() => {});
   }, []);
-  const eExemplo = !f.html && !!exMotion && busy !== "motion";
+  // O exemplo pronto é 9:16: em outro formato a prévia mostra o quadro vazio já na proporção escolhida.
+  const eExemplo = !f.html && !!exMotion && busy !== "motion" && exMotion.formato === f.formato;
   const mostra = eExemplo ? { ...exMotion, formato: exMotion.formato as Formato, anexos: [], musicaUrl: "", efeitosUrls: {}, estilo: "bold", cores: [] } : f;
 
   const e = f.entendimento;

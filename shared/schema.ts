@@ -1810,6 +1810,9 @@ export const hackAdsSearches = pgTable("hack_ads_searches", {
   error: text("error"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
+  metaTotal: integer("meta_total"),
+  onlyActive: boolean("only_active").notNull().default(false),
+  media: varchar("media", { length: 10 }),
 }, (t) => [index("idx_hack_ads_searches_user").on(t.userId, t.createdAt)]);
 export const hackAdsSearchAds = pgTable("hack_ads_search_ads", {
   searchId: bigint("search_id", { mode: "number" }).notNull().references(() => hackAdsSearches.id, { onDelete: "cascade" }),

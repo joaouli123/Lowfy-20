@@ -211,7 +211,8 @@ CONTRATO TÉCNICO (obrigatório):
 - Para cada cena: var c = K.scene(el, t, i); if (c.on) { … }. A manchete da cena é K.headline(h1, t, i) num <h1 class="k-headline"> (o texto vem de MOTION.scenes[i].tela, sincronizado com a voz) — o texto da narração É o design; não existe legenda separada.
 
 DIREÇÃO DE ARTE (o que separa um motion profissional de "cara de IA"):
-- Uma ideia por cena; hierarquia clara: manchete no topo (k-headline, top ~9%), composição principal no meio (entre 24% e 76% da altura), nada importante nos 18% de baixo nem colado na borda direita (interface do Reels).
+- Uma ideia por cena; hierarquia clara (manchete + composição principal). Siga À RISCA o layout e a área segura do FORMATO informado no pedido (9:16, 1:1 e 16:9 têm composições diferentes).
+- NADA se sobrepõe a texto: manchete, números e legendas ficam em áreas próprias, separadas das telas/cartões (calcule as caixas pelo tamanho do palco). Peças decorativas podem se sobrepor só a outras peças, nunca a texto.
 - Elementos realistas e com profundidade: telas (browser/phone/laptop) com K.tiltS + K.floatS, cartões .k-card com sombra, números grandes com K.count, cursor real clicando com K.cursor, checks com K.popS em sequência (stagger de 0,12–0,2s), carimbos com K.stampS, anotações à mão com seta desenhada.
 - Movimento contínuo: nada fica parado — entradas com K.enterS (desfoque → nítido, ease outExpo), flutuação sutil, câmera lenta (K.cameraS) em cenas de impacto. Coreografe: entrada principal ~0,1–0,3s depois do começo da cena, detalhes depois, clímax sincronizado com a palavra-chave da fala (use os tempos de MOTION.words).
 - Use os anexos do cliente (logo, prints) dentro das telas (K.ui.browser({asset:i}), K.ui.phone({asset:i}), K.img(i)) quando o roteiro indicar.
@@ -220,9 +221,16 @@ DIREÇÃO DE ARTE (o que separa um motion profissional de "cara de IA"):
 
 ${kitDoc()}
 
-EXEMPLO de animação bem feita com o kit (estrutura e estilo a seguir; NÃO copie o conteúdo):
+EXEMPLO de animação bem feita com o kit, em 9:16 (estrutura e estilo a seguir; NÃO copie o conteúdo; em 1:1 e 16:9 reposicione tudo conforme o layout do formato):
 ${kitExample()}`;
 }
+
+// Layout e área segura de cada formato (o kit vem calibrado para 1080 de largura).
+const LAYOUT: Record<string, string> = {
+  "9:16": `9:16 vertical (1080x1920 — Reels, TikTok, Stories). Manchete no topo (.k-headline padrão, top ~9%). Composição principal em UMA coluna, entre 24% e 76% da altura. Deixe livres os 18% de baixo e ~10% da direita (botões e legenda do app). Peças grandes: navegador ~880px, iPhone ~420px.`,
+  "1:1": `1:1 quadrado (1080x1080 — feed). Espaço vertical curto: manchete no topo (top ~7%, font-size ~60px via style), composição entre 24% e 92% da altura, margens laterais de 6%. Diminua as peças: navegador ~760px de largura e ~420px de altura, iPhone ~280px, números grandes até ~200px. Sem área de interface do app.`,
+  "16:9": `16:9 horizontal (1920x1080 — YouTube, apresentações, anúncios em feed horizontal). Composição em DUAS COLUNAS: texto à esquerda (left 7%, largura ~40%, manchete com font-size ~84px via style, centralizada na vertical ou a partir de top 16%) e o visual à direita (right 6%, telas grandes: navegador ~920px, notebook ~980px, iPhone ~400px). Margens de 5%. NÃO empilhe tudo no centro nem use a manchete no topo ocupando a largura inteira. Números grandes podem ocupar a coluna da esquerda.`,
+};
 
 export async function motionAnimate(p: {
   scenes: MotionScene[]; duration: number; formato: string; estilo: string; cores?: string[]; idioma?: string;
@@ -233,6 +241,7 @@ export async function motionAnimate(p: {
   const cenas = p.scenes.map((s, i) => `Cena ${i} [${(s.start ?? 0).toFixed(2)}s → ${(s.end ?? 0).toFixed(2)}s]\n  Tela: "${s.tela || ""}"\n  Fala: "${falaDe(s)}"\n  Visual pedido: ${s.visual}${s.anexo != null ? `\n  Anexo: ${s.anexo}` : ""}`).join("\n");
   const anexos = (p.assets || []).map((a, i) => `${i}: ${a.tipo || "imagem"} — ${a.descricao || a.legenda || ""}`).join("\n");
   const base = `Palco: ${w}x${h}px (${p.formato}). Duração total: ${p.duration.toFixed(2)}s.
+Layout do formato (obrigatório): ${LAYOUT[p.formato] || LAYOUT["9:16"]}
 Tema: ${ESTILOS[estilo]} (MOTION.theme = "${estilo}")
 ${p.cores?.length ? `Cores da marca (MOTION.palette): ${p.cores.join(", ")}.` : ""}
 ${anexos ? `Anexos do cliente (MOTION.assets, por índice):\n${anexos}` : "Sem anexos: use telas genéricas realistas (K.ui.siteMock / appMock) com o nome e a cor da marca."}

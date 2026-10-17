@@ -382,22 +382,31 @@
 
   // ---------------- peças prontas (HTML) ----------------
   var ui = {};
+  /** Desenha o conteúdo numa largura-base e reduz/aumenta para caber na tela (nada corta em telas menores). */
+  function fit(html, baseW, w, h) {
+    var k = w / baseW;
+    return '<div style="width:' + baseW + 'px;height:' + Math.round(h / k) + 'px;transform:scale(' + k.toFixed(4) + ');transform-origin:0 0;overflow:hidden">' + html + "</div>";
+  }
   /** Janela de navegador estilo macOS. content = HTML ou asset = índice do anexo (print). */
   ui.browser = function (o) {
     o = o || {}; var w = o.w || 900, h = o.h || 560;
-    var body = o.asset != null ? K.img(o.asset) : (o.content || ui.siteMock(o.site || {}));
+    var body = o.asset != null ? K.img(o.asset) : fit(o.content || ui.siteMock(o.site || {}), 900, w, h);
     return '<div class="k-browser" style="width:' + w + 'px"><div class="k-browser-bar"><div class="k-dots"><i></i><i></i><i></i></div><div class="k-url">' + K.icon("lock", 18) + K.esc(o.url || "seusite.com.br") + '</div></div><div class="k-browser-body" style="height:' + h + 'px">' + body + "</div></div>";
   };
   /** iPhone com ilha dinâmica. */
   ui.phone = function (o) {
-    o = o || {}; var w = o.w || 420, h = Math.round(w * 2.05);
-    var body = o.asset != null ? K.img(o.asset) : (o.content || ui.appMock(o.app || {}));
-    return '<div class="k-phone" style="width:' + w + 'px;height:' + h + 'px"><div class="k-phone-screen"><div class="k-island"></div>' + (o.asset != null ? "" : '<div class="k-status"><span>' + (o.time || "9:41") + "</span><span>" + K.icon("bolt", 20) + "</span></div>") + body + "</div></div>";
+    o = o || {}; var w = o.w || 420, h = Math.round(w * 2.05), k = w / 420;
+    var pad = Math.round(16 * k), r = Math.round(74 * k), sr = Math.round(58 * k);
+    var body = o.asset != null ? K.img(o.asset) : fit(o.content || ui.appMock(o.app || {}), 388, w - pad * 2, h - pad * 2);
+    // ilha, relógio e bordas acompanham o tamanho do aparelho (num iPhone pequeno nada fica por cima da tela)
+    var island = '<div class="k-island" style="top:' + Math.round(18 * k) + 'px;height:' + Math.round(42 * k) + 'px;border-radius:' + Math.round(30 * k) + 'px"></div>';
+    var status = o.asset != null ? "" : '<div class="k-status" style="top:' + Math.round(20 * k) + 'px;padding:0 ' + Math.round(44 * k) + 'px;font-size:' + Math.max(10, Math.round(24 * k)) + 'px"><span>' + (o.time || "9:41") + "</span><span>" + K.icon("bolt", Math.max(10, Math.round(20 * k))) + "</span></div>";
+    return '<div class="k-phone" style="width:' + w + 'px;height:' + h + 'px;padding:' + pad + 'px;border-radius:' + r + 'px"><div class="k-phone-screen" style="border-radius:' + sr + 'px">' + island + status + body + "</div></div>";
   };
   /** Notebook. */
   ui.laptop = function (o) {
     o = o || {}; var w = o.w || 900;
-    var body = o.asset != null ? K.img(o.asset) : (o.content || ui.siteMock(o.site || {}));
+    var body = o.asset != null ? K.img(o.asset) : fit(o.content || ui.siteMock(o.site || {}), 900, w - 36, Math.round((w - 36) / 1.6));
     return '<div class="k-laptop" style="width:' + w + 'px"><div class="k-laptop-lid"><div class="k-laptop-screen">' + body + '</div></div><div class="k-laptop-base"></div></div>';
   };
   /** Site genérico realista (quando não há print do cliente). */

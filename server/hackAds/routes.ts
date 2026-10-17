@@ -25,6 +25,12 @@ export function registerHackAdsRoutes(app: Express, opts: { auth?: any; guard?: 
     res.json({ status: j.status, position: j.position, progress: j.progress, result: j.result, error: j.error, kind: j.kind });
   });
 
+  // Rolou até o fim da lista de uma busca: continua na Meta (mais um lote).
+  app.post("/api/hack-ads/searches/:id/more", ...guard, async (req: any, res) => {
+    try { res.json(await hack.continueSearch(req.user.id, Number(req.params.id))); }
+    catch (e) { fail(res, e, "Erro ao buscar mais anúncios"); }
+  });
+
   app.get("/api/hack-ads/searches", ...guard, async (req: any, res) => {
     try { res.json({ searches: await hack.listSearches(req.user.id), fila: hack.filaTamanho() }); }
     catch (e) { fail(res, e, "Erro ao carregar as buscas"); }

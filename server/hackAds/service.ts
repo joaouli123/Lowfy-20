@@ -114,10 +114,16 @@ async function runSearch(job: Job) {
     const r = await searchLibrary({ term, country, limit, active, media }, (n) => { job.progress = n; });
     const { ids, added, novos } = await upsert(r.ads, country);
     if (ids.length) await pool.query(`INSERT INTO hack_ads_search_ads (search_id, ad_id) SELECT $1, unnest($2::bigint[]) ON CONFLICT DO NOTHING`, [searchId, ids]);
-    await pool.query(`UPDATE hack_ads_searches SET status = 'done', found = $2, added = $3, finished_at = now() WHERE id = $1`, [searchId, ids.length, added]);
+    // found = anúncios ligados à busca (numa continuação, soma com os lotes anteriores).
+    const up = await pool.query(
+      `UPDATE hack_ads_searches SET status = 'done', added = added + $2, meta_total = COALESCE($3, meta_total), finished_at = now(),
+         found = (SELECT COUNT(*) FROM hack_ads_search_ads WHERE search_id = $1)
+       WHERE id = $1 RETURNING found`,
+      [searchId, added, r.results],
+    );
     // Os links da Meta expiram em dias: guarda imagem e foto da página dos anúncios novos já agora.
     void cacheImagens(novos);
-    return { searchId, found: ids.length, added, results: r.results };
+    return { searchId, found: Number(up.rows[0]?.found) || ids.length, added, results: r.results };
   } catch (e: any) {
     await pool.query(`UPDATE hack_ads_searches SET status = 'error', error = $2, finished_at = now() WHERE id = $1`, [searchId, String(e?.message || e).slice(0, 300)]);
     throw e;
@@ -189,14 +195,34 @@ export async function startSearch(userId: string, p: { term: string; country: st
   if (Number(uso.rows[0].hora) >= 12) throw Object.assign(new Error("Você fez muitas buscas nesta hora. Enquanto isso, explore a biblioteca com os filtros."), { status: 429 });
   if (Number(uso.rows[0].dia) >= 60) throw Object.assign(new Error("Limite de buscas de hoje atingido. Amanhã libera de novo."), { status: 429 });
   if (fila.length >= 25) throw Object.assign(new Error("Muita gente minerando agora. Tente de novo em alguns minutos."), { status: 503 });
-  const s = await pool.query(`INSERT INTO hack_ads_searches (user_id, term, country, requested) VALUES ($1,$2,$3,$4) RETURNING id`, [userId, term, country, limit]);
-  const job = enqueue("search", userId, { term, country, limit, searchId: Number(s.rows[0].id), active: !!p.active, media: ["image", "video"].includes(String(p.media)) ? p.media : undefined });
+  const media = ["image", "video"].includes(String(p.media)) ? String(p.media) : null;
+  const s = await pool.query(`INSERT INTO hack_ads_searches (user_id, term, country, requested, only_active, media) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`, [userId, term, country, limit, !!p.active, media]);
+  const job = enqueue("search", userId, { term, country, limit, searchId: Number(s.rows[0].id), active: !!p.active, media: media || undefined });
   return { jobId: job.id, searchId: Number(s.rows[0].id), position: fila.indexOf(job) + 1 };
 }
 
 export async function listSearches(userId: string) {
-  const r = await pool.query(`SELECT id, term, country, requested, found, added, status, error, created_at FROM hack_ads_searches WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`, [userId]);
-  return r.rows;
+  const r = await pool.query(`SELECT id, term, country, requested, found, added, status, error, created_at, meta_total FROM hack_ads_searches WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`, [userId]);
+  return r.rows.map((x: any) => ({ ...x, id: Number(x.id), found: Number(x.found), metaTotal: x.meta_total == null ? null : Number(x.meta_total), podeMais: x.status === "done" && Number(x.found) < MAX_POR_BUSCA && (x.meta_total == null || Number(x.found) < Number(x.meta_total)) }));
+}
+
+/** Teto de anúncios por busca: além disso a rolagem na Meta fica lenta e pesada para o servidor. */
+export const MAX_POR_BUSCA = 300;
+
+/** Continua uma busca na Meta (o usuário chegou ao fim da lista): pega mais um lote de ~60. */
+export async function continueSearch(userId: string, searchId: number) {
+  const r = await pool.query(`SELECT * FROM hack_ads_searches WHERE id = $1 AND user_id = $2`, [searchId, userId]);
+  const s = r.rows[0];
+  if (!s) throw Object.assign(new Error("Busca não encontrada."), { status: 404 });
+  const ativo = [...jobs.values()].find((j) => j.kind === "search" && j.params.searchId === searchId && (j.status === "queued" || j.status === "running"));
+  if (ativo) return { jobId: ativo.id, position: fila.indexOf(ativo) + 1 };
+  const found = Number(s.found) || 0;
+  if (found >= MAX_POR_BUSCA) throw Object.assign(new Error(`Essa busca já trouxe ${MAX_POR_BUSCA} anúncios. Para ver outros, use um termo mais específico.`), { status: 400 });
+  if (s.meta_total != null && found >= Number(s.meta_total)) throw Object.assign(new Error("A Meta não tem mais anúncios para essa busca."), { status: 400 });
+  if (fila.length >= 25) throw Object.assign(new Error("Muita gente minerando agora. Tente de novo em alguns minutos."), { status: 503 });
+  await pool.query(`UPDATE hack_ads_searches SET status = 'queued', requested = $2 WHERE id = $1`, [searchId, Math.min(MAX_POR_BUSCA, found + 60)]);
+  const job = enqueue("search", userId, { term: s.term, country: s.country, limit: Math.min(MAX_POR_BUSCA, found + 60), searchId, active: !!s.only_active, media: s.media || undefined, continuacao: true });
+  return { jobId: job.id, position: fila.indexOf(job) + 1 };
 }
 
 // ---------------- biblioteca ----------------

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -91,15 +91,54 @@ function HackAdsApp() {
   const total = lista.data?.pages[0]?.total ?? 0;
   const atualizar = () => { void queryClient.invalidateQueries({ queryKey: ["/api/hack-ads/ads"] }); void queryClient.invalidateQueries({ queryKey: ["/api/hack-ads/facets"] }); };
 
-  // scroll infinito
-  const fim = useRef<HTMLDivElement>(null);
+  // Rolagem infinita: primeiro as próximas páginas da base; no fim de uma busca, continua minerando na Meta.
+  const buscas = useQuery<{ searches: { id: number; term: string; found: number; metaTotal: number | null; podeMais: boolean; status: string }[] }>({
+    queryKey: ["/api/hack-ads/searches"], queryFn: () => getJson("/api/hack-ads/searches"),
+  });
+  const buscaAtual = f.search_id ? buscas.data?.searches.find((b) => String(b.id) === f.search_id) : undefined;
+  const [mais, setMais] = useState<{ jobId: string; searchId: number; antes: number } | null>(null);
+  const [esgotadas, setEsgotadas] = useState<number[]>([]);
+  const podeMais = !!buscaAtual && buscaAtual.podeMais && !esgotadas.includes(buscaAtual.id) && aba === "biblioteca";
+  // Ref por callback: a lista é remontada ao trocar de aba/filtro e o sensor precisa seguir o elemento novo.
+  const [noFim, setNoFim] = useState(false);
+  const ioRef = useRef<IntersectionObserver | null>(null);
+  const fim = useCallback((el: HTMLDivElement | null) => {
+    ioRef.current?.disconnect();
+    ioRef.current = null;
+    if (!el) { setNoFim(false); return; }
+    ioRef.current = new IntersectionObserver((e) => setNoFim(e[0].isIntersecting), { rootMargin: "600px" });
+    ioRef.current.observe(el);
+  }, []);
   useEffect(() => {
-    const el = fim.current;
-    if (!el) return;
-    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting && lista.hasNextPage && !lista.isFetchingNextPage) void lista.fetchNextPage(); }, { rootMargin: "600px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [lista.hasNextPage, lista.isFetchingNextPage, lista.fetchNextPage]);
+    if (!noFim || lista.isLoading || lista.isFetchingNextPage) return;
+    if (lista.hasNextPage) { void lista.fetchNextPage(); return; }
+    if (podeMais && !mais && buscaAtual) {
+      apiRequest("POST", `/api/hack-ads/searches/${buscaAtual.id}/more`)
+        .then((r) => r.json())
+        .then((r) => setMais({ jobId: r.jobId, searchId: buscaAtual.id, antes: buscaAtual.found }))
+        .catch(() => setEsgotadas((x) => [...x, buscaAtual.id]));
+    }
+  }, [noFim, lista.hasNextPage, lista.isFetchingNextPage, lista.isLoading, podeMais, mais, ads.length]);
+  useEffect(() => {
+    if (!mais) return;
+    let vivo = true;
+    const tick = async () => {
+      try {
+        const j = await getJson<any>(`/api/hack-ads/jobs/${mais.jobId}`);
+        if (!vivo) return;
+        if (j.status === "done" || j.status === "error") {
+          if (j.status === "error" || !j.result || j.result.found <= mais.antes) setEsgotadas((x) => [...x, mais.searchId]);
+          await queryClient.invalidateQueries({ queryKey: ["/api/hack-ads/searches"] });
+          atualizar();
+          setMais(null);
+          return;
+        }
+      } catch { /* tenta de novo */ }
+      if (vivo) setTimeout(tick, 2000);
+    };
+    void tick();
+    return () => { vivo = false; };
+  }, [mais]);
 
   const favoritar = useMutation({
     mutationFn: ({ id, on }: { id: number; on: boolean }) => apiRequest("POST", `/api/hack-ads/favorites/${id}`, { on }),
@@ -131,7 +170,7 @@ function HackAdsApp() {
         {facets && <p className="text-xs text-muted-foreground tabular-nums">{facets.total.toLocaleString("pt-BR")} anúncios · {facets.paginas.toLocaleString("pt-BR")} anunciantes na base</p>}
       </div>
 
-      <Minerador onDone={(r) => { atualizar(); verBusca(r.searchId, r.term); }} />
+      <Minerador onDone={(r) => { atualizar(); void queryClient.invalidateQueries({ queryKey: ["/api/hack-ads/searches"] }); verBusca(r.searchId, r.term); }} />
 
       {/* abas */}
       <div className="flex gap-1 border-b overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -156,7 +195,13 @@ function HackAdsApp() {
           ) : (
             <Grade>{ads.map((a) => <AdCard key={a.id} a={a} {...acoes} />)}</Grade>
           )}
-          <div ref={fim} className="h-10 flex items-center justify-center">{lista.isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}</div>
+          <div ref={fim} className="min-h-10 py-3 flex items-center justify-center text-sm text-muted-foreground text-center">
+            {lista.isFetchingNextPage ? <Loader2 className="w-5 h-5 animate-spin" />
+              : mais ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-primary" /> Buscando mais anúncios na Meta…{buscaAtual?.metaTotal ? ` (${buscaAtual.found.toLocaleString("pt-BR")} de ~${buscaAtual.metaTotal.toLocaleString("pt-BR")})` : ""}</span>
+              : !lista.hasNextPage && ads.length > 0 && buscaAtual && !podeMais ? <span>Fim desta busca: {buscaAtual.found.toLocaleString("pt-BR")} anúncios{buscaAtual.found >= 300 ? " (limite por busca; use um termo mais específico para ver outros)" : ""}.</span>
+              : !lista.hasNextPage && ads.length > 0 && !buscaAtual && aba === "biblioteca" ? <span>Esses são todos os anúncios da base com esses filtros. Minere um termo lá em cima para trazer mais.</span>
+              : null}
+          </div>
         </>
       )}
 
