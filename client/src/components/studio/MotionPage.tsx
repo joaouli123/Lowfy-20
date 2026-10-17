@@ -1,20 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
-  Clapperboard, Lightbulb, ScrollText, Mic, Sparkles, RefreshCw, Check, Play, Pause, ArrowLeft, Loader2, Wand2, Plus, X, Eye,
+  Clapperboard, FileText, ListChecks, ScrollText, Mic, Sparkles, RefreshCw, Check, Play, Pause, ArrowLeft, Loader2, Wand2, Plus, X, Eye,
+  ImagePlus, Music2, AudioLines, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 import { useStudio } from "./store";
 import { postLong } from "./runners";
 import { playPreview, useVoices } from "./ui";
-import { FieldLabel, FormPanel, PageGrid, PageHeader, Pill, PillGroup, PreviewPanel, DownloadButton, useLocalForm } from "./page-kit";
+import { FieldLabel, FormPanel, PageGrid, PageHeader, PillGroup, PreviewPanel, DownloadButton, useLocalForm } from "./page-kit";
 
 type Formato = "9:16" | "1:1" | "16:9";
-interface Cena { texto: string; visual: string; start?: number; end?: number }
+interface Cena { tela?: string; fala?: string; texto?: string; visual: string; anexo?: number | null; start?: number; end?: number }
 interface Palavra { w: string; start: number; end: number }
+/** data = imagem ainda no navegador (data URL); url = já enviada ao servidor. */
+interface Anexo { data?: string; url?: string; legenda: string; tipo?: string; descricao?: string }
+interface Entendimento {
+  titulo: string;
+  resumo: { produto: string; publico: string; oferta: string; diferenciais: string[]; contato: string; cta: string; tom: string };
+  roteiroCliente: { tem: boolean; texto: string };
+  perguntas: { id: string; pergunta: string; dica: string }[];
+  pronuncias: { termo: string; fala: string }[];
+  anexos: { tipo: string; descricao: string }[];
+  cores: string[];
+  estilo: "produto" | "premium";
+}
+interface Checagem { ok: boolean; score: number; faltando: string[]; ouvido: string }
+interface Cue { t: number; sfx: string }
 
 const SIZE: Record<Formato, { w: number; h: number; cls: string; max: string }> = {
   "9:16": { w: 1080, h: 1920, cls: "aspect-[9/16]", max: "max-w-[270px]" },
@@ -22,95 +39,180 @@ const SIZE: Record<Formato, { w: number; h: number; cls: string; max: string }> 
   "16:9": { w: 1920, h: 1080, cls: "aspect-video", max: "max-w-full" },
 };
 const FORMATOS = [{ v: "9:16", label: "9:16 · Reels" }, { v: "1:1", label: "1:1 · Feed" }, { v: "16:9", label: "16:9 · YouTube" }] as const;
-const DURACOES = [{ v: "15", label: "15s" }, { v: "30", label: "30s" }, { v: "60", label: "60s" }] as const;
-const ESTILOS = [
-  { v: "bold", label: "Bold Reels" }, { v: "clean", label: "Clean" }, { v: "neon", label: "Neon" }, { v: "corporativo", label: "Corporativo" },
-] as const;
+const DURACOES = [{ v: "15", label: "15s" }, { v: "30", label: "30s" }, { v: "45", label: "45s" }, { v: "60", label: "60s" }] as const;
+const ESTILOS = [{ v: "produto", label: "Produto · claro" }, { v: "premium", label: "Premium · escuro" }] as const;
 const PASSOS = [
-  { n: 1, label: "Ideia", icon: Lightbulb },
-  { n: 2, label: "Roteiro", icon: ScrollText },
-  { n: 3, label: "Voz", icon: Mic },
-  { n: 4, label: "Motion", icon: Sparkles },
+  { n: 1, label: "Briefing", icon: FileText },
+  { n: 2, label: "Entendi assim", icon: ListChecks },
+  { n: 3, label: "Roteiro", icon: ScrollText },
+  { n: 4, label: "Voz e som", icon: Mic },
+  { n: 5, label: "Motion", icon: Sparkles },
 ];
+const TIPOS_ANEXO: Record<string, string> = { logo: "Logo", print_site: "Print do site", print_app: "Print do app", foto_produto: "Foto do produto", foto_pessoa: "Foto de pessoa", outro: "Imagem" };
 
 const DEFAULTS = {
-  passo: 1, ideia: "", formato: "9:16" as Formato, duracao: "30", estilo: "bold", cores: [] as string[],
-  cenas: [] as Cena[], voice: "", audioUrl: "", words: [] as Palavra[], timed: [] as Cena[], duration: 0, html: "",
+  passo: 1, briefing: "", anexos: [] as Anexo[], formato: "9:16" as Formato, duracao: "30",
+  entendimento: null as Entendimento | null, respostas: {} as Record<string, string>, modo: "melhorar" as "melhorar" | "exato",
+  cenas: [] as Cena[], voice: "", musica: "", efeitos: true,
+  audioUrl: "", words: [] as Palavra[], timed: [] as Cena[], duration: 0, checagem: null as Checagem | null,
+  musicaUrl: "", efeitosUrls: {} as Record<string, string>,
+  estilo: "produto", cores: [] as string[], html: "",
 };
+
+const PLACEHOLDER = `Escreva do seu jeito. Ajuda contar:
+• o que você vende e para quem
+• o preço ou a condição (se quiser mostrar)
+• o que te diferencia
+• como o cliente fala com você (WhatsApp, site, @)
+• se já tem um texto pronto, cole aqui que a gente usa`;
+
+const EXEMPLO_BRIEFING = `Sou a Clínica Vitta, odontologia em Curitiba. Quero um vídeo para o Instagram falando com quem tem vergonha de sorrir.
+Fazemos clareamento, implantes e lentes de contato dental, com avaliação gratuita.
+Diferencial: atendimento sem dor, com sedação, e parcelamento em até 12x.
+Já atendemos mais de 3 mil pacientes. Contato pelo WhatsApp (41) 99999-0000.
+Tom acolhedor e confiante.`;
+
+/** Reduz a imagem antes de enviar (máx. 1600px, JPEG) para o envio e a análise ficarem rápidos. */
+function reduzir(file: File): Promise<string> {
+  return new Promise((ok, fail) => {
+    const r = new FileReader();
+    r.onerror = () => fail(new Error("Não deu para ler a imagem"));
+    r.onload = () => {
+      const img = new Image();
+      img.onerror = () => fail(new Error("Imagem inválida"));
+      img.onload = () => {
+        const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const ctx = c.getContext("2d")!;
+        const png = file.type === "image/png";
+        if (!png) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); }
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        ok(c.toDataURL(png ? "image/png" : "image/jpeg", 0.86));
+      };
+      img.src = String(r.result);
+    };
+    r.readAsDataURL(file);
+  });
+}
 
 export default function MotionPage() {
   const { brief } = useStudio();
   const { toast } = useToast();
-  const { catalog } = useVoices();
-  const [f, patch, reset] = useLocalForm("motion", DEFAULTS);
-  const [busy, setBusy] = useState<"" | "roteiro" | "voz" | "motion">("");
+  const { cloned } = useVoices();
+  const [f, patch, reset] = useLocalForm("motion2", DEFAULTS);
+  const [busy, setBusy] = useState<"" | "brief" | "roteiro" | "voz" | "motion">("");
   const [instrucao, setInstrucao] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
   const colorRef = useRef<HTMLInputElement>(null);
 
-  const call = async <T,>(url: string, body: any, kind: typeof busy, erro: string): Promise<T | null> => {
+  const { data: lib } = useQuery<{ voices: { voiceId: string; name: string; gender: string; tag: string; previewUrl: string }[]; climas: { v: string; label: string }[] }>({
+    queryKey: ["/api/ai-studio/motion/voices"],
+    queryFn: async () => (await apiRequest("GET", "/api/ai-studio/motion/voices")).json(),
+    staleTime: 60 * 60 * 1000,
+  });
+  const vozes = lib?.voices || [];
+  const voice = f.voice || vozes[1]?.voiceId || "";
+
+  const run = async <T,>(kind: typeof busy, fn: () => Promise<T>, erro: string): Promise<T | null> => {
     setBusy(kind);
-    try {
-      const r = await apiRequest("POST", url, { ...body, idioma: brief.lang });
-      return (await r.json()) as T;
-    } catch (e: any) {
-      toast({ title: erro, description: e?.message || "Tente novamente", variant: "destructive" });
-      return null;
-    } finally {
-      setBusy("");
-    }
+    try { return await fn(); }
+    catch (e: any) { toast({ title: erro, description: e?.message?.replace(/^\d+:\s*/, "") || "Tente novamente", variant: "destructive" }); return null; }
+    finally { setBusy(""); }
+  };
+  const post = async <T,>(url: string, body: any) => (await apiRequest("POST", url, { ...body, idioma: brief.lang })).json() as Promise<T>;
+
+  // 1 → 2
+  const analisar = async () => {
+    const d = await run("brief", () => post<{ entendimento: Entendimento; anexos: Anexo[] }>("/api/ai-studio/motion/brief", {
+      texto: f.briefing, formato: f.formato, duracao: Number(f.duracao),
+      anexos: f.anexos.map((a) => ({ img: a.data || a.url, legenda: a.legenda })),
+    }), "Não deu para analisar o briefing");
+    if (!d) return;
+    patch({
+      entendimento: d.entendimento, anexos: d.anexos.map((a) => ({ url: a.url, legenda: a.legenda, tipo: a.tipo, descricao: a.descricao })),
+      respostas: {}, modo: d.entendimento.roteiroCliente.tem ? "exato" : "melhorar", estilo: d.entendimento.estilo,
+      cores: f.cores.length ? f.cores : d.entendimento.cores, passo: 2, cenas: [], audioUrl: "", html: "",
+    });
   };
 
+  // 2 → 3
   const gerarRoteiro = async (outro = false) => {
-    const d = await call<{ cenas: Cena[] }>("/api/ai-studio/motion/script", { ideia: f.ideia, duracao: Number(f.duracao), anterior: outro ? f.cenas : undefined }, "roteiro", "Erro ao criar o roteiro");
-    if (d) patch({ cenas: d.cenas, passo: 2, audioUrl: "", words: [], timed: [], duration: 0, html: "" });
+    const d = await run("roteiro", () => post<{ cenas: Cena[] }>("/api/ai-studio/motion/script", {
+      briefing: f.briefing, entendimento: f.entendimento, respostas: f.respostas, duracao: Number(f.duracao), modo: f.modo,
+      anexos: f.anexos.map((a) => ({ tipo: a.tipo, descricao: a.descricao || a.legenda })), anterior: outro ? f.cenas : undefined,
+    }), "Erro ao criar o roteiro");
+    if (d) patch({ cenas: d.cenas, passo: 3, audioUrl: "", words: [], timed: [], duration: 0, html: "", checagem: null });
   };
 
+  // 4: dublagem (com conferência de pronúncia) + trilha/efeitos escolhidos
   const gerarVoz = async () => {
-    const d = await call<{ audioUrl: string; words: Palavra[]; scenes: Cena[]; duration: number }>(
-      "/api/ai-studio/motion/voice", { cenas: f.cenas, voice: voice?.voiceId }, "voz", "Erro ao gerar a dublagem");
-    if (d) patch({ audioUrl: d.audioUrl, words: d.words, timed: d.scenes, duration: d.duration, html: "", passo: 4 });
+    const d = await run("voz", async () => {
+      const [v, a] = await Promise.all([
+        postLong<{ audioUrl: string; words: Palavra[]; scenes: Cena[]; duration: number; checagem: Checagem | null }>("/api/ai-studio/motion/voice", { cenas: f.cenas, voice, idioma: brief.lang }),
+        f.musica || f.efeitos
+          ? postLong<{ musicaUrl: string | null; efeitos: Record<string, string> }>("/api/ai-studio/motion/audio", { musica: f.musica || undefined, efeitos: f.efeitos }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      return { v, a };
+    }, "Erro ao gerar a dublagem");
+    if (!d) return;
+    patch({
+      audioUrl: d.v.audioUrl, words: d.v.words, timed: d.v.scenes, duration: d.v.duration, checagem: d.v.checagem,
+      musicaUrl: d.a?.musicaUrl || "", efeitosUrls: d.a?.efeitos || {}, html: "",
+    });
+    if (f.musica && d.a && !d.a.musicaUrl) toast({ title: "A trilha não ficou pronta", description: "O vídeo segue só com a voz. Tente a música de novo mais tarde." });
   };
 
-  // A animação leva minutos: roda em segundo plano no servidor (ver postLong).
+  // 5: animação (minutos, em segundo plano no servidor)
   const gerarMotion = async (comAjuste = false) => {
-    setBusy("motion");
-    try {
-      const d = await postLong<{ html: string }>("/api/ai-studio/motion/animate", {
-        scenes: f.timed, duration: f.duration, formato: f.formato, estilo: f.estilo, cores: f.cores, idioma: brief.lang,
-        instrucao: comAjuste ? instrucao : undefined, htmlAnterior: comAjuste ? f.html : undefined,
-      });
-      patch({ html: d.html });
-      setInstrucao("");
-    } catch (e: any) {
-      toast({ title: "Erro ao criar a animação", description: e?.message || "Tente novamente", variant: "destructive" });
-    } finally {
-      setBusy("");
-    }
+    const d = await run("motion", () => postLong<{ html: string }>("/api/ai-studio/motion/animate", {
+      scenes: f.timed, duration: f.duration, formato: f.formato, estilo: f.estilo, cores: f.cores, idioma: brief.lang,
+      assets: f.anexos.filter((a) => a.url).map((a) => ({ url: a.url, tipo: a.tipo, descricao: a.descricao || a.legenda })),
+      instrucao: comAjuste ? instrucao : undefined, htmlAnterior: comAjuste ? f.html : undefined,
+    }), "Erro ao criar a animação");
+    if (d) { patch({ html: d.html }); setInstrucao(""); }
   };
 
-  const voice = useMemo(() => catalog.find((v) => v.voiceId === f.voice) || catalog[0], [catalog, f.voice]);
+  const addFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const livres = 6 - f.anexos.length;
+    const list = Array.from(files).filter((x) => /^image\/(png|jpe?g|webp)$/.test(x.type)).slice(0, livres);
+    try {
+      const datas = await Promise.all(list.map(reduzir));
+      patch({ anexos: [...f.anexos, ...datas.map((data) => ({ data, legenda: "" }))], entendimento: null });
+    } catch (e: any) { toast({ title: "Imagem não aceita", description: e?.message, variant: "destructive" }); }
+  };
 
   // Exemplo real (feito pelo próprio Motion) mostrado no preview até a pessoa gerar o dela.
-  const [exMotion, setExMotion] = useState<typeof DEFAULTS | null>(null);
+  const [exMotion, setExMotion] = useState<any>(null);
   useEffect(() => {
     fetch("/studio-examples/motion-lowfy.json").then((r) => (r.ok ? r.json() : null)).then(setExMotion).catch(() => {});
   }, []);
-  const mostra = f.html || !exMotion ? f : { ...f, ...exMotion, formato: exMotion.formato as Formato };
   const eExemplo = !f.html && !!exMotion && busy !== "motion";
-  const exemplo = () => patch({
-    ideia: "3 erros que fazem você perder clientes no Instagram, para donos de pequenos negócios. Termina convidando para seguir o perfil.",
-    formato: "9:16", duracao: "30", estilo: "bold",
-  });
+  const mostra = eExemplo ? { ...exMotion, formato: exMotion.formato as Formato, anexos: [], musicaUrl: "", efeitosUrls: {}, estilo: "bold", cores: [] } : f;
 
-  const podeIr = (n: number) => n === 1 || (n === 2 && f.cenas.length > 0) || (n === 3 && f.cenas.length > 0) || (n === 4 && !!f.audioUrl);
+  const e = f.entendimento;
+  const setResumo = (k: keyof Entendimento["resumo"], v: any) => e && patch({ entendimento: { ...e, resumo: { ...e.resumo, [k]: v } } });
+  const podeIr = (n: number) => n === 1 || (n === 2 && !!e) || (n === 3 && f.cenas.length > 0) || (n === 4 && f.cenas.length > 0) || (n === 5 && !!f.audioUrl);
+  const falta = (e?.perguntas || []).filter((q) => !(f.respostas[q.id] || "").trim()).length;
+
+  const titulos = ["Conte o que você quer", "Confira se entendemos", "Aprove o roteiro", "Escolha a voz e o som", "Crie o motion"];
+  const subs = [
+    "Escreva com suas palavras e anexe o que tiver (logo, prints, fotos). Nada é gerado ainda.",
+    "A IA leu seu briefing. Corrija o que precisar e responda o que faltou.",
+    "O que aparece na tela e o que o locutor fala, cena por cena. Edite à vontade.",
+    "Ouça as vozes, escolha a trilha e os efeitos. A fala é conferida palavra por palavra.",
+    "Escolha o visual e veja o vídeo no preview.",
+  ];
 
   return (
     <div className="space-y-5 pb-4">
       <PageHeader
         icon={Clapperboard}
         title="Motion"
-        sub="Vídeos animados com narração e legenda, no estilo que viraliza no Instagram."
-        tip="frases curtas e um gancho forte no começo prendem a atenção."
+        sub="Vídeos animados com narração profissional, no padrão das melhores agências."
+        tip="quanto mais você contar no briefing (e anexar prints reais), mais o vídeo parece seu."
       />
 
       {/* Passos */}
@@ -121,9 +223,7 @@ export default function MotionPage() {
           return (
             <div key={p.n} className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               <button
-                type="button"
-                disabled={!podeIr(p.n)}
-                onClick={() => patch({ passo: p.n })}
+                type="button" disabled={!podeIr(p.n) || !!busy} onClick={() => patch({ passo: p.n })}
                 className={`inline-flex items-center gap-2 h-9 pl-1.5 pr-3.5 rounded-full border text-sm font-medium transition disabled:opacity-40 ${
                   ativo ? "bg-primary text-primary-foreground border-primary shadow-sm" : feito ? "bg-[color-mix(in_srgb,var(--accent)_100%,transparent)] text-primary border-[color-mix(in_srgb,var(--primary)_30%,transparent)]" : "bg-card text-muted-foreground"
                 }`}
@@ -133,7 +233,7 @@ export default function MotionPage() {
                 </span>
                 {p.label}
               </button>
-              {i < PASSOS.length - 1 && <span className="w-4 sm:w-8 h-px bg-border" />}
+              {i < PASSOS.length - 1 && <span className="w-3 sm:w-6 h-px bg-border" />}
             </div>
           );
         })}
@@ -143,14 +243,9 @@ export default function MotionPage() {
         form={
           <FormPanel
             icon={PASSOS[f.passo - 1].icon}
-            title={["Qual é a ideia do vídeo?", "Aprove o roteiro", "Escolha a voz", "Crie o motion"][f.passo - 1]}
-            sub={[
-              "Conte em poucas palavras sobre o que é o vídeo e para quem.",
-              "A IA dividiu em cenas. Edite o que quiser, peça outro ou aprove.",
-              "Ouça as vozes e gere a dublagem. A legenda acompanha a fala.",
-              "Escolha o estilo e veja o vídeo animado no preview.",
-            ][f.passo - 1]}
-            onExample={f.passo === 1 ? exemplo : undefined}
+            title={titulos[f.passo - 1]}
+            sub={subs[f.passo - 1]}
+            onExample={f.passo === 1 ? () => patch({ briefing: EXEMPLO_BRIEFING, duracao: "30", formato: "9:16" }) : undefined}
             footer={
               <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-t pt-4">
                 {f.passo > 1 ? (
@@ -161,39 +256,78 @@ export default function MotionPage() {
                   <Button variant="outline" className="h-10 w-full sm:w-auto" onClick={() => { reset(); setInstrucao(""); }} disabled={!!busy}>Recomeçar</Button>
                 )}
                 {f.passo === 1 && (
-                  <Button className="h-11 sm:h-10 w-full sm:w-auto sm:min-w-[220px]" disabled={f.ideia.trim().length < 5 || !!busy} onClick={() => void gerarRoteiro()}>
-                    {busy === "roteiro" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Escrevendo roteiro…</> : <><Wand2 className="w-4 h-4 mr-2" /> Criar roteiro</>}
+                  <Button className="h-11 sm:h-10 w-full sm:w-auto sm:min-w-[220px]" disabled={f.briefing.trim().length < 10 || !!busy} onClick={() => void analisar()}>
+                    {busy === "brief" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Lendo seu briefing…</> : <><Wand2 className="w-4 h-4 mr-2" /> Analisar briefing</>}
                   </Button>
                 )}
                 {f.passo === 2 && (
+                  <Button className="h-11 sm:h-10 w-full sm:w-auto sm:min-w-[220px]" disabled={!!busy} onClick={() => void gerarRoteiro()}>
+                    {busy === "roteiro" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Escrevendo roteiro…</> : <><Check className="w-4 h-4 mr-2" /> Está certo, criar roteiro</>}
+                  </Button>
+                )}
+                {f.passo === 3 && (
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button variant="outline" className="h-10" disabled={!!busy} onClick={() => void gerarRoteiro(true)}>
-                      {busy === "roteiro" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />} Gerar outro roteiro
+                      {busy === "roteiro" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />} Outro roteiro
                     </Button>
-                    <Button className="h-11 sm:h-10 sm:min-w-[180px]" disabled={!!busy || !f.cenas.some((c) => c.texto.trim())} onClick={() => patch({ passo: 3 })}>
+                    <Button className="h-11 sm:h-10 sm:min-w-[180px]" disabled={!!busy || !f.cenas.some((c) => (c.fala || c.texto || "").trim())} onClick={() => patch({ passo: 4 })}>
                       <Check className="w-4 h-4 mr-2" /> Aprovar roteiro
                     </Button>
                   </div>
                 )}
-                {f.passo === 3 && (
-                  <Button className="h-11 sm:h-10 w-full sm:w-auto sm:min-w-[220px]" disabled={!voice || !!busy} onClick={() => void gerarVoz()}>
-                    {busy === "voz" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gravando dublagem…</> : <><Mic className="w-4 h-4 mr-2" /> Gerar dublagem</>}
-                  </Button>
-                )}
                 {f.passo === 4 && (
+                  f.audioUrl ? (
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                      <Button variant="outline" className="h-10" disabled={!!busy} onClick={() => void gerarVoz()}>
+                        {busy === "voz" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />} Gravar de novo
+                      </Button>
+                      <Button className="h-11 sm:h-10 sm:min-w-[180px]" disabled={!!busy} onClick={() => patch({ passo: 5 })}>
+                        <Check className="w-4 h-4 mr-2" /> Seguir para o motion
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button className="h-11 sm:h-10 w-full sm:w-auto sm:min-w-[220px]" disabled={!voice || !!busy} onClick={() => void gerarVoz()}>
+                      {busy === "voz" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gravando e conferindo…</> : <><Mic className="w-4 h-4 mr-2" /> Gerar dublagem</>}
+                    </Button>
+                  )
+                )}
+                {f.passo === 5 && (
                   <Button className="h-11 sm:h-10 w-full sm:w-auto sm:min-w-[220px]" disabled={!!busy} onClick={() => void gerarMotion(false)}>
-                    {busy === "motion" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Animando… (1 a 3 min)</> : <><Sparkles className="w-4 h-4 mr-2" /> {f.html ? "Criar outra animação" : "Criar animação"}</>}
+                    {busy === "motion" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Animando… (2 a 5 min)</> : <><Sparkles className="w-4 h-4 mr-2" /> {f.html ? "Criar outra animação" : "Criar animação"}</>}
                   </Button>
                 )}
               </div>
             }
           >
+            {/* 1. Briefing */}
             {f.passo === 1 && (
               <div className="space-y-4">
                 <div>
-                  <FieldLabel required>Sobre o que é o vídeo?</FieldLabel>
-                  <Textarea value={f.ideia} onChange={(e) => patch({ ideia: e.target.value })} className="min-h-[120px]"
-                    placeholder={"Ex.: 3 erros que fazem você perder clientes no Instagram, para donos de pequenos negócios. Termina convidando para seguir o perfil."} />
+                  <FieldLabel required>Conte com suas palavras o que você quer no vídeo</FieldLabel>
+                  <Textarea value={f.briefing} onChange={(ev) => patch({ briefing: ev.target.value, entendimento: null })} className="min-h-[170px] text-[13px] leading-relaxed" placeholder={PLACEHOLDER} />
+                </div>
+                <div>
+                  <FieldLabel optional>Anexos: logo, prints do site ou app, fotos</FieldLabel>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {f.anexos.map((a, i) => (
+                      <div key={i} className="rounded-lg border bg-card overflow-hidden">
+                        <div className="relative aspect-[4/3] bg-muted">
+                          <img src={a.data || a.url} alt="" className="absolute inset-0 w-full h-full object-contain" />
+                          <button type="button" onClick={() => patch({ anexos: f.anexos.filter((_, j) => j !== i), entendimento: null })} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center" aria-label="Remover anexo">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <Input value={a.legenda} onChange={(ev) => patch({ anexos: f.anexos.map((x, j) => (j === i ? { ...x, legenda: ev.target.value } : x)) })} placeholder="O que é? (ex.: meu logo)" className="h-8 text-xs rounded-none border-0 border-t focus-visible:ring-0" />
+                      </div>
+                    ))}
+                    {f.anexos.length < 6 && (
+                      <button type="button" onClick={() => fileRef.current?.click()} className="aspect-[4/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-1.5 text-xs text-muted-foreground hover:bg-muted transition">
+                        <ImagePlus className="w-5 h-5" /> Adicionar imagem
+                      </button>
+                    )}
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" onChange={(ev) => { void addFiles(ev.target.files); ev.target.value = ""; }} />
+                  <p className="text-[11px] text-muted-foreground mt-1.5">Prints reais deixam o vídeo com a cara do seu negócio: eles aparecem dentro do navegador, do celular ou do notebook animados.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
                   <div>
@@ -208,7 +342,79 @@ export default function MotionPage() {
               </div>
             )}
 
-            {f.passo === 2 && (
+            {/* 2. Entendi assim */}
+            {f.passo === 2 && e && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {([["produto", "O que é"], ["publico", "Para quem"], ["oferta", "Oferta ou preço"], ["contato", "Contato"], ["cta", "Chamada final"], ["tom", "Tom de voz"]] as const).map(([k, label]) => (
+                    <div key={k}>
+                      <FieldLabel>{label}</FieldLabel>
+                      <Input value={(e.resumo as any)[k] || ""} onChange={(ev) => setResumo(k, ev.target.value)} className="h-9 text-[13px]" placeholder="—" />
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <FieldLabel>Diferenciais</FieldLabel>
+                  <Textarea value={e.resumo.diferenciais.join("\n")} onChange={(ev) => setResumo("diferenciais", ev.target.value.split("\n"))} className="min-h-[70px] text-[13px]" placeholder="Um por linha" />
+                </div>
+
+                {e.perguntas.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 space-y-3">
+                    <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Faltou isto para o vídeo ficar completo{falta ? ` (${falta})` : ""}</p>
+                    {e.perguntas.map((q) => (
+                      <div key={q.id}>
+                        <p className="text-[13px] font-medium mb-1">{q.pergunta}</p>
+                        <Input value={f.respostas[q.id] || ""} onChange={(ev) => patch({ respostas: { ...f.respostas, [q.id]: ev.target.value } })} className="h-9 text-[13px] bg-white" placeholder={q.dica || "Sua resposta"} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {e.roteiroCliente.tem && (
+                  <div>
+                    <FieldLabel>Você mandou um texto pronto. Como usar?</FieldLabel>
+                    <PillGroup options={[{ v: "exato", label: "Narrar do jeito que está" }, { v: "melhorar", label: "Pode melhorar" }]} value={f.modo} onChange={(v) => patch({ modo: v as any })} />
+                  </div>
+                )}
+
+                <div>
+                  <FieldLabel optional>Como se fala (nomes e marcas)</FieldLabel>
+                  <div className="space-y-1.5">
+                    {e.pronuncias.map((p, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                        <Input value={p.termo} onChange={(ev) => patch({ entendimento: { ...e, pronuncias: e.pronuncias.map((x, j) => (j === i ? { ...x, termo: ev.target.value } : x)) } })} className="h-8 text-xs" placeholder="Como se escreve" />
+                        <Input value={p.fala} onChange={(ev) => patch({ entendimento: { ...e, pronuncias: e.pronuncias.map((x, j) => (j === i ? { ...x, fala: ev.target.value } : x)) } })} className="h-8 text-xs" placeholder="Como se fala" />
+                        <button type="button" onClick={() => patch({ entendimento: { ...e, pronuncias: e.pronuncias.filter((_, j) => j !== i) } })} className="text-muted-foreground hover:text-red-600" aria-label="Remover"><X className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => patch({ entendimento: { ...e, pronuncias: [...e.pronuncias, { termo: "", fala: "" }] } })}>
+                      <Plus className="w-3.5 h-3.5 mr-1.5" /> Adicionar pronúncia
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Ex.: "UXcode" se fala "iú éks code". O locutor segue isso à risca.</p>
+                </div>
+
+                {f.anexos.length > 0 && (
+                  <div>
+                    <FieldLabel>Anexos que entendemos</FieldLabel>
+                    <div className="space-y-1.5">
+                      {f.anexos.map((a, i) => (
+                        <div key={i} className="flex items-center gap-2.5 rounded-lg border p-1.5 pr-3">
+                          <img src={a.url || a.data} alt="" className="w-12 h-9 object-cover rounded" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold">{TIPOS_ANEXO[a.tipo || "outro"] || "Imagem"}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{a.descricao || a.legenda}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3. Roteiro */}
+            {f.passo === 3 && (
               <div className="space-y-3">
                 {f.cenas.map((c, i) => (
                   <div key={i} className="rounded-xl border p-3.5 space-y-2.5 bg-card">
@@ -217,51 +423,98 @@ export default function MotionPage() {
                       {i === 0 && <span className="text-[10px] text-muted-foreground">gancho</span>}
                       {i === f.cenas.length - 1 && <span className="text-[10px] text-muted-foreground">chamada final</span>}
                       {f.cenas.length > 2 && (
-                        <button type="button" onClick={() => patch({ cenas: f.cenas.filter((_, j) => j !== i) })} className="ml-auto text-muted-foreground hover:text-red-600" aria-label="Remover cena">
+                        <button type="button" onClick={() => patch({ cenas: f.cenas.filter((_, j) => j !== i), audioUrl: "" })} className="ml-auto text-muted-foreground hover:text-red-600" aria-label="Remover cena">
                           <X className="w-4 h-4" />
                         </button>
                       )}
                     </div>
-                    <Textarea value={c.texto} onChange={(e) => patch({ cenas: f.cenas.map((x, j) => (j === i ? { ...x, texto: e.target.value } : x)) })} className="min-h-[56px] text-[13px]" aria-label="O que o narrador fala" />
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Na tela</p>
+                      <Input value={c.tela || ""} onChange={(ev) => patch({ cenas: f.cenas.map((x, j) => (j === i ? { ...x, tela: ev.target.value } : x)), audioUrl: "" })} className="h-9 text-[13px] font-semibold" aria-label="Texto da tela" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">O locutor fala</p>
+                      <Textarea value={c.fala || c.texto || ""} onChange={(ev) => patch({ cenas: f.cenas.map((x, j) => (j === i ? { ...x, fala: ev.target.value, texto: ev.target.value } : x)), audioUrl: "" })} className="min-h-[56px] text-[13px]" aria-label="O que o narrador fala" />
+                    </div>
                     <div className="flex items-start gap-2">
                       <Eye className="w-3.5 h-3.5 mt-2.5 text-muted-foreground flex-shrink-0" />
-                      <Input value={c.visual} onChange={(e) => patch({ cenas: f.cenas.map((x, j) => (j === i ? { ...x, visual: e.target.value } : x)) })} className="h-9 text-xs" aria-label="O que aparece na tela" />
+                      <Input value={c.visual} onChange={(ev) => patch({ cenas: f.cenas.map((x, j) => (j === i ? { ...x, visual: ev.target.value } : x)) })} className="h-9 text-xs" aria-label="O que aparece na tela" />
                     </div>
                   </div>
                 ))}
-                {f.cenas.length < 10 && (
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => patch({ cenas: [...f.cenas.slice(0, -1), { texto: "", visual: "" }, ...f.cenas.slice(-1)] })}>
+                <p className="text-[11px] text-muted-foreground">Use *asteriscos* para destacar uma palavra na tela. Números na fala vão por extenso para o locutor não errar.</p>
+                {f.cenas.length < 12 && (
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => patch({ cenas: [...f.cenas.slice(0, -1), { tela: "", fala: "", visual: "" }, ...f.cenas.slice(-1)], audioUrl: "" })}>
                     <Plus className="w-3.5 h-3.5 mr-1.5" /> Adicionar cena
                   </Button>
                 )}
               </div>
             )}
 
-            {f.passo === 3 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {catalog.map((v) => {
-                  const ativo = voice?.voiceId === v.voiceId;
-                  return (
-                    <div key={v.voiceId} className={`flex items-center gap-2 rounded-lg border pl-1.5 pr-3 py-1.5 transition ${ativo ? "border-[color-mix(in_srgb,var(--primary)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_100%,transparent)]" : "hover:bg-muted"}`}>
-                      <button type="button" onClick={() => playPreview(v.previewUrl)} disabled={!v.previewUrl} className="w-8 h-8 rounded-md bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] flex items-center justify-center disabled:opacity-40" aria-label={`Ouvir ${v.name}`}>
-                        <Play className="w-3.5 h-3.5 text-primary fill-current" />
-                      </button>
-                      <button type="button" onClick={() => patch({ voice: v.voiceId })} className="flex-1 min-w-0 text-left">
-                        <p className={`text-xs font-semibold truncate ${ativo ? "text-primary" : ""}`}>{v.name}</p>
-                        {v.tag && <p className="text-[10px] text-muted-foreground truncate">{v.tag}</p>}
-                      </button>
-                      {ativo && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
+            {/* 4. Voz e som */}
+            {f.passo === 4 && (
+              <div className="space-y-5">
+                {(["masc", "fem"] as const).map((g) => (
+                  <div key={g}>
+                    <FieldLabel>{g === "masc" ? "Vozes masculinas" : "Vozes femininas"}</FieldLabel>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {vozes.filter((v) => v.gender === g).map((v) => (
+                        <VoiceRow key={v.voiceId} name={v.name} tag={v.tag} preview={v.previewUrl} active={voice === v.voiceId} onSelect={() => patch({ voice: v.voiceId, audioUrl: "" })} />
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
+                {cloned.length > 0 && (
+                  <div>
+                    <FieldLabel optional>Suas vozes</FieldLabel>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {cloned.map((v) => (
+                        <VoiceRow key={v.voiceId} name={v.name} tag={v.tag || "Voz da sua conta"} preview={v.previewUrl} active={voice === v.voiceId} onSelect={() => patch({ voice: v.voiceId, audioUrl: "" })} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-xl border p-3.5 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold flex items-center gap-1.5"><Music2 className="w-4 h-4 text-primary" /> Música de fundo</p>
+                      <p className="text-[11px] text-muted-foreground">Baixinha, e abaixa sozinha quando a voz fala.</p>
+                    </div>
+                    <Switch checked={!!f.musica} onCheckedChange={(on) => patch({ musica: on ? (lib?.climas[0]?.v || "animada") : "", musicaUrl: "" })} />
+                  </div>
+                  {!!f.musica && <PillGroup options={(lib?.climas || []).map((c) => ({ v: c.v, label: c.label }))} value={f.musica} onChange={(v) => patch({ musica: v, musicaUrl: "" })} />}
+                </div>
+                <div className="rounded-xl border p-3.5 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold flex items-center gap-1.5"><AudioLines className="w-4 h-4 text-primary" /> Efeitos sonoros</p>
+                    <p className="text-[11px] text-muted-foreground">Whoosh nas transições, clique, carimbo e "pop" discretos.</p>
+                  </div>
+                  <Switch checked={f.efeitos} onCheckedChange={(on) => patch({ efeitos: on })} />
+                </div>
+
+                {f.checagem && (
+                  f.checagem.ok ? (
+                    <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4" /> Pronúncia conferida: o locutor falou o roteiro certinho ({Math.round(f.checagem.score * 100)}%).
+                    </p>
+                  ) : (
+                    <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 space-y-1">
+                      <p className="font-semibold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" /> O locutor pode ter errado ou pulado: {f.checagem.faltando.slice(0, 8).join(", ")}</p>
+                      <p>Ouça no preview. Se precisar, ajuste a pronúncia no passo 2 ou a fala no roteiro e grave de novo.</p>
+                    </div>
+                  )
+                )}
               </div>
             )}
 
-            {f.passo === 4 && (
+            {/* 5. Motion */}
+            {f.passo === 5 && (
               <div className="space-y-4">
                 <div>
-                  <FieldLabel>Estilo visual</FieldLabel>
-                  <PillGroup options={[...ESTILOS]} value={f.estilo} onChange={(v) => patch({ estilo: v })} />
+                  <FieldLabel>Visual</FieldLabel>
+                  <PillGroup options={[...ESTILOS]} value={f.estilo === "premium" ? "premium" : "produto"} onChange={(v) => patch({ estilo: v })} />
+                  <p className="text-[11px] text-muted-foreground mt-1.5">{f.estilo === "premium" ? "Fundo escuro com brilho, tipografia enorme e botão com reflexo. Bom para cursos, lançamentos e marcas premium." : "Fundo claro, interfaces realistas e cursor clicando. Bom para serviços, apps, clínicas e lojas."}</p>
                 </div>
                 <div>
                   <FieldLabel optional>Cores da marca</FieldLabel>
@@ -271,19 +524,19 @@ export default function MotionPage() {
                         <X className="w-3.5 h-3.5 absolute inset-0 m-auto text-white opacity-0 group-hover:opacity-100 drop-shadow" />
                       </button>
                     ))}
-                    {f.cores.length < 5 && (
+                    {f.cores.length < 2 && (
                       <button type="button" onClick={() => colorRef.current?.click()} className="h-8 px-3 rounded-full border border-dashed flex items-center gap-1.5 text-xs text-muted-foreground hover:bg-muted">
                         <Plus className="w-3.5 h-3.5" /> {f.cores.length ? "" : "Adicionar cor"}
                       </button>
                     )}
-                    <input ref={colorRef} type="color" className="sr-only" onChange={(e) => patch({ cores: [...f.cores, e.target.value] })} />
+                    <input ref={colorRef} type="color" className="sr-only" onChange={(ev) => patch({ cores: [...f.cores, ev.target.value] })} />
                   </div>
                 </div>
                 {f.html && (
                   <div>
                     <FieldLabel optional>Quer mudar algo?</FieldLabel>
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <Input value={instrucao} onChange={(e) => setInstrucao(e.target.value)} placeholder="Ex.: deixa a cena 2 mais chamativa, números maiores" />
+                      <Input value={instrucao} onChange={(ev) => setInstrucao(ev.target.value)} placeholder="Ex.: deixa a cena 2 mais chamativa, números maiores" />
                       <Button variant="outline" className="h-10 flex-shrink-0" disabled={instrucao.trim().length < 3 || !!busy} onClick={() => void gerarMotion(true)}>
                         <RefreshCw className="w-4 h-4 mr-2" /> Aplicar
                       </Button>
@@ -298,7 +551,7 @@ export default function MotionPage() {
           <PreviewPanel
             busy={busy === "motion"}
             icon={Eye}
-            sub={f.html ? "Dê play para ver o motion com voz e legenda." : eExemplo ? "Exemplo real feito aqui no Motion. Dê play! O seu aparece no lugar." : f.audioUrl ? "A dublagem está pronta. Agora crie a animação." : "O vídeo aparece aqui depois dos passos."}
+            sub={f.html ? "Dê play para ver o motion com voz, trilha e efeitos." : eExemplo ? "Exemplo real feito aqui no Motion. Dê play! O seu aparece no lugar." : f.audioUrl ? "A dublagem está pronta. Agora crie a animação." : "O vídeo aparece aqui depois dos passos."}
             actions={<><DownloadButton url={f.audioUrl || null} label="Baixar áudio" /><Button variant="outline" className="h-10 w-full" disabled title="Em breve: exportar em MP4">MP4 em breve</Button></>}
           >
             <div className="relative">
@@ -308,6 +561,9 @@ export default function MotionPage() {
                 html={busy === "motion" && !f.html ? "" : mostra.html}
                 audioUrl={busy === "motion" && !f.html ? "" : mostra.audioUrl}
                 words={mostra.words} scenes={mostra.timed} duration={mostra.duration} formato={mostra.formato} busy={busy === "motion"}
+                assets={(mostra.anexos || []).filter((a: Anexo) => a.url).map((a: Anexo) => ({ url: a.url!, tipo: a.tipo, descricao: a.descricao }))}
+                theme={mostra.estilo === "premium" ? "premium" : "produto"} palette={mostra.cores || []}
+                musicaUrl={mostra.musicaUrl || ""} efeitos={f.efeitos && !eExemplo ? mostra.efeitosUrls || {} : {}}
               />
             </div>
           </PreviewPanel>
@@ -317,20 +573,42 @@ export default function MotionPage() {
   );
 }
 
+function VoiceRow({ name, tag, preview, active, onSelect }: { name: string; tag?: string; preview?: string; active: boolean; onSelect: () => void }) {
+  return (
+    <div className={`flex items-center gap-2 rounded-lg border pl-1.5 pr-3 py-1.5 transition ${active ? "border-[color-mix(in_srgb,var(--primary)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_100%,transparent)]" : "hover:bg-muted"}`}>
+      <button type="button" onClick={() => playPreview(preview)} disabled={!preview} className="w-8 h-8 rounded-md bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] flex items-center justify-center disabled:opacity-40" aria-label={`Ouvir ${name}`}>
+        <Play className="w-3.5 h-3.5 text-primary fill-current" />
+      </button>
+      <button type="button" onClick={onSelect} className="flex-1 min-w-0 text-left">
+        <p className={`text-xs font-semibold truncate ${active ? "text-primary" : ""}`}>{name}</p>
+        {tag && <p className="text-[10px] text-muted-foreground truncate">{tag}</p>}
+      </button>
+      {active && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
+    </div>
+  );
+}
+
 /**
- * Player: a animação do Claude roda isolada num iframe (sandbox sem acesso ao site) e recebe
- * o tempo do áudio a cada quadro via postMessage. A legenda é desenhada aqui por cima.
+ * Player: a animação roda isolada num iframe (sandbox sem acesso ao site) e recebe o tempo do
+ * áudio a cada quadro via postMessage. Vídeos feitos com o kit trazem a manchete sincronizada
+ * (sem legenda por cima) e mandam as deixas de som; a trilha abaixa quando a voz fala.
  */
-function MotionPlayer({ html, audioUrl, words, scenes, duration, formato, busy }: {
+function MotionPlayer({ html, audioUrl, words, scenes, duration, formato, busy, assets, theme, palette, musicaUrl, efeitos }: {
   html: string; audioUrl: string; words: Palavra[]; scenes: Cena[]; duration: number; formato: Formato; busy: boolean;
+  assets: { url: string; tipo?: string; descricao?: string }[]; theme: string; palette: string[]; musicaUrl: string; efeitos: Record<string, string>;
 }) {
-  const size = SIZE[formato];
+  const size = SIZE[formato] || SIZE["9:16"];
   const boxRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const musicRef = useRef<HTMLAudioElement>(null);
+  const cuesRef = useRef<Cue[]>([]);
+  const lastT = useRef(0);
+  const sfxPool = useRef<Record<string, HTMLAudioElement>>({});
   const [scale, setScale] = useState(0.25);
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const kit = html.includes("<!--motion-kit-->");
 
   useEffect(() => {
     const el = boxRef.current;
@@ -340,15 +618,32 @@ function MotionPlayer({ html, audioUrl, words, scenes, duration, formato, busy }
     return () => ro.disconnect();
   }, [size.w]);
 
+  // Deixas de som que a animação manda ao carregar.
+  useEffect(() => {
+    const onMsg = (ev: MessageEvent) => {
+      if (ev.source === frameRef.current?.contentWindow && Array.isArray(ev.data?.motionCues)) cuesRef.current = ev.data.motionCues;
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+  useEffect(() => {
+    sfxPool.current = Object.fromEntries(Object.entries(efeitos).map(([k, url]) => { const a = new Audio(url); a.preload = "auto"; return [k, a]; }));
+  }, [efeitos]);
+
   const srcDoc = useMemo(() => {
     if (!html) return "";
-    const data = JSON.stringify({ duration, width: size.w, height: size.h, scenes, palette: [] }).replace(/</g, "\\u003c");
-    const head = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src data: blob:;">
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const data = JSON.stringify({
+      duration, width: size.w, height: size.h,
+      scenes: scenes.map((s) => ({ start: s.start, end: s.end, tela: s.tela || "", fala: s.fala || s.texto || "", visual: s.visual, anexo: s.anexo ?? null })),
+      words, assets, palette, theme,
+    }).replace(/</g, "\\u003c");
+    const head = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src data: blob: ${origin};">
 <script>window.MOTION=${data};window.addEventListener("message",function(e){var d=e.data;if(d&&typeof d.t==="number"&&typeof window.renderFrame==="function"){try{window.renderFrame(d.t)}catch(err){}}});</script>`;
     return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + head) : head + html;
-  }, [html, duration, scenes, size.w, size.h]);
+  }, [html, duration, scenes, words, assets, palette, theme, size.w, size.h]);
 
-  // Loop do play: manda o tempo do áudio para a animação a cada quadro.
+  // Loop do play: tempo do áudio → animação, efeitos nas deixas e trilha com "ducking".
   useEffect(() => {
     if (!playing) return;
     let raf = 0;
@@ -357,11 +652,27 @@ function MotionPlayer({ html, audioUrl, words, scenes, duration, formato, busy }
       const now = a ? a.currentTime : 0;
       setT(now);
       frameRef.current?.contentWindow?.postMessage({ t: now }, "*");
+      const prev = lastT.current;
+      if (now > prev && now - prev < 0.5) {
+        for (const c of cuesRef.current) {
+          if (c.t > prev && c.t <= now) {
+            const base = sfxPool.current[c.sfx];
+            if (base) { const s = base.cloneNode(true) as HTMLAudioElement; s.volume = c.sfx === "whoosh" ? 0.35 : 0.45; void s.play().catch(() => {}); }
+          }
+        }
+      }
+      lastT.current = now;
+      const m = musicRef.current;
+      if (m) {
+        const falando = words.some((w) => now >= w.start - 0.05 && now <= w.end + 0.15);
+        const alvo = falando ? 0.07 : 0.16;
+        m.volume = m.volume + (alvo - m.volume) * 0.15;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing]);
+  }, [playing, words]);
 
   const toggle = () => {
     const a = audioRef.current;
@@ -369,15 +680,15 @@ function MotionPlayer({ html, audioUrl, words, scenes, duration, formato, busy }
     if (a.paused) void a.play(); else a.pause();
   };
 
-  // Legenda: grupo de até 4 palavras ao redor da palavra falada agora.
+  // Legenda por cima só para vídeos antigos (sem o kit): nos novos a manchete já é a fala.
   const legenda = useMemo(() => {
-    if (!words.length) return null;
+    if (kit || !words.length) return null;
     let i = words.findIndex((w) => t >= w.start && t < w.end + 0.15);
     if (i < 0) i = words.findIndex((w) => w.start > t) - 1;
     if (i < 0) return null;
     const ini = Math.floor(i / 4) * 4;
     return { grupo: words.slice(ini, ini + 4), ativo: i - ini };
-  }, [words, t]);
+  }, [words, t, kit]);
 
   return (
     <div className={`mx-auto w-full ${size.max}`}>
@@ -395,7 +706,7 @@ function MotionPlayer({ html, audioUrl, words, scenes, duration, formato, busy }
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-5 text-white">
             {busy ? <Loader2 className="w-8 h-8 animate-spin text-emerald-400" /> : <Clapperboard className="w-8 h-8 text-white/60" />}
             <p className="text-sm font-semibold">{busy ? "O Claude está animando seu vídeo…" : `${formato} · Motion`}</p>
-            <p className="text-xs text-white/60">{busy ? "Leva de 1 a 3 minutos" : "Ideia → roteiro → voz → animação"}</p>
+            <p className="text-xs text-white/60">{busy ? "Leva de 2 a 5 minutos" : "Briefing → roteiro → voz → animação"}</p>
           </div>
         )}
 
@@ -432,11 +743,12 @@ function MotionPlayer({ html, audioUrl, words, scenes, duration, formato, busy }
           <audio
             ref={audioRef}
             src={audioUrl}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onEnded={() => { setPlaying(false); setT(0); frameRef.current?.contentWindow?.postMessage({ t: 0 }, "*"); }}
+            onPlay={() => { setPlaying(true); const m = musicRef.current; if (m) { m.currentTime = (audioRef.current?.currentTime || 0) % (m.duration || 60); m.volume = 0.12; void m.play().catch(() => {}); } }}
+            onPause={() => { setPlaying(false); musicRef.current?.pause(); }}
+            onEnded={() => { setPlaying(false); setT(0); lastT.current = 0; musicRef.current?.pause(); frameRef.current?.contentWindow?.postMessage({ t: 0 }, "*"); }}
             className="hidden"
           />
+          {musicaUrl && <audio ref={musicRef} src={musicaUrl} loop preload="auto" className="hidden" />}
         </div>
       )}
     </div>

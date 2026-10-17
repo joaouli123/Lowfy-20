@@ -73,6 +73,7 @@ import axios from "axios";
 import { assertSafePublicUrl, ssrfSafeAxiosOptions } from "./utils/ssrf";
 import * as aiStudio from "./services/aiStudio";
 import * as motionService from "./services/motion";
+import * as motionAudio from "./services/motionAudio";
 import { registerAdminCostRoutes } from "./adminCosts";
 import { generateEbook } from "./services/ebookStudio";
 import * as ebookBuilder from "./services/ebookBuilder";
@@ -6536,12 +6537,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== MOTION (roteiro → dublagem → animação) ====================
+  // ---- Motion: briefing livre → "Entendi assim" → roteiro → dublagem conferida → animação com o kit ----
+  const motionAnexos = async (req: any, list: any): Promise<{ url: string; img: string; legenda: string }[]> => {
+    const arr = (Array.isArray(list) ? list : []).slice(0, 6);
+    const out: { url: string; img: string; legenda: string }[] = [];
+    for (const a of arr) {
+      const v = typeof a?.img === 'string' ? a.img : typeof a?.url === 'string' ? a.url : '';
+      if (!v) continue;
+      const url = await studioPublicUrl(req, v, 'ai-motion');
+      if (!url) continue;
+      out.push({ url, img: v.startsWith('data:') ? v : url, legenda: String(a?.legenda || '').slice(0, 200) });
+    }
+    return out;
+  };
+
+  app.post('/api/ai-studio/motion/brief', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
+    try {
+      const b = req.body || {};
+      const texto = String(b.texto || '').trim();
+      if (texto.length < 10) return res.status(400).json({ message: 'Conte com suas palavras o que você quer no vídeo' });
+      const anexos = await motionAnexos(req, b.anexos);
+      const entendimento = await motionService.motionBrief({
+        texto: texto.slice(0, 6000), anexos: anexos.map((a) => ({ img: a.img, legenda: a.legenda })),
+        duracao: Number(b.duracao) || 30, formato: String(b.formato || '9:16'), idioma: b.idioma,
+      });
+      res.json({ entendimento, anexos: anexos.map((a, i) => ({ url: a.url, legenda: a.legenda, tipo: entendimento.anexos[i]?.tipo, descricao: entendimento.anexos[i]?.descricao })) });
+    } catch (error: any) {
+      logger.error('[Motion] briefing:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao entender o briefing' });
+    }
+  });
+
   app.post('/api/ai-studio/motion/script', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const b = req.body || {};
-      const ideia = String(b.ideia || '').trim();
-      if (ideia.length < 5) return res.status(400).json({ message: 'Conte sobre o que é o vídeo' });
-      const cenas = await motionService.motionScript({ ideia: ideia.slice(0, 2000), duracao: Number(b.duracao) || 30, idioma: b.idioma, anterior: Array.isArray(b.anterior) ? b.anterior : undefined });
+      const briefing = String(b.briefing || b.ideia || '').trim();
+      if (briefing.length < 5) return res.status(400).json({ message: 'Conte sobre o que é o vídeo' });
+      const cenas = await motionService.motionScript({
+        briefing: briefing.slice(0, 6000), entendimento: b.entendimento && typeof b.entendimento === 'object' ? b.entendimento : undefined,
+        respostas: b.respostas && typeof b.respostas === 'object' ? b.respostas : undefined,
+        duracao: Number(b.duracao) || 30, idioma: b.idioma, modo: b.modo === 'exato' ? 'exato' : 'melhorar',
+        anexos: Array.isArray(b.anexos) ? b.anexos.slice(0, 6).map((a: any) => ({ tipo: String(a?.tipo || ''), descricao: String(a?.descricao || a?.legenda || '').slice(0, 200) })) : undefined,
+        anterior: Array.isArray(b.anterior) ? b.anterior.slice(0, 12) : undefined,
+      });
       res.json({ cenas });
     } catch (error: any) {
       logger.error('[Motion] roteiro:', error?.message);
@@ -6549,19 +6587,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai-studio/motion/voice', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
+  app.get('/api/ai-studio/motion/voices', authMiddleware, (_req, res) => {
+    res.json({
+      voices: motionAudio.MOTION_VOICES.map((v) => ({ voiceId: v.id, name: v.nome, gender: v.genero, tag: v.estilo, previewUrl: v.preview })),
+      climas: Object.entries(motionAudio.CLIMAS).map(([v, c]) => ({ v, label: c.label })),
+    });
+  });
+
+  app.post('/api/ai-studio/motion/voice', authMiddleware, fullAccessMiddleware, studioLimit, studioAsync, async (req: any, res) => {
     try {
-      const cenas = (Array.isArray(req.body?.cenas) ? req.body.cenas : [])
-        .map((c: any) => ({ texto: String(c?.texto || '').slice(0, 600), visual: String(c?.visual || '').slice(0, 600) }))
-        .filter((c: any) => c.texto.trim());
+      const cenas = (Array.isArray(req.body?.cenas) ? req.body.cenas : []).slice(0, 12)
+        .map((c: any) => ({ tela: String(c?.tela || '').slice(0, 120), fala: String(c?.fala || c?.texto || '').slice(0, 600), visual: String(c?.visual || '').slice(0, 600), anexo: Number.isInteger(c?.anexo) ? c.anexo : null }))
+        .filter((c: any) => c.fala.trim());
       if (!cenas.length) return res.status(400).json({ message: 'O roteiro está vazio' });
       const r = await motionService.motionVoice({ cenas, voice: req.body?.voice });
       const url = await new ObjectStorageService().uploadBuffer(r.audio, 'ai-audio', r.mime, 'mp3');
-      void aiGenStore.saveGen({ userId: req.user.id, type: 'audio', url, title: 'Dublagem do Motion', prompt: cenas.map((c: any) => c.texto).join(' ').slice(0, 500) });
-      res.json({ audioUrl: url, words: r.words, scenes: r.scenes, duration: r.duration });
+      void aiGenStore.saveGen({ userId: req.user.id, type: 'audio', url, title: 'Dublagem do Motion', prompt: cenas.map((c: any) => c.fala).join(' ').slice(0, 500) });
+      res.json({ audioUrl: url, words: r.words, scenes: r.scenes, duration: r.duration, checagem: r.checagem });
     } catch (error: any) {
       logger.error('[Motion] dublagem:', error?.message);
       res.status(500).json({ message: error?.message || 'Erro ao gerar a dublagem' });
+    }
+  });
+
+  // Trilha e efeitos: gerados uma única vez (biblioteca compartilhada) e reaproveitados em todos os vídeos.
+  app.post('/api/ai-studio/motion/audio', authMiddleware, fullAccessMiddleware, studioLimit, studioAsync, async (req: any, res) => {
+    try {
+      const b = req.body || {};
+      const up = (buf: Buffer, mime: string) => new ObjectStorageService().uploadBuffer(buf, 'motion-audio', mime, 'mp3');
+      const [musica, efeitos] = await Promise.all([
+        b.musica && motionAudio.CLIMAS[b.musica] ? motionAudio.trilha(String(b.musica), up) : Promise.resolve(null),
+        b.efeitos ? motionAudio.efeitos(Array.isArray(b.nomes) && b.nomes.length ? b.nomes.map(String) : Object.keys(motionAudio.SFX), up) : Promise.resolve({}),
+      ]);
+      res.json({ musicaUrl: musica, efeitos });
+    } catch (error: any) {
+      logger.error('[Motion] trilha/efeitos:', error?.message);
+      res.status(500).json({ message: error?.message || 'Erro ao preparar a trilha' });
     }
   });
 
@@ -6570,11 +6631,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const b = req.body || {};
       const scenes = Array.isArray(b.scenes) ? b.scenes.slice(0, 12) : [];
       if (!scenes.length || !(Number(b.duration) > 0)) return res.status(400).json({ message: 'Gere a dublagem antes da animação' });
+      const assets = (Array.isArray(b.assets) ? b.assets : []).slice(0, 6)
+        .filter((a: any) => typeof a?.url === 'string' && /^https?:\/\//.test(a.url))
+        .map((a: any) => ({ url: a.url, tipo: String(a.tipo || ''), descricao: String(a.descricao || a.legenda || '').slice(0, 200) }));
       const html = await motionService.motionAnimate({
-        scenes, duration: Number(b.duration), formato: String(b.formato || '9:16'), estilo: String(b.estilo || 'bold'),
-        cores: Array.isArray(b.cores) ? b.cores.slice(0, 6).map(String) : undefined, idioma: b.idioma,
+        scenes, duration: Number(b.duration), formato: String(b.formato || '9:16'), estilo: String(b.estilo || 'produto'),
+        cores: Array.isArray(b.cores) ? b.cores.slice(0, 6).map(String) : undefined, idioma: b.idioma, assets,
         instrucao: b.instrucao ? String(b.instrucao).slice(0, 800) : undefined,
-        htmlAnterior: b.instrucao && typeof b.htmlAnterior === 'string' ? b.htmlAnterior.slice(0, 120_000) : undefined,
+        htmlAnterior: b.instrucao && typeof b.htmlAnterior === 'string' ? b.htmlAnterior.slice(0, 200_000) : undefined,
       });
       res.json({ html });
     } catch (error: any) {

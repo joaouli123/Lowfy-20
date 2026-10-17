@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  /* Composição própria do vídeo (o kit já cuida de fontes, cores, sombras e peças). */
+  .hl { top: 8.5%; }
+  .zone { position: absolute; left: 0; right: 0; top: 24%; height: 52%; }
+  .c { position: absolute; left: 50%; top: 50%; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- Cena 1: problema (site lento) -->
+  <section class="k-scene" id="s0">
+    <h1 class="k-headline hl" id="h0"></h1>
+    <div class="zone">
+      <div class="c" id="s0-win" style="transform:translate(-50%,-50%)"></div>
+      <div class="c" style="transform:translate(-50%,240px)"><span class="k-chip warn" id="s0-chip">Carregando… <b class="k-num" id="s0-sec">0,0</b>s</span></div>
+    </div>
+  </section>
+  <!-- Cena 2: abandono (plugins + carimbo + anotação) -->
+  <section class="k-scene" id="s1">
+    <h1 class="k-headline hl" id="h1"></h1>
+    <div class="zone">
+      <div class="c k-card" id="s1-card" style="width:860px;transform:translate(-50%,-50%)">
+        <div class="k-row" style="justify-content:space-between"><p class="k-card-title" style="margin:0">Plugins</p><span class="k-chip bad" id="s1-n">14 atualizações</span></div>
+        <div class="k-divider"></div>
+        <div class="k-col" id="s1-list"></div>
+      </div>
+      <div class="c" id="s1-stamp" style="transform:translate(110px,-330px)"></div>
+      <div class="c" id="s1-note" style="transform:translate(60px,250px)"></div>
+    </div>
+  </section>
+  <!-- Cena 3: solução (cursor clica, tudo fica verde) -->
+  <section class="k-scene" id="s2">
+    <h1 class="k-headline hl" id="h2"></h1>
+    <div class="zone">
+      <div class="c k-card" id="s2-card" style="width:860px;transform:translate(-50%,-50%)">
+        <div class="k-row" style="justify-content:space-between"><p class="k-card-title" style="margin:0">Manutenção</p><span class="k-chip good">Online</span></div>
+        <div class="k-divider"></div>
+        <div class="k-col" id="s2-rows"></div>
+        <div class="k-row" style="margin-top:22px;justify-content:space-between">
+          <div><div class="k-small">Velocidade</div><div class="k-stat-value" style="font-size:96px" id="s2-speed">32</div></div>
+          <div id="s2-gauge"></div>
+          <div id="s2-btn"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- Cena 4: prova (número grande + faixa de nichos) -->
+  <section class="k-scene" id="s3">
+    <div class="zone" style="top:14%">
+      <div class="c" style="transform:translate(-50%,-60%);text-align:center">
+        <div class="k-stat-value" id="s3-num" style="font-size:300px">+0</div>
+        <div class="k-h3" id="s3-lbl" style="margin-top:10px">projetos <span class="k-serif k-em">entregues</span></div>
+      </div>
+      <div class="c" style="left:0;transform:translate(0,330px);width:100%;overflow:hidden">
+        <div id="s3-mq" style="display:flex;gap:14px;white-space:nowrap;width:max-content"></div>
+      </div>
+    </div>
+  </section>
+  <!-- Cena 5: chamada final -->
+  <section class="k-scene" id="s4">
+    <h1 class="k-headline hl k-center-text" id="h4"></h1>
+    <div class="zone">
+      <div class="c" id="s4-btn" style="transform:translate(-50%,-50%)"></div>
+      <div class="c" id="s4-badge" style="transform:translate(-50%,150px)"></div>
+    </div>
+  </section>
+</div>
+<script>
+(function () {
+  var D = window.MOTION, W = D.width, H = D.height;
+  K.theme(D.theme || "produto");
+  K.background();
+  var $ = function (id) { return document.getElementById(id); };
+
+  // --- montagem (uma vez) ---
+  $("s0-win").innerHTML = K.ui.browser({ url: "clinicavitta.com.br", w: 880, h: 560, site: { brand: "Clínica Vitta", title: "Sorrisos que *transformam* vidas", cta: "Agendar" } });
+  var plugins = [["Elementor", "3.14.1"], ["WooCommerce", "7.9.0"], ["Contact Form 7", "5.7.7"]];
+  $("s1-list").innerHTML = plugins.map(function (p) { return '<div class="k-row" style="justify-content:space-between"><div class="k-row">' + K.icon("plug", 34, "var(--k-muted)") + '<div><b style="font-size:32px">' + p[0] + '</b><div class="k-small">Versão ' + p[1] + '</div></div></div><span class="k-chip warn s1-chip">Nova versão</span></div>'; }).join("");
+  $("s1-stamp").innerHTML = K.ui.stamp("Vencida");
+  $("s1-note").innerHTML = K.ui.note("quebrado!", { dir: "up" });
+  var rows = ["Atualizações", "Segurança", "Backup diário"];
+  $("s2-rows").innerHTML = rows.map(function (r, i) { return '<div class="k-row" style="justify-content:space-between"><b style="font-size:32px">' + r + '</b><span class="s2-check" data-i="' + i + '">' + K.ui.check() + "</span></div>"; }).join("");
+  $("s2-gauge").innerHTML = K.ui.gauge(200);
+  $("s2-btn").innerHTML = K.ui.button("Atualizar tudo", { icon: "bolt", iconLeft: true, style: "height:84px;font-size:30px;padding:0 34px" });
+  var nichos = ["Clínicas", "E-commerce", "Advocacia", "Restaurantes", "Academias", "Imobiliárias", "Estética", "Contabilidade"];
+  $("s3-mq").innerHTML = nichos.concat(nichos).map(function (n) { return K.ui.chip(n, "accent"); }).join("");
+  $("s4-btn").innerHTML = K.ui.button("Fale no WhatsApp", { icon: "whatsapp", iconLeft: true });
+  $("s4-badge").innerHTML = K.ui.badge("Garantia de 7 dias");
+  K.sfx("sucesso", D.scenes[2].start + 2.1);
+
+  window.renderFrame = function (t) {
+    K.backgroundFrame(t);
+
+    // Cena 1
+    var a = K.scene($("s0"), t, 0);
+    if (a.on) {
+      K.headline($("h0"), t, 0);
+      K.set($("s0-win"), K.enterS(t, 0.25, { y: 120, rx: 18, blur: 20, dur: 1 }), K.tiltS(t, 0, a.end, { rxFrom: 10, rxTo: 3, ryFrom: -8, ryTo: 6 }), K.floatS(t, { amp: 8 }));
+      K.set($("s0-chip"), K.popS(t, 1.1));
+      K.count($("s0-sec"), t, 1.1, a.end - 1.1, 0, 8, { decimals: 1, ease: "linear" });
+    }
+
+    // Cena 2
+    var b = K.scene($("s1"), t, 1);
+    if (b.on) {
+      K.headline($("h1"), t, 1);
+      K.set($("s1-card"), K.enterS(t, b.start + 0.1, { y: 90, blur: 18 }), K.floatS(t, { amp: 6, phase: 0.3 }));
+      K.$$(".s1-chip").forEach(function (el, i) { K.set(el, K.popS(t, b.start + 0.6 + i * 0.18)); });
+      K.set($("s1-stamp"), K.stampS(t, b.start + 1.4));
+      K.set($("s1-note"), K.enterS(t, b.start + 1.9, { y: 0, blur: 6, dur: 0.3 }));
+      K.draw(K.$("#s1-note .k-arrow"), t, b.start + 1.9, 0.5);
+    }
+
+    // Cena 3
+    var c = K.scene($("s2"), t, 2);
+    if (c.on) {
+      K.headline($("h2"), t, 2);
+      K.set($("s2-card"), K.enterS(t, c.start + 0.05, { y: 90 }), K.floatS(t, { amp: 6, phase: 0.6 }));
+      var click = c.start + 1.5;
+      K.cursor(t, [{ t: c.start + 0.6, x: W * 0.55, y: H * 0.78 }, { t: click, x: W * 0.74, y: H * 0.585, click: true }], { label: "Você", hideAt: c.end - 0.2 });
+      K.set($("s2-btn"), { scale: t >= click && t < click + 0.2 ? 0.95 : 1 });
+      K.$$(".s2-check").forEach(function (el, i) { K.set(el, K.popS(t, click + 0.25 + i * 0.15)); });
+      K.count($("s2-speed"), t, click + 0.2, 1.2, 32, 96);
+      K.gauge($("s2-gauge"), t, click + 0.2, 1.2, t < click + 0.2 ? 32 : 96, t < click + 0.4 ? "var(--k-bad)" : "var(--k-good)");
+    } else K.cursor(t, []);
+
+    // Cena 4
+    var d = K.scene($("s3"), t, 3);
+    if (d.on) {
+      K.set($("s3-num"), K.enterS(t, d.start, { y: 60, blur: 22, scale: 0.9 }), K.cameraS(t, d.start, d.end, { to: 1.05 }));
+      K.count($("s3-num"), t, d.start + 0.1, 1.6, 0, 1600, { prefix: "+" });
+      K.set($("s3-lbl"), K.enterS(t, d.start + 0.5));
+      K.marquee($("s3-mq"), t, 90);
+    }
+
+    // Cena 5
+    var e = K.scene($("s4"), t, 4);
+    if (e.on) {
+      K.headline($("h4"), t, 4);
+      K.set($("s4-btn"), K.popS(t, e.start + 0.4, { from: 0.6 }), K.floatS(t, { amp: 5 }));
+      K.sheen(K.$("#s4-btn .k-btn"), t, e.start + 1);
+      K.set($("s4-badge"), K.enterS(t, e.start + 0.9, { y: 30 }));
+    }
+  };
+  window.renderFrame(0);
+})();
+</script>
+</body>
+</html>

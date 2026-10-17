@@ -474,6 +474,28 @@ ${user}`, config: { temperature } as any });
   ]);
 }
 
+/**
+ * JSON a partir de texto + imagens (data URL ou https). OpenAI com visão; sem ela ou se falhar,
+ * cai no texto puro (as imagens viram só as legendas que vierem no prompt).
+ */
+export async function visionJson(system: string, user: string, images: string[], temperature = 0.4): Promise<any> {
+  if (OPENAI_KEY && images.length && usable("openai", OPENAI_KEY)) {
+    try {
+      const model = process.env.OPENAI_VISION_MODEL || process.env.OPENAI_COPY_MODEL || "gpt-4o";
+      const res = await openai().chat.completions.create({
+        model, temperature, response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: [{ type: "text", text: user }, ...images.slice(0, 8).map((url) => ({ type: "image_url" as const, image_url: { url, detail: "auto" as const } }))] },
+        ],
+      });
+      usageOpenAI(model, res);
+      return parseJson(res.choices[0]?.message?.content || "{}");
+    } catch (e) { markDown("openai", e); }
+  }
+  return llmJson(system, user, temperature);
+}
+
 const LANDING_BLOCKS_SYSTEM = `Você é um web designer de páginas de pré-venda (advertorial/landing) de alta conversão. Gere uma página COMPLETA a partir da descrição do usuário.
 Responda SOMENTE com JSON válido neste formato:
 {"name":"Nome curto da página","elements":[{"type":"<tipo>","content":"<texto/url>","styles":{...}}]}
