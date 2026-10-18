@@ -262,7 +262,8 @@ export function registerAdminAnalyticsRoutes(app: Express, opts: { guard?: any[]
       if (busca) { params.push(`%${busca}%`); where.push(`(u.name ILIKE $${params.length} OR u.email ILIKE $${params.length})`); }
       if (filtro === "new") where.push(RANGE("u.created_at"));
       if (filtro === "subscribers") where.push(`u.subscription_status = 'active'`);
-      if (filtro === "inactive") where.push(`COALESCE(u.last_seen_at, ls.last_login) < now() - interval '30 days'`);
+      // Sem registro de visita/login (sessões vencidas são apagadas) vale a data de cadastro.
+      if (filtro === "inactive") where.push(`COALESCE(GREATEST(u.last_seen_at, ls.last_login::timestamptz), u.created_at::timestamptz) < now() - interval '30 days'`);
       const W = where.length ? `WHERE ${where.join(" AND ")}` : "";
       const ORD = ordem === "signup" ? "created_at DESC NULLS LAST"
         : ordem === "views" ? "views DESC, created_at DESC"
