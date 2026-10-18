@@ -257,6 +257,11 @@ export function fullAccessMiddleware(req: Request & { user?: any }, res: Respons
   if (!req.user) {
     return res.status(401).json({ message: "Não autenticado" });
   }
+  // Estúdio IA e E-books: liberados para quem paga em créditos (a geração já foi cobrada),
+  // e as telas/listas do Estúdio abrem para qualquer conta logada (sem custo).
+  if ((req as any).acessoPorCreditos || /^\/api\/(ai-studio|ebook)\//.test(req.path)) {
+    return next();
+  }
   if (!isSubscriptionActive(req.user)) {
     const daysExpired = getSubscriptionDaysExpired(req.user);
     return res.status(403).json({

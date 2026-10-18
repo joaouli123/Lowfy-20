@@ -12,6 +12,7 @@ import { StudioProvider, useStudio } from "@/components/studio/store";
 import type { ToolId } from "@/components/studio/types";
 import BriefBar from "@/components/studio/BriefBar";
 import ToolHistory from "@/components/studio/ToolHistory";
+import CreditosBar from "@/components/studio/Creditos";
 import VoicesPanel from "@/components/studio/VoicesPanel";
 import CriativoPage from "@/components/studio/CriativoPage";
 import CopyPage from "@/components/studio/CopyPage";
@@ -104,6 +105,7 @@ function StudioShell() {
     return (
       <>
         <AvisoIaEmTestes />
+        <CreditosBar />
         <Full />
         {current !== "ebook" && <ToolHistory tool={current} />}
       </>
@@ -113,6 +115,7 @@ function StudioShell() {
   return (
     <div className="space-y-4 pb-4">
       <AvisoIaEmTestes />
+      <CreditosBar />
       <StudioHeader
         projectName={projectName}
         setProjectName={setProjectName}

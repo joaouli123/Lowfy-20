@@ -25,8 +25,8 @@ export async function postLong<T>(url: string, body: any, maxMs = 15 * 60_000): 
     if (r.status === 404) throw new Error("O sistema foi atualizado enquanto gerava. Tente de novo.");
     if (!r.ok) continue; // oscilação de rede: tenta de novo
     const j = await r.json();
-    if (j.status === "done") return j.result as T;
-    if (j.status === "error") throw new Error(j.error || "Erro na geração");
+    if (j.status === "done") { window.dispatchEvent(new CustomEvent("lowfy:creditos")); return j.result as T; }
+    if (j.status === "error") { window.dispatchEvent(new CustomEvent("lowfy:creditos")); throw new Error(j.error || "Erro na geração"); }
   }
   throw new Error("A geração demorou demais. Tente de novo.");
 }

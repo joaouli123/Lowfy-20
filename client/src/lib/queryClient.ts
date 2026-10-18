@@ -53,6 +53,14 @@ export async function apiRequest(
 
   const response = await fetch(url, options);
 
+  // Créditos do Estúdio: avisa a barra de saldo (gastou) ou abre a compra (faltou).
+  if (response.headers.get('X-Creditos-Saldo') != null) window.dispatchEvent(new CustomEvent('lowfy:creditos'));
+  if (response.status === 402) {
+    const errorData = await response.json().catch(() => ({}));
+    if (errorData.code === 'SEM_CREDITOS') window.dispatchEvent(new CustomEvent('lowfy:sem-creditos', { detail: errorData }));
+    throw new Error(errorData.message || 'Créditos insuficientes');
+  }
+
   if (response.status === 401) {
     const isLoginOrRegister = url.includes('/api/auth/login') || url.includes('/api/auth/register');
     

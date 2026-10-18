@@ -192,6 +192,7 @@ export default function AdminCustos() {
               <TabsTrigger value="ferramentas">Por ferramenta</TabsTrigger>
               <TabsTrigger value="provedores">Por provedor</TabsTrigger>
               <TabsTrigger value="usuarios">Por usuário</TabsTrigger>
+              <TabsTrigger value="creditos">Créditos</TabsTrigger>
             </TabsList>
 
             <TabsContent value="ferramentas" className="mt-4">
@@ -295,6 +296,9 @@ export default function AdminCustos() {
                 )}
               </div>
             </TabsContent>
+            <TabsContent value="creditos" className="mt-4">
+              <CreditosAdmin />
+            </TabsContent>
           </Tabs>
 
           <p className="text-xs text-muted-foreground flex items-start gap-1.5">
@@ -396,6 +400,7 @@ function UserDetail({ id, params, onClose }: { id: string | null; params: Record
         </DialogHeader>
         {q.isLoading ? <TableSkeleton rows={5} /> : d ? (
           <div className="space-y-4">
+            {id && <AjusteCreditos userId={id} />}
             <div className="flex flex-wrap gap-1.5">
               {d.byTool.map((t: any) => (
                 <StatusBadge key={t.tool} tone="neutral">{toolLabel(t.tool)}: {t.events}× · {formatBRLValue(t.costUsd * d.fx.rate)}</StatusBadge>
@@ -486,7 +491,7 @@ function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void 
             <div>
               <Label>Quem pode usar a IA (gerar criativo, copy, voz, vídeo, Motion, e-book)</Label>
               <div className="grid grid-cols-2 gap-2 mt-2">
-                {([["admin", "Só a equipe", "Só administradores geram. Ninguém mais gasta seus créditos."], ["assinantes", "Assinantes", "Todos com plano completo podem gerar (com os limites por hora)."]] as const).map(([v, t, d]) => (
+                {([["admin", "Só a equipe (pausado)", "Só administradores geram. A venda de créditos fica escondida."], ["assinantes", "Todos, com créditos", "Cada geração desconta créditos do usuário (comprados ou bônus de assinante). A equipe não paga."]] as const).map(([v, t, d]) => (
                   <button key={v} type="button" onClick={() => set({ iaAcesso: v })}
                     className={`rounded-lg border p-3 text-left text-sm transition ${(s.iaAcesso || "admin") === v ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:bg-muted/50"}`}>
                     <p className="font-medium">{t}</p>
@@ -540,6 +545,100 @@ function Field({ label, hint, value, onChange }: { label: string; hint?: string;
       <Label className="text-xs">{label}</Label>
       <Input className="h-9 mt-1" inputMode="decimal" value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
       {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+/** Créditos do Estúdio: vendas, consumo, carteiras e ajuste manual. */
+function CreditosAdmin() {
+  const q = useQuery<any>({
+    queryKey: ["/api/admin/creditos"],
+    queryFn: async () => (await apiRequest("GET", "/api/admin/creditos")).json(),
+    staleTime: 30_000,
+  });
+  const d = q.data;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-xl border bg-card shadow-sm p-4">
+          <p className="text-xs text-muted-foreground">Vendas de créditos (30 dias)</p>
+          <p className="text-2xl font-semibold tabular-nums mt-1">{d ? formatBRLValue((d.vendas30d.centavos || 0) / 100) : "—"}</p>
+          <p className="text-xs text-muted-foreground">{d ? `${formatNumber(d.vendas30d.pedidos)} pedidos pagos · ${formatNumber(d.vendas30d.creditos)} créditos` : ""}</p>
+        </div>
+        <div className="rounded-xl border bg-card shadow-sm p-4">
+          <p className="text-xs text-muted-foreground">Créditos usados (30 dias)</p>
+          <p className="text-2xl font-semibold tabular-nums mt-1">{d ? formatNumber(d.uso30d.creditos) : "—"}</p>
+          <p className="text-xs text-muted-foreground">{d ? `${formatNumber(d.uso30d.geracoes)} gerações pagas` : ""}</p>
+        </div>
+        <AjusteCreditos />
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+          <p className="text-sm font-semibold px-4 pt-4 pb-2">Pedidos recentes</p>
+          {q.isLoading ? <TableSkeleton rows={4} /> : !d?.pedidos.length ? <p className="text-sm text-muted-foreground px-4 pb-4">Nenhuma compra ainda.</p> : (
+            <Table>
+              <TableHeader><TableRow><TableHead>Cliente</TableHead><TableHead>Pacote</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {d.pedidos.map((o: any) => (
+                  <TableRow key={o.id}>
+                    <TableCell><p className="font-medium truncate max-w-[180px]">{o.name}</p><p className="text-xs text-muted-foreground truncate max-w-[180px]">{o.email}</p></TableCell>
+                    <TableCell className="whitespace-nowrap">{o.pacote} · {formatNumber(o.creditos)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRLValue(o.valor_centavos / 100)}</TableCell>
+                    <TableCell><StatusBadge tone={o.status === "pago" ? "success" : o.status === "pendente" ? "warning" : "neutral"}>{o.status}</StatusBadge></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+          <p className="text-sm font-semibold px-4 pt-4 pb-2">Quem tem saldo</p>
+          {q.isLoading ? <TableSkeleton rows={4} /> : !d?.carteiras.length ? <p className="text-sm text-muted-foreground px-4 pb-4">Ninguém com saldo.</p> : (
+            <Table>
+              <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead className="text-right">Comprados</TableHead><TableHead className="text-right">Bônus</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {d.carteiras.map((w: any) => (
+                  <TableRow key={w.user_id}>
+                    <TableCell><p className="font-medium truncate max-w-[200px]">{w.name}</p><p className="text-xs text-muted-foreground truncate max-w-[200px]">{w.email}</p></TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(w.saldo)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(w.bonus)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Dar (ou tirar, com número negativo) créditos de alguém, com motivo registrado no extrato. */
+function AjusteCreditos({ userId }: { userId?: string }) {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [qtd, setQtd] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const m = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/admin/creditos/ajuste", { userId, email: userId ? undefined : email, creditos: Number(qtd), motivo })).json(),
+    onSuccess: () => {
+      toast({ title: "Créditos ajustados" });
+      setQtd(""); setMotivo(""); if (!userId) setEmail("");
+      void queryClient.invalidateQueries({ queryKey: ["/api/admin/creditos"] });
+    },
+    onError: (e: any) => toast({ title: "Não deu para ajustar", description: e?.message, variant: "destructive" }),
+  });
+  return (
+    <div className="rounded-xl border bg-card shadow-sm p-4 space-y-2">
+      <p className="text-sm font-semibold">{userId ? "Créditos deste usuário" : "Dar créditos"}</p>
+      {!userId && <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail do usuário" className="h-9" />}
+      <div className="flex gap-2">
+        <Input value={qtd} onChange={(e) => setQtd(e.target.value)} placeholder="Ex.: 100 ou -50" inputMode="numeric" className="h-9 w-32" />
+        <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo (vai para o extrato)" className="h-9" />
+      </div>
+      <Button size="sm" className="w-full" disabled={m.isPending || !Number(qtd) || !motivo.trim() || (!userId && !email.includes("@"))} onClick={() => m.mutate()}>
+        {m.isPending ? "Salvando…" : "Aplicar"}
+      </Button>
     </div>
   );
 }

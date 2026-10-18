@@ -100,8 +100,11 @@ class PodpayService {
    */
   async createPixTransaction(params: CreateTransactionParams): Promise<PodpayTransactionResponse> {
     try {
-      const domain = process.env.REPLIT_DOMAINS?.split(',')[0] || 'your-repl-url.replit.app';
-      const postbackUrl = `https://${domain}/api/webhooks/podpay`;
+      // Endereço que o Podpay chama ao confirmar o Pix. (Antes dependia de REPLIT_DOMAINS, que não
+      // existe no VPS: o aviso ia para um domínio inexistente e Pix pago ficava sem ativar.)
+      const base = (process.env.PODPAY_POSTBACK_BASE_URL || process.env.APP_URL
+        || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 'https://lowfy.com.br')).replace(/\/+$/, '');
+      const postbackUrl = `${base}/api/webhooks/podpay`;
       
       logger.debug('[Podpay] Creating PIX transaction:', {
         orderId: params.orderId,

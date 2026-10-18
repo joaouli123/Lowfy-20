@@ -80,6 +80,7 @@ import { registerAdminFinanceRoutes } from "./adminFinance";
 import { registerAdminCheckoutRoutes } from "./adminCheckout";
 import { registerSubscriptionRefundRoutes } from "./subscriptionRefunds";
 import { iaLiberada } from "./services/usage";
+import { cobrarIaMiddleware, registerCreditosRoutes, webhookCreditos } from "./creditos";
 import { registerHackAdsRoutes } from "./hackAds/routes";
 import { generateEbook } from "./services/ebookStudio";
 import * as ebookBuilder from "./services/ebookBuilder";
@@ -413,19 +414,9 @@ const twoFactorLimiter = createDistributedRateLimiter({
 export async function registerRoutes(app: Express): Promise<Server> {
   // IA paga (gasta crédito de OpenAI/ElevenLabs/Anthropic/Kie): por enquanto só a equipe usa.
   // O admin libera para os assinantes em Admin → Consumo e custos → "Quem pode usar a IA".
-  const IA_PAGA = [
-    /^\/api\/ai-studio\/(image|carousel|copy|copy-kit|tts|video|avatar|clone-voice|motion\/(brief|script|voice|audio|animate))\/?$/,
-    /^\/api\/ebook\/(v2\/(outline|build|redo-image)|generate|gen-image)\/?$/,
-    /^\/api\/landing\/(generate|vibe)\/?$/,
-    /^\/api\/quiz\/generate\/?$/,
-  ];
-  app.use((req: any, res, next) => {
-    if (req.method !== 'POST' || !IA_PAGA.some((r) => r.test(req.path))) return next();
-    authMiddleware(req, res, () => {
-      if (iaLiberada(req.user)) return next();
-      res.status(403).json({ code: 'IA_SO_EQUIPE', message: 'As ferramentas de IA estão em fase de testes com a equipe. Em breve liberadas para os assinantes.' });
-    });
-  });
+  // IA paga: a equipe gera de graça; os demais pagam em créditos (server/creditos.ts).
+  // A cobrança é feita antes de gerar e volta sozinha se a geração falhar.
+  app.use(cobrarIaMiddleware());
 
   // Middleware para cookies (tracking de visualizações únicas)
   app.use(cookieParser());
@@ -919,6 +910,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cpf,
         passwordHash,
         accountStatus: 'pending', // Conta pendente até verificar telefone
+        // Cadastro gratuito: sem plano (só as áreas livres). O acesso vem da compra.
+        // (O default da coluna é 'full' porque compras e importação de clientes dependem dele.)
+        accessPlan: null,
       });
 
       // NÃO criar sessão aqui - sessão será criada APÓS verificação do telefone
@@ -3624,6 +3618,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const transactionId = data.id;
         const status = data.status;
         const externalRef = data.externalRef;
+
+        // Compra de créditos do Estúdio (pedido próprio, não é marketplace nem assinatura).
+        if (await webhookCreditos(String(transactionId), String(status))) {
+          return res.json({ received: true });
+        }
 
         logger.debug(`[Podpay Webhook] Transaction ${transactionId} - Status: ${status}`);
 
@@ -6468,7 +6467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let code = 200;
     res.status = (c: number) => { code = c; return res; };
     res.json = (body: any) => {
-      if (code >= 400) { job.status = 'error'; job.error = body?.message || 'Erro na geração'; }
+      if (code >= 400) { job.status = 'error'; job.error = body?.message || 'Erro na geração'; void req.devolverCreditos?.('Geração com erro'); }
       else { job.status = 'done'; job.result = body; }
       return res;
     };
@@ -6567,10 +6566,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rest = job.slides.map((_, i) => i).slice(1);
       for (let k = 0; k < rest.length; k += 3) await Promise.all(rest.slice(k, k + 3).map((i) => drawSlide(i, base)));
       job.status = 'done';
+      const falhos = job.slides.filter((s) => !s.url).length;
+      if (falhos) void req.devolverCreditos?.(`${falhos} slide(s) não gerado(s)`, 12 * falhos);
       void aiGenStore.saveGen({ userId: req.user.id, tool: 'criativo', type: 'image', url: job.slides[0].url, title: `Carrossel: ${tema}`.slice(0, 80), prompt: job.slides.map((s) => s.titulo).join(' | ').slice(0, 500) });
     } catch (e: any) {
       logger.error('[AI Studio] Erro no carrossel:', e?.message);
       job.status = 'error';
+      void req.devolverCreditos?.('Carrossel não concluído');
       job.error = e?.message || 'Erro ao gerar carrossel';
     }
   });
@@ -7046,6 +7048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) {
       logger.error('[Ebook v2] montagem:', e?.message);
       job.status = 'error';
+      void req.devolverCreditos?.('E-book não concluído');
       job.error = e?.message || 'Erro ao gerar o livro';
     }
   });
@@ -19865,6 +19868,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Consumo e custos de IA (plataforma e por usuário) + receita do período.
   registerAdminCostRoutes(app);
+  registerCreditosRoutes(app);
   registerAdminAnalyticsRoutes(app);
   registerAdminFinanceRoutes(app);
   registerAdminCheckoutRoutes(app);
