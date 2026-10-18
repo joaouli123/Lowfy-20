@@ -89,9 +89,7 @@ const PLRLicense = lazy(() => import("@/pages/legal/PLRLicense"));
 const Copyright = lazy(() => import("@/pages/legal/Copyright"));
 
 // Lazy load admin pages
-const AdminHome = lazy(() => import("@/pages/Admin"));
 const AdminAnalytics = lazy(() => import("@/pages/admin/AdminAnalytics"));
-const AdminClonagemAnalytics = lazy(() => import("@/pages/admin/AdminClonagemAnalytics"));
 const AdminUsuarios = lazy(() => import("@/pages/admin/AdminUsuarios"));
 const AdminConteudo = lazy(() => import("@/pages/admin/AdminConteudo"));
 const AdminCursos = lazy(() => import("@/pages/admin/AdminCursos"));
@@ -274,13 +272,13 @@ function Router() {
                 <Route path="/forum/:idOrSlug" component={ForumTopic} />
                 <Route path="/set-password" component={SetPassword} />
                 <Route path="/admin">
-                  {() => <AdminRoute><AdminHome /></AdminRoute>}
+                  <Redirect to="/admin/analytics" />
                 </Route>
                 <Route path="/admin/analytics">
                   {() => <AdminRoute><AdminAnalytics /></AdminRoute>}
                 </Route>
                 <Route path="/admin/clonagem-analytics">
-                  {() => <AdminRoute><AdminClonagemAnalytics /></AdminRoute>}
+                  <Redirect to="/admin/analytics?tab=criadores" />
                 </Route>
                 <Route path="/admin/usuarios">
                   {() => <AdminRoute><AdminUsuarios /></AdminRoute>}
@@ -377,6 +375,29 @@ function GoogleAnalyticsInitializer() {
   return null;
 }
 
+// Registra a página aberta (Admin → Analytics → Páginas). Silencioso: nunca atrapalha a navegação.
+function PageViewTracker() {
+  const [location] = useLocation();
+  useEffect(() => {
+    let sid = "";
+    try {
+      sid = sessionStorage.getItem("lowfy_sid") || "";
+      if (!sid) { sid = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem("lowfy_sid", sid); }
+    } catch {}
+    const t = setTimeout(() => {
+      fetch("/api/track/pv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        keepalive: true,
+        body: JSON.stringify({ path: location, sid, ref: (() => { try { return document.referrer ? new URL(document.referrer).hostname : ""; } catch { return ""; } })() }),
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [location]);
+  return null;
+}
+
 function HeroUIRouterProvider({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
   return (
@@ -408,6 +429,7 @@ function App() {
                   <SEOProvider>
                     <MetaPixelInitializer />
                     <GoogleAnalyticsInitializer />
+                    <PageViewTracker />
                     <Toaster />
                     <Router />
                   </SEOProvider>

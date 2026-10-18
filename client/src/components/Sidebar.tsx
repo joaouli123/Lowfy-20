@@ -281,12 +281,6 @@ export default function Sidebar() {
       testId: "nav-admin-analytics"
     },
     {
-      name: "Analytics de Clonagem",
-      href: "/admin/clonagem-analytics",
-      icon: Globe,
-      testId: "nav-admin-cloning"
-    },
-    {
       name: "Usuários",
       href: "/admin/usuarios",
       icon: Users,
