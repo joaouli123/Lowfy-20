@@ -139,8 +139,10 @@ function PLRsManagement() {
     setCurrentPage(1);
   };
 
+  // O endpoint público pagina em 50; o admin precisa do catálogo inteiro (a paginação aqui é local).
   const { data: plrsResponse, isLoading } = useQuery<{ data: PLRWithRelations[], total: number }>({
-    queryKey: ["/api/plrs"],
+    queryKey: ["/api/plrs", "admin-todos"],
+    queryFn: async () => (await apiRequest("GET", "/api/plrs?limit=5000")).json(),
   });
 
   const plrs = plrsResponse?.data;
@@ -178,7 +180,8 @@ function PLRsManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: { plr: InsertPLR; downloads: any[] }) => {
-      const plr: any = await apiRequest("POST", "/api/plrs", data.plr);
+      // apiRequest devolve a Response: sem o .json() o id saía undefined e os downloads não eram vinculados
+      const plr: any = await (await apiRequest("POST", "/api/plrs", data.plr)).json();
 
       if (data.downloads && data.downloads.length > 0) {
         for (const download of data.downloads) {

@@ -78,6 +78,7 @@ import { registerAdminCostRoutes } from "./adminCosts";
 import { registerAdminAnalyticsRoutes } from "./adminAnalytics";
 import { registerAdminFinanceRoutes } from "./adminFinance";
 import { registerAdminCheckoutRoutes } from "./adminCheckout";
+import { registerSubscriptionRefundRoutes } from "./subscriptionRefunds";
 import { iaLiberada } from "./services/usage";
 import { registerHackAdsRoutes } from "./hackAds/routes";
 import { generateEbook } from "./services/ebookStudio";
@@ -3086,36 +3087,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.error('[Refund Request] Error sending admin notification:', emailError);
       }
 
-      // For credit card payments, attempt automatic refund via Asaas
-      const providerPaymentId = subscription.providerTransactionId || subscription.providerSubscriptionId;
-      if (subscription.paymentMethod === 'credit_card' && providerPaymentId) {
+      // Cartão: estorno automático no gateway (valor integral da última cobrança paga).
+      // Antes mandava o valor em centavos para o Asaas (que espera reais), conferia um campo `success`
+      // que o Asaas não devolve e usava o id da assinatura como se fosse cobrança — nunca concluía.
+      if (subscription.paymentMethod === 'credit_card') {
         try {
-          await storage.updateSubscriptionRefundRequest(refundRequest.id, {
-            status: 'processing',
-          });
-
-          // Process refund via Asaas
-          const { refundPayment } = await import('./services/asaas');
-          const refundResult = await refundPayment(
-            providerPaymentId,
-            refundAmountCents
-          );
-
-          if (refundResult.success) {
-            await storage.updateSubscriptionRefundRequest(refundRequest.id, {
-              status: 'completed',
-              refundedViaProvider: true,
-              processedAt: new Date(),
-            });
-
-            logger.debug('[Refund Request] Credit card refund processed successfully via Asaas');
-          } else {
-            logger.warn('[Refund Request] Asaas refund returned unsuccessful:', refundResult);
-            // Keep as processing - admin will need to check
+          const { estornarNoGateway, gatewayDoEstorno } = await import('./subscriptionRefunds');
+          const assinaturaGateway = {
+            id: subscription.id,
+            provider: subscription.provider,
+            provider_transaction_id: subscription.providerTransactionId,
+            provider_subscription_id: subscription.providerSubscriptionId,
+            payment_method: subscription.paymentMethod,
+          };
+          if (gatewayDoEstorno(assinaturaGateway)) {
+            await storage.updateSubscriptionRefundRequest(refundRequest.id, { status: 'processing' });
+            const estorno = await estornarNoGateway(assinaturaGateway);
+            if (estorno.ok) {
+              await storage.updateSubscriptionRefundRequest(refundRequest.id, {
+                status: 'completed',
+                refundedViaProvider: true,
+                processedAt: new Date(),
+                adminNotes: `Automático: ${estorno.detalhe}`,
+              });
+              logger.info('[Refund Request] Estorno automático concluído no gateway');
+            } else {
+              // Fica "processing" com o motivo anotado: o admin resolve em Admin → Reembolsos
+              await storage.updateSubscriptionRefundRequest(refundRequest.id, { adminNotes: `Automático falhou: ${estorno.detalhe}` });
+              logger.warn('[Refund Request] Estorno automático falhou:', estorno.detalhe);
+            }
           }
         } catch (refundError) {
           logger.error('[Refund Request] Error processing automatic refund:', refundError);
-          // Keep as processing - admin will need to manually process
         }
       }
 
@@ -19866,6 +19869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAdminAnalyticsRoutes(app);
   registerAdminFinanceRoutes(app);
   registerAdminCheckoutRoutes(app);
+  registerSubscriptionRefundRoutes(app);
   // Hack Ads: minerador de criativos da Biblioteca de Anúncios da Meta.
   registerHackAdsRoutes(app);
 
