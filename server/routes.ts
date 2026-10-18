@@ -13842,11 +13842,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let refundSuccess = false;
       let errorMessage = '';
 
-      if (order.paymentMethod === 'card' && order.asaasPaymentId) {
+      if (order.paymentMethod === 'card' && order.asaasTransactionId) {
         // Reembolso via Asaas (cartão)
         try {
           const { refundPayment } = await import('./services/asaas.js');
-          await refundPayment(order.asaasPaymentId, undefined, order.refundReason || 'Reembolso aprovado pelo admin');
+          await refundPayment(order.asaasTransactionId, undefined, order.refundReason || 'Reembolso aprovado pelo admin');
           refundSuccess = true;
           logger.debug(`[Admin] Asaas refund processed for order ${orderId}`);
         } catch (asaasError: any) {
@@ -13856,7 +13856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (order.paymentMethod === 'pix' && order.podpayTransactionId) {
         // Reembolso via Podpay (PIX)
         try {
-          const podpayService = getPodpayService();
+          const podpayService = getPodpayServiceSafe();
           if (podpayService) {
             await podpayService.refundTransaction(order.podpayTransactionId);
             refundSuccess = true;
@@ -13883,6 +13883,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .update(marketplaceOrders)
         .set({
           status: 'refunded',
+          refundedAt: new Date(),
+          refundCompletedAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(marketplaceOrders.id, orderId))
@@ -14100,7 +14102,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin - Lista de vendedores com métricas
   app.get('/api/admin/marketplace/sellers', authMiddleware, adminMiddleware, async (req: any, res) => {
     try {
-      console.log('[Admin Sellers] Request received - Query params:', req.query);
       const { startDate, endDate, sortBy = 'revenue', order = 'desc', limit = '50', offset = '0' } = req.query;
 
       const dateFilter = [];
@@ -14121,7 +14122,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .groupBy(marketplaceProducts.sellerId);
 
       const sellerIds = allSellersProducts.map(s => s.sellerId);
-      console.log('[Admin Sellers] Found sellers with products:', sellerIds.length, 'Date filter:', dateFilter.length);
       if (sellerIds.length === 0) {
         return res.json({ sellers: [], total: 0 });
       }
@@ -14154,8 +14154,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : and(inArray(marketplaceOrders.status, ['refunded', 'refund_requested']), inArray(marketplaceOrders.sellerId, sellerIds)))
         .groupBy(marketplaceOrders.sellerId);
 
-      console.log('[Admin Sellers] Sales data found:', salesData.length, salesData);
-      console.log('[Admin Sellers] Refunds data found:', refundsData.length, refundsData);
       
       const salesMap = new Map(salesData.map(s => [s.sellerId, s]));
       const refundsMap = new Map(refundsData.map(r => [r.sellerId, r]));
@@ -14173,58 +14171,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const usersMap = new Map(usersInfo.map(u => [u.id, u]));
       const productsMap = new Map(allSellersProducts.map(p => [p.sellerId, p.productCount]));
 
-      // Calculate balance for each seller
+      // Saldos de todos os vendedores de uma vez (antes eram 3 consultas por vendedor).
+      // Pendente: vendas concluídas dos últimos 8 dias ainda não liberadas; disponível: as mais antigas, menos os saques.
+      const eightDaysAgo = new Date();
+      eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
+      const [pendingRows, availableRows, withdrawalRows] = await Promise.all([
+        db.select({ sellerId: sellerTransactions.sellerId, total: sql<number>`COALESCE(SUM(${sellerTransactions.netAmountCents}), 0)::int` })
+          .from(sellerTransactions)
+          .where(and(
+            inArray(sellerTransactions.sellerId, sellerIds),
+            eq(sellerTransactions.type, 'sale'),
+            eq(sellerTransactions.status, 'completed'),
+            gte(sellerTransactions.createdAt, eightDaysAgo),
+            isNull(sellerTransactions.releasedAt)
+          ))
+          .groupBy(sellerTransactions.sellerId),
+        db.select({ sellerId: sellerTransactions.sellerId, total: sql<number>`COALESCE(SUM(${sellerTransactions.netAmountCents}), 0)::int` })
+          .from(sellerTransactions)
+          .where(and(
+            inArray(sellerTransactions.sellerId, sellerIds),
+            eq(sellerTransactions.type, 'sale'),
+            eq(sellerTransactions.status, 'completed'),
+            lte(sellerTransactions.createdAt, eightDaysAgo),
+            isNull(sellerTransactions.releasedAt)
+          ))
+          .groupBy(sellerTransactions.sellerId),
+        db.select({ sellerId: podpayWithdrawals.sellerId, total: sql<number>`COALESCE(SUM(${podpayWithdrawals.amountCents}), 0)::int` })
+          .from(podpayWithdrawals)
+          .where(and(
+            inArray(podpayWithdrawals.sellerId, sellerIds),
+            inArray(podpayWithdrawals.status, ['completed', 'processing', 'pending'])
+          ))
+          .groupBy(podpayWithdrawals.sellerId),
+      ]);
+      const pendingMap = new Map(pendingRows.map(r => [r.sellerId, r.total || 0]));
+      const availableMap = new Map(availableRows.map(r => [r.sellerId, r.total || 0]));
+      const withdrawnMap = new Map(withdrawalRows.map(r => [r.sellerId, r.total || 0]));
       const balanceMap = new Map();
       for (const sellerId of sellerIds) {
-        const eightDaysAgo = new Date();
-        eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
-
-        // Saldo PENDENTE: vendas com status 'completed' criadas nos últimos 8 dias (ainda não liberadas)
-        const [pendingResult] = await db
-          .select({ total: sql<number>`COALESCE(SUM(${sellerTransactions.netAmountCents}), 0)::int` })
-          .from(sellerTransactions)
-          .where(
-            and(
-              eq(sellerTransactions.sellerId, sellerId),
-              eq(sellerTransactions.type, 'sale'),
-              eq(sellerTransactions.status, 'completed'),
-              gte(sellerTransactions.createdAt, eightDaysAgo),
-              isNull(sellerTransactions.releasedAt)
-            )
-          );
-
-        // Saldo DISPONÍVEL: vendas com status 'completed' criadas há mais de 8 dias (liberadas para saque)
-        const [availableResult] = await db
-          .select({ total: sql<number>`COALESCE(SUM(${sellerTransactions.netAmountCents}), 0)::int` })
-          .from(sellerTransactions)
-          .where(
-            and(
-              eq(sellerTransactions.sellerId, sellerId),
-              eq(sellerTransactions.type, 'sale'),
-              eq(sellerTransactions.status, 'completed'),
-              lte(sellerTransactions.createdAt, eightDaysAgo),
-              isNull(sellerTransactions.releasedAt)
-            )
-          );
-
-        // Subtrair saques já realizados do saldo disponível
-        const [withdrawalsResult] = await db
-          .select({ total: sql<number>`COALESCE(SUM(${podpayWithdrawals.amountCents}), 0)::int` })
-          .from(podpayWithdrawals)
-          .where(
-            and(
-              eq(podpayWithdrawals.sellerId, sellerId),
-              inArray(podpayWithdrawals.status, ['completed', 'processing', 'pending'])
-            )
-          );
-
-        const totalWithdrawn = withdrawalsResult?.total || 0;
-        const calculatedAvailable = Math.max(0, (availableResult?.total || 0) - totalWithdrawn);
-
+        const totalWithdrawn = withdrawnMap.get(sellerId) || 0;
         balanceMap.set(sellerId, {
-          balancePending: pendingResult?.total || 0,
-          balanceAvailable: calculatedAvailable,
-          totalWithdrawn: totalWithdrawn,
+          balancePending: pendingMap.get(sellerId) || 0,
+          balanceAvailable: Math.max(0, (availableMap.get(sellerId) || 0) - totalWithdrawn),
+          totalWithdrawn,
         });
       }
 
@@ -19128,8 +19117,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dateFilters.push(sql`DATE(${referralCommissions.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') <= ${endDate}`);
       }
 
-      // Exclude cancelled commissions from all calculations
-      const validStatusFilter = ne(referralCommissions.status, 'cancelled');
+      // Exclude cancelled commissions from all calculations (a base tem as duas grafias)
+      const validStatusFilter = notInArray(referralCommissions.status, ['cancelled', 'canceled']);
 
       // Total de comissões pagas (status = 'released' ou 'completed')
       const paidResult = await db
@@ -19201,9 +19190,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(and(validStatusFilter, ...dateFilters));
         totalConversions = Number(conversionResult[0]?.totalConversions || 0);
         
-        // For clicks in date range, we can't get accurate data since referralCodes doesn't track daily clicks
-        // So we set totalClicks to 0 when filtering by date (or could estimate based on conversion rate)
-        totalClicks = 0;
+        // Cliques do período vêm de referral_clicks (um registro por clique, com data)
+        const filtrosClique = [sql`1 = 1`];
+        if (startDate) filtrosClique.push(sql`DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') >= ${startDate}`);
+        if (endDate) filtrosClique.push(sql`DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') <= ${endDate}`);
+        const cliques: any = await db.execute(sql`SELECT count(*) AS c FROM referral_clicks WHERE ${sql.join(filtrosClique, sql` AND `)}`);
+        totalClicks = Number((cliques.rows ?? cliques)[0]?.c || 0);
       } else {
         // No date filter - use cumulative totals from referralCodes
         const conversionResult = await db
@@ -19276,7 +19268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .innerJoin(users, eq(referralCodes.userId, users.id));
 
       // Get commission totals for each affiliate (exclude cancelled commissions)
-      const validStatusFilter = ne(referralCommissions.status, 'cancelled');
+      const validStatusFilter = notInArray(referralCommissions.status, ['cancelled', 'canceled']);
       const commissionQuery = db
         .select({
           referrerId: referralCommissions.referrerId,
@@ -19409,7 +19401,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filters.push(sql`DATE(${referralCommissions.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') <= ${endDate}`);
       }
       if (status) {
-        filters.push(eq(referralCommissions.status, status as string));
+        filters.push(status === 'canceled' || status === 'cancelled'
+          ? inArray(referralCommissions.status, ['canceled', 'cancelled'])
+          : eq(referralCommissions.status, status as string));
       }
 
       // Alias for referrer and buyer users

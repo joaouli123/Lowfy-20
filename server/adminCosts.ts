@@ -91,7 +91,7 @@ export async function revenue(from: string, to: string, feePct: number) {
   const [pay, ref, com] = await Promise.all([
     pool.query(`SELECT COALESCE(SUM(cents),0) AS cents, COUNT(*) AS qtd, COUNT(DISTINCT user_id) AS pagantes FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")}`, [from, to]),
     pool.query(`SELECT COALESCE(SUM(amount),0) AS cents, COUNT(*) AS qtd FROM lowfy_subscriptions WHERE status = 'refunded' AND ${RANGE("COALESCE(status_changed_at, updated_at)")}`, [from, to]),
-    pool.query(`SELECT COALESCE(SUM(commission_amount_cents),0) AS cents FROM referral_commissions WHERE status NOT IN ('canceled','refunded') AND ${RANGE("created_at")}`, [from, to]).catch(() => ({ rows: [{ cents: 0 }] })),
+    pool.query(`SELECT COALESCE(SUM(commission_amount_cents),0) AS cents FROM referral_commissions WHERE status NOT IN ('canceled','cancelled','refunded') AND ${RANGE("created_at")}`, [from, to]).catch(() => ({ rows: [{ cents: 0 }] })),
   ]);
   const gross = n(pay.rows[0].cents) / 100;
   const refunds = n(ref.rows[0].cents) / 100;
