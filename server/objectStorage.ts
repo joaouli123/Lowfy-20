@@ -110,18 +110,24 @@ export class ObjectStorageService {
     try {
       const ext = path.extname(file.localPath).slice(1).toLowerCase();
       const mime = MIME_BY_EXT[ext] || "application/octet-stream";
-      const stat = await fs.promises.stat(file.localPath);
-      res.set({
-        "Content-Type": mime,
-        "Content-Length": String(stat.size),
-        "Cache-Control": `public, max-age=${cacheTtlSec}`,
+      // SECURITY: nada de "adivinhar" o tipo; e arquivo que pode carregar script (SVG/HTML/XML)
+      // abre isolado, sem acesso à sessão de quem está logado na Lowfy.
+      res.set("X-Content-Type-Options", "nosniff");
+      if (/svg|html|xml|javascript/.test(mime)) {
+        res.set("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+      }
+      // sendFile responde Range (vídeo/áudio dá para pular trechos) e ETag/Last-Modified (revalida barato).
+      await new Promise<void>((resolve) => {
+        res.sendFile(file.localPath, {
+          dotfiles: "allow",
+          headers: { "Content-Type": mime, "Cache-Control": `public, max-age=${cacheTtlSec}` },
+          lastModified: true,
+          etag: true,
+        }, (err: any) => {
+          if (err && !res.headersSent) res.status(err.status || 500).json({ error: "Error streaming file" });
+          resolve();
+        });
       });
-      const stream = fs.createReadStream(file.localPath);
-      stream.on("error", (err) => {
-        console.error("Stream error:", err);
-        if (!res.headersSent) res.status(500).json({ error: "Error streaming file" });
-      });
-      stream.pipe(res);
     } catch (error) {
       console.error("Error downloading file:", error);
       if (!res.headersSent) res.status(500).json({ error: "Error downloading file" });

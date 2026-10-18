@@ -186,13 +186,20 @@ function applyMeta(s: any) {
   if (s.faviconUrl) { let l = document.querySelector('link[rel="icon"]') as HTMLLinkElement; if (!l) { l = document.createElement("link"); l.rel = "icon"; document.head.appendChild(l); } l.href = s.faviconUrl; }
   if (s.gaId && !(window as any)._gaDone) {
     (window as any)._gaDone = true;
-    const t = document.createElement("script"); t.async = true; t.src = `https://www.googletagmanager.com/gtag/js?id=${s.gaId}`; document.head.appendChild(t);
-    const i = document.createElement("script"); i.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${s.gaId}')`; document.head.appendChild(i);
+    const ga = String(s.gaId).replace(/[^A-Za-z0-9-]/g, ""); // o ID entra num script: só letras, números e hífen
+    const t = document.createElement("script"); t.async = true; t.src = `https://www.googletagmanager.com/gtag/js?id=${ga}`; document.head.appendChild(t);
+    const i = document.createElement("script"); i.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(ga)})`; document.head.appendChild(i);
   }
   if (s.headScript && !(window as any)._headDone) {
     (window as any)._headDone = true;
-    const div = document.createElement("div"); div.innerHTML = s.headScript;
-    div.querySelectorAll("script").forEach((old) => { const sc = document.createElement("script"); for (const a of Array.from(old.attributes)) sc.setAttribute(a.name, a.value); sc.textContent = old.textContent; document.head.appendChild(sc); });
+    // Scripts do criador rodam isolados (iframe sandbox sem allow-same-origin): disparam pixels e
+    // tags, mas não enxergam a sessão de quem está logado na Lowfy nem chamam a API como ele.
+    const f = document.createElement("iframe");
+    f.setAttribute("sandbox", "allow-scripts allow-popups");
+    f.setAttribute("aria-hidden", "true");
+    f.style.cssText = "position:absolute;width:0;height:0;border:0;visibility:hidden";
+    f.srcdoc = `<!doctype html><html><head>${s.headScript}</head><body></body></html>`;
+    document.body.appendChild(f);
   }
 }
 

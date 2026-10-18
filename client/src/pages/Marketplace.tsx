@@ -1016,7 +1016,7 @@ function FinanceiroSection() {
   const [isPixDialogOpen, setIsPixDialogOpen] = useState(false);
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [transactionTab, setTransactionTab] = useState("sales");
-  const [pixFormData, setPixFormData] = useState({ pixKey: "", pixKeyType: "" });
+  const [pixFormData, setPixFormData] = useState({ pixKey: "", pixKeyType: "", senha: "" });
   const [withdrawAmount, setWithdrawAmount] = useState("");
 
   const { data: wallet } = useQuery<SellerWallet>({
@@ -1032,7 +1032,7 @@ function FinanceiroSection() {
   });
 
   const pixMutation = useMutation({
-    mutationFn: async (data: { pixKey: string; pixKeyType: string }) => {
+    mutationFn: async (data: { pixKey: string; pixKeyType: string; senha: string }) => {
       return await apiRequest("POST", "/api/marketplace/update-pix", data);
     },
     onSuccess: () => {
@@ -1042,7 +1042,7 @@ function FinanceiroSection() {
         description: "Suas informações de PIX foram salvas.",
       });
       setIsPixDialogOpen(false);
-      setPixFormData({ pixKey: "", pixKeyType: "" });
+      setPixFormData({ pixKey: "", pixKeyType: "", senha: "" });
     },
     onError: (error: any) => {
       toast({
@@ -1078,10 +1078,10 @@ function FinanceiroSection() {
 
   const handlePixSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pixFormData.pixKey || !pixFormData.pixKeyType) {
+    if (!pixFormData.pixKey || !pixFormData.pixKeyType || !pixFormData.senha) {
       toast({
         title: "Campos obrigatórios",
-        description: "Preencha a chave e o tipo de PIX.",
+        description: "Preencha o tipo, a chave PIX e a senha da sua conta.",
         variant: "destructive",
       });
       return;
@@ -1195,6 +1195,7 @@ function FinanceiroSection() {
             setPixFormData({
               pixKey: wallet?.pixKey || "",
               pixKeyType: wallet?.pixKeyType || "",
+              senha: "",
             });
             setIsPixDialogOpen(true);
           }}
@@ -1328,6 +1329,19 @@ function FinanceiroSection() {
                   }
                   placeholder="Digite sua chave PIX"
                   data-testid="input-pix-key"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="pixSenha">Senha da sua conta</Label>
+                <Input
+                  id="pixSenha"
+                  type="password"
+                  autoComplete="current-password"
+                  value={pixFormData.senha}
+                  onChange={(e) => setPixFormData({ ...pixFormData, senha: e.target.value })}
+                  placeholder="Para sua segurança, confirme com a senha"
+                  data-testid="input-pix-senha"
                   required
                 />
               </div>

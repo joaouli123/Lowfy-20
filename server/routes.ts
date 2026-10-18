@@ -319,6 +319,52 @@ const subscriptionCheckoutLimiter = createDistributedRateLimiter({
   },
 });
 
+/** Compara segredos em tempo constante (evita descobrir o token pelo tempo de resposta). */
+function tokensIguais(a: unknown, b: string): boolean {
+  if (typeof a !== 'string' || !b) return false;
+  const x = Buffer.from(a), y = Buffer.from(b);
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+/** Dono da página (metadata.userId); admin pode tudo. Página antiga sem dono só o admin mexe. */
+function donoDaPagina(metadataPath: string, user: any): boolean {
+  if (user?.isAdmin) return true;
+  try {
+    const m = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+    return !!m?.userId && m.userId === user?.id;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Página criada pelo usuário (pre-sell, clonada) servida no domínio da própria Lowfy: o JS dela
+ * roda numa origem isolada (CSP sandbox, sem allow-same-origin) e não consegue usar a sessão
+ * de quem está logado. Em domínio próprio do cliente nada muda (já é outra origem).
+ */
+function isolarSeDominioDoApp(req: any, res: any) {
+  const host = String(req.hostname || '').toLowerCase();
+  if (host === 'lowfy.com.br' || host.endsWith('.lowfy.com.br') || host === 'localhost' || host === '127.0.0.1') {
+    res.setHeader('Content-Security-Policy', 'sandbox allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals');
+  }
+}
+
+const authLoginEmailLimiter = createDistributedRateLimiter({
+  name: 'auth-login-email',
+  windowMs: 15 * 60 * 1000,
+  max: 10, // 10 tentativas por conta a cada 15 min, de qualquer IP
+  message: 'Muitas tentativas de login nesta conta. Tente novamente em alguns minutos.',
+  keyGenerator: (req: any) => `email:${String(req.body?.email || req.body?.username || '').trim().toLowerCase().slice(0, 120)}`,
+});
+
+const quizLeadLimiter = createDistributedRateLimiter({
+  name: 'quiz-lead',
+  windowMs: 60 * 1000,
+  max: 20,
+  message: 'Muitas respostas seguidas. Tente de novo em instantes.',
+  keyMode: 'ip',
+});
+
 // SECURITY: Rate limiting para autenticação (anti brute-force / credential stuffing)
 const authLoginLimiter = createDistributedRateLimiter({
   name: 'auth-login',
@@ -407,8 +453,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Compatibilidade com URLs antigas de /uploads/products/ (sistema de arquivos local)
   // NOTA: Arquivos antigos podem ter sido perdidos em deploys anteriores
   app.get("/uploads/products/:filename", (req, res) => {
-    const filepath = path.join(process.cwd(), 'public', 'uploads', 'products', req.params.filename);
-    if (fs.existsSync(filepath)) {
+    // SECURITY: só o nome do arquivo (o param já vem decodificado: "..%2F" viraria "../").
+    const dir = path.join(process.cwd(), 'public', 'uploads', 'products');
+    const filepath = path.join(dir, path.basename(String(req.params.filename || '')));
+    if (filepath.startsWith(dir + path.sep) && fs.existsSync(filepath)) {
       res.sendFile(filepath);
     } else {
       res.status(404).json({ error: "Imagem não encontrada (arquivo antigo não disponível)" });
@@ -571,35 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== DIAGNÓSTICO DE DOMÍNIOS (TEMPORÁRIO) ====================
   // Endpoint público para diagnóstico - REMOVER EM PRODUÇÃO
-  app.get('/api/debug/cloudflare-hostnames', async (req, res) => {
-    try {
-      const { listCustomHostnames, getCustomHostname } = await import('./utils/cloudflareForSaas');
-      const { hostnames } = await listCustomHostnames(1, 100);
-      
-      // Também buscar mapeamentos do banco
-      const dbMappings = await db.select().from(customDomainMappings);
-      
-      res.json({
-        cloudflareHostnames: hostnames.map(h => ({
-          hostname: h.hostname,
-          status: h.status,
-          ssl: h.ssl?.status,
-          id: h.id
-        })),
-        databaseMappings: dbMappings.map(m => ({
-          domain: m.domain,
-          pageType: m.pageType,
-          pageSlug: m.pageSlug,
-          pagePath: m.pagePath,
-          cloudflareStatus: m.cloudflareStatus,
-          sslStatus: m.sslStatus,
-          isActive: m.isActive
-        }))
-      });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+  // (Removido) /api/debug/cloudflare-hostnames: expunha os domínios de todos os clientes sem login.
 
   // ==================== DOMAIN LOOKUP API (for Cloudflare Workers) ====================
   // Endpoint público para o Worker consultar qual página servir baseado no domínio
@@ -833,7 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== AUTHROUTES ====================
 
   // Check if email already exists (for post-checkout auto-fill)
-  app.post('/api/auth/check-email', async (req, res) => {
+  app.post('/api/auth/check-email', authRegisterLimiter, async (req, res) => {
     try {
       const { email } = req.body;
       if (!email || typeof email !== 'string') {
@@ -1543,7 +1563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Login
-  app.post('/api/auth/login', authLoginLimiter, async (req, res) => {
+  app.post('/api/auth/login', authLoginLimiter, authLoginEmailLimiter, async (req, res) => {
     try {
       const { email, password } = loginSchema.parse(req.body);
 
@@ -3571,7 +3591,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [username, password] = credentials.split(':');
         
         // Podpay envia publicKey:secretKey
-        if (username === process.env.PODPAY_PUBLIC_KEY && password === process.env.PODPAY_SECRET_KEY) {
+        if (process.env.PODPAY_PUBLIC_KEY && process.env.PODPAY_SECRET_KEY
+          && tokensIguais(username, process.env.PODPAY_PUBLIC_KEY) && tokensIguais(password, process.env.PODPAY_SECRET_KEY)) {
           isAuthenticated = true;
           logger.debug('[Podpay Webhook] ✅ Authenticated via Basic Auth');
         }
@@ -5070,11 +5091,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const asaasAccessToken = req.headers['asaas-access-token'] as string;
       const expectedToken = process.env.ASAAS_SUBSCRIPTION_WEBHOOK_SECRET;
 
-      // FIX: Se token está configurado, valida. Se não, apenas loga warning mas continua (fallback)
-      if (expectedToken && asaasAccessToken !== expectedToken) {
-        logger.warn(`[Asaas-Subscriptions Webhook] ⚠️ Invalid token provided (mismatch). Webhook processado mesmo assim.`);
-      } else if (!expectedToken) {
-        logger.warn('[Asaas-Subscriptions Webhook] ⚠️ ASAAS_SUBSCRIPTION_WEBHOOK_SECRET not configured - aceitar webhook mesmo assim');
+      // SECURITY: sem token válido o evento NÃO é processado (antes passava com só um aviso,
+      // e qualquer um podia forjar PAYMENT_CONFIRMED e ativar assinatura sem pagar).
+      const esperado = expectedToken || process.env.ASAAS_WEBHOOK_SECRET || '';
+      if (!esperado || !tokensIguais(asaasAccessToken, esperado)) {
+        logger.warn(`[Asaas-Subscriptions Webhook] Token ${esperado ? 'inválido' : 'não configurado'} — evento recusado`);
+        return res.status(401).json({ message: 'Unauthorized' });
       }
 
       // Validate webhook structure
@@ -6837,8 +6859,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let buffer = file.buffer, mime = 'image/webp', ext = 'webp';
       if (file.mimetype === 'image/svg+xml') {
-        // SVG: vetorial — mantém como está (já é otimizado/escalável)
-        buffer = file.buffer; mime = 'image/svg+xml'; ext = 'svg';
+        // SECURITY: SVG pode trazer <script>; vira WEBP (o sharp rasteriza sem executar nada).
+        buffer = await sharp(file.buffer, { density: 200 })
+          .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
+          .webp({ quality, effort: 4 })
+          .toBuffer();
       } else {
         const meta = await sharp(file.buffer).metadata().catch(() => ({} as any));
         const animated = file.mimetype === 'image/gif' && (meta.pages || 1) > 1;
@@ -6886,7 +6911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Geração de funil por IA (a partir de um tema)
-  app.post('/api/quiz/generate', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/quiz/generate', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const prompt = String(req.body?.prompt || '').trim();
       if (prompt.length < 3) return res.status(400).json({ message: 'Descreva o tema do funil' });
@@ -6916,7 +6941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== Criador de página por IA (Pre-Sell) =====
   // Modo BLOCOS: prompt -> elementos editáveis do Pre-Sell
-  app.post('/api/landing/generate', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/landing/generate', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const prompt = String(req.body?.prompt || '').trim();
       if (prompt.length < 3) return res.status(400).json({ message: 'Descreva a página que você quer criar' });
@@ -6941,7 +6966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Modo VIBE CODE: prompt -> HTML/Tailwind completo (com iteração opcional)
-  app.post('/api/landing/vibe', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/landing/vibe', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const prompt = String(req.body?.prompt || '').trim();
       const currentHtml = typeof req.body?.currentHtml === 'string' ? req.body.currentHtml.slice(0, 60000) : undefined;
@@ -7047,7 +7072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== Criador de Ebooks (IA) =====
-  app.post('/api/ebook/generate', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ebook/generate', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const { assunto, publico, objetivo, tom, paginas, idioma, autor, comImagens, tema } = req.body || {};
       if (!assunto || String(assunto).trim().length < 3) return res.status(400).json({ message: 'Descreva o assunto do ebook' });
@@ -7072,7 +7097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gera UMA imagem para um bloco/capa do ebook (Flux grátis sem chave; gpt-image com chave)
-  app.post('/api/ebook/gen-image', authMiddleware, fullAccessMiddleware, async (req: any, res) => {
+  app.post('/api/ebook/gen-image', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
     try {
       const { prompt, theme, cover } = req.body || {};
       if (!prompt || String(prompt).trim().length < 3) return res.status(400).json({ message: 'Prompt vazio' });
@@ -7228,8 +7253,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ ok: true });
   });
 
-  app.post('/api/q/:slug/lead', async (req: any, res) => {
+  app.post('/api/q/:slug/lead', quizLeadLimiter, async (req: any, res) => {
     try {
+      if (JSON.stringify(req.body || {}).length > 50_000) return res.status(413).json({ message: 'Respostas grandes demais' });
       const slug = quizStore.sanitizeSlug(req.params.slug);
       const spec = await quizStore.getQuiz(slug);
       if (!spec || !spec.isPublished) return res.status(404).json({ message: 'Quiz não encontrado' });
@@ -7581,9 +7607,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       }));
 
-      // Definir os headers corretos com cache mais agressivo
-      const contentType = response.headers['content-type'] || 'image/png';
+      // SECURITY: só repassa imagem de verdade (HTML/SVG viraria XSS no domínio da Lowfy).
+      const contentType = String(response.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      if (!/^image\/(png|jpe?g|gif|webp|avif|x-icon|vnd\.microsoft\.icon|bmp)$/.test(contentType)) {
+        return res.status(415).json({ message: "O endereço não é uma imagem" });
+      }
       res.set('Content-Type', contentType);
+      res.set('X-Content-Type-Options', 'nosniff');
+      res.set('Content-Security-Policy', "default-src 'none'; sandbox");
       res.set('Cache-Control', 'public, max-age=604800, immutable'); // Cache de 7 dias, immutable
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Vary', 'Accept-Encoding');
@@ -7961,8 +7992,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const category = req.query.category;
       const tag = req.query.tag;
       const filter = 'recent';
-      const limit = parseInt(req.query.limit || '8');
-      const offset = parseInt(req.query.offset || '0');
+      const limit = Math.min(Math.max(parseInt(req.query.limit || '8') || 8, 1), 50);
+      const offset = Math.max(parseInt(req.query.offset || '0') || 0, 0);
 
       let posts;
 
@@ -8343,7 +8374,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/timeline/posts/:postId/comments/:commentId/pin', authMiddleware, async (req: any, res) => {
     try {
-      const { commentId } = req.params;
+      const { postId, commentId } = req.params;
+      const post = await storage.getTimelinePost(postId, req.user.id);
+      if (!post) return res.status(404).json({ message: "Post não encontrado" });
+      if (post.userId !== req.user.id && !req.user.isAdmin) return res.status(403).json({ message: "Apenas o autor do post pode desafixar comentários" });
       await storage.pinPostComment(commentId, false);
       res.json({ success: true });
     } catch (error) {
@@ -8396,6 +8430,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/timeline/posts/:id/pin', authMiddleware, async (req: any, res) => {
     try {
       const postId = req.params.id;
+      const post = await storage.getTimelinePost(postId, req.user.id);
+      if (!post) return res.status(404).json({ message: "Post não encontrado" });
+      if (post.userId !== req.user.id && !req.user.isAdmin) return res.status(403).json({ message: "Sem permissão para desafixar este post" });
       await storage.pinTimelinePost(postId, false);
       res.json({ success: true });
     } catch (error) {
@@ -10807,7 +10844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Verificar se domínio já está configurado em alguma página
-  app.post("/api/check-domain-availability", async (req, res) => {
+  app.post("/api/check-domain-availability", authMiddleware, async (req, res) => {
     try {
       const { domain } = req.body;
 
@@ -10960,7 +10997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Atualizar/Refrescar validação do domínio
-  app.post("/api/custom-domain-refresh/:domain", async (req, res) => {
+  app.post("/api/custom-domain-refresh/:domain", authMiddleware, async (req, res) => {
     try {
       const { domain } = req.params;
       const { refreshCustomHostnameValidation, getStatusDescription } = await import('./utils/cloudflareForSaas');
@@ -11474,7 +11511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clonador de Páginas - Verificar e desativar páginas expiradas (chamado por scheduler)
-  app.post("/api/cloned-page/check-expired", async (req, res) => {
+  app.post("/api/cloned-page/check-expired", authMiddleware, adminMiddleware, async (req, res) => {
     try {
       const pagesDir = path.join(process.cwd(), "cloned-pages");
 
@@ -12091,6 +12128,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: 'Página não encontrada' });
       }
+      if (!donoDaPagina(metadataPath, req.user)) {
+        logger.warn(`[SECURITY] Tentativa de apagar presell de outro usuário: ${sanitizePageName(name)} (userId: ${req.user.id})`);
+        return res.status(403).json({ message: 'Acesso negado' });
+      }
 
       // CRÍTICO: Limpar domínio customizado ANTES de deletar a página
       if (fs.existsSync(metadataPath)) {
@@ -12145,6 +12186,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!fs.existsSync(metadataPath)) {
         return res.status(404).json({ message: "Página não encontrada" });
+      }
+      if (!donoDaPagina(metadataPath, req.user)) {
+        logger.warn(`[SECURITY] Tentativa de configurar domínio em presell de outro usuário: ${sanitizePageName(pageName)} (userId: ${req.user.id})`);
+        return res.status(403).json({ message: "Acesso negado" });
       }
 
       const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
@@ -12388,13 +12433,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Favicon muito grande. Tamanho máximo: 1MB' });
       }
 
-      // Get file extension
-      const ext = (path.extname(file.originalname).toLowerCase() || '.png').replace('.', '');
+      // SECURITY: SVG é convertido em PNG (SVG pode trazer <script>). A extensão vem do tipo, não do nome.
+      let favBuffer: Buffer = file.buffer;
+      let favMime: string = file.mimetype;
+      if (file.mimetype === 'image/svg+xml') {
+        favBuffer = await sharp(file.buffer, { density: 300 }).resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+        favMime = 'image/png';
+      }
+      const ext = favMime === 'image/png' ? 'png' : favMime === 'image/jpeg' ? 'jpg' : 'ico';
 
       // Upload to Object Storage for persistence in production
       const { ObjectStorageService } = await import('./objectStorage');
       const objectStorageService = new ObjectStorageService();
-      const faviconUrl = await objectStorageService.uploadBuffer(file.buffer, 'favicons', file.mimetype, ext);
+      const faviconUrl = await objectStorageService.uploadBuffer(favBuffer, 'favicons', favMime, ext);
 
       logger.debug(`✅ Favicon salvo: ${faviconUrl}`);
 
@@ -12523,7 +12574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pre-Sell - Verificar e desativar páginas expiradas (chamado por scheduler)
-  app.post("/api/presell/check-expired", async (req, res) => {
+  app.post("/api/presell/check-expired", authMiddleware, adminMiddleware, async (req, res) => {
     try {
       const pagesDir = path.join(process.cwd(), "presell-pages");
 
@@ -12831,6 +12882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const html = generatePreSellHTML(pageData);
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      isolarSeDominioDoApp(req, res);
       res.send(html);
     } catch (error: any) {
       console.error('Erro ao servir Pre-Sell:', error);
@@ -13169,7 +13221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Clonador de Páginas - Verificar e desativar páginas expiradas (chamado por scheduler)
-  app.post("/api/cloned-page/check-expired", async (req, res) => {
+  app.post("/api/cloned-page/check-expired", authMiddleware, adminMiddleware, async (req, res) => {
     try {
       const pagesDir = path.join(process.cwd(), "cloned-pages");
 
@@ -13357,6 +13409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const htmlContent = fs.readFileSync(filePath, "utf-8");
+      isolarSeDominioDoApp(req, res);
       res.send(htmlContent);
     } catch (error: any) {
       console.error("Erro ao servir página clonada:", error);
@@ -15042,21 +15095,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(marketplaceProducts)
         .leftJoin(users, eq(marketplaceProducts.sellerId, users.id))
-        .where(eq(marketplaceProducts.isActive, true))
         .$dynamic();
 
-      if (category) {
-        query = query.where(eq(marketplaceProducts.category, String(category)));
-      }
-
+      const filtros: any[] = [eq(marketplaceProducts.isActive, true)];
+      if (category) filtros.push(eq(marketplaceProducts.category, String(category)));
       if (search) {
-        query = query.where(
-          or(
-            ilike(marketplaceProducts.title, `%${search}%`),
-            ilike(marketplaceProducts.description, `%${search}%`)
-          )
-        );
+        const termo = String(search).slice(0, 100).replace(/[%_\\]/g, (c) => `\\${c}`);
+        filtros.push(or(
+          ilike(marketplaceProducts.title, `%${termo}%`),
+          ilike(marketplaceProducts.description, `%${termo}%`)
+        ));
       }
+      query = query.where(and(...filtros));
 
       const products = await query.orderBy(desc(marketplaceProducts.createdAt));
 
@@ -15688,64 +15738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 11. POST /api/marketplace/withdraw - Solicitar saque (mínimo R$ 10,00 = 1000 centavos)
-  app.post('/api/marketplace/withdraw', authMiddleware, async (req: any, res) => {
-    try {
-      const { amount } = req.body;
-
-      if (!amount || amount < 1000) {
-        return res.status(400).json({ message: 'Valor mínimo para saque é R$ 10,00' });
-      }
-
-      const [wallet] = await db
-        .select()
-        .from(sellerWallet)
-        .where(eq(sellerWallet.sellerId, req.user.id))
-        .limit(1);
-
-      if (!wallet) {
-        return res.status(404).json({ message: 'Carteira não encontrada' });
-      }
-
-      if (!wallet.pixKey || !wallet.pixKeyType) {
-        return res.status(400).json({ message: 'Configure sua chave PIX antes de solicitar saque' });
-      }
-
-      const { balanceAvailable } = await calculateSellerBalance(req.user.id);
-
-      if (balanceAvailable < amount) {
-        return res.status(400).json({
-          message: 'Saldo insuficiente',
-          available: balanceAvailable,
-          requested: amount
-        });
-      }
-
-      const [transaction] = await db
-        .insert(sellerTransactions)
-        .values({
-          sellerId: req.user.id,
-          type: 'withdrawal',
-          amount: -amount,
-          status: 'pending',
-          description: `Saque de R$ ${(amount / 100).toFixed(2)} via PIX`,
-        })
-        .returning();
-
-      await db
-        .update(sellerWallet)
-        .set({
-          balanceAvailable: balanceAvailable - amount,
-          totalWithdrawn: wallet.totalWithdrawn + amount,
-          updatedAt: new Date()
-        })
-        .where(eq(sellerWallet.sellerId, req.user.id));
-
-      res.json({ message: 'Saque solicitado com sucesso', transaction });
-    } catch (error) {
-      console.error('Error processing withdrawal:', error);
-      res.status(500).json({ message: 'Erro ao processar saque' });
-    }
-  });
+  // (Removido) POST /api/marketplace/withdraw: saque legado sem trava de saldo. O app usa /api/marketplace/request-withdrawal.
 
   // 12. GET /api/marketplace/sales-stats - Estatísticas de vendas (dashboard)
   app.get('/api/marketplace/sales-stats', authMiddleware, async (req: any, res) => {
@@ -15814,12 +15807,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 13. POST /api/marketplace/update-pix - Atualizar dados do PIX
-  app.post('/api/marketplace/update-pix', authMiddleware, async (req: any, res) => {
+  app.post('/api/marketplace/update-pix', authMiddleware, withdrawalLimiter, async (req: any, res) => {
     try {
-      const { pixKey, pixKeyType } = req.body;
+      const { pixKey, pixKeyType, senha } = req.body;
 
       if (!pixKey || !pixKeyType) {
         return res.status(400).json({ message: 'Chave PIX e tipo são obrigatórios' });
+      }
+
+      // SECURITY: a chave PIX recebe os saques — trocar exige a senha da conta.
+      const [dono] = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, req.user.id)).limit(1);
+      if (!senha || !dono?.passwordHash || !(await verifyPassword(String(senha), dono.passwordHash))) {
+        return res.status(403).json({ message: 'Senha incorreta. Para trocar a chave PIX, confirme com a senha da sua conta.' });
       }
 
       const validTypes = ['cpf', 'cnpj', 'email', 'phone', 'random'];
@@ -18247,7 +18246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // POST /api/subscriptions/recover - Recuperar conta de usuário que pagou mas não ativou
   // Envia novo email com link de ativação
-  app.post('/api/subscriptions/recover', async (req, res) => {
+  app.post('/api/subscriptions/recover', passwordResetLimiter, async (req, res) => {
     try {
       const { email } = req.body;
 

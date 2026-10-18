@@ -4457,6 +4457,12 @@ export class DatabaseStorage {
       .where(eq(postComments.id, commentId));
   }
 
+  async pinTimelinePost(postId: string, isPinned: boolean): Promise<void> {
+    await db
+      .update(timelinePosts)
+      .set({ isPinned })
+      .where(eq(timelinePosts.id, postId));
+  }
 
   async togglePostReaction(postId: string, userId: string, type: 'like' | 'dislike'): Promise<{ action: 'added' | 'removed', likeDelta: number, dislikeDelta: number, notificationId?: string }> {
     // Check if user already reacted to this post

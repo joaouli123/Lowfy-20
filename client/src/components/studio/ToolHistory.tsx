@@ -35,7 +35,6 @@ export default function ToolHistory({ tool }: { tool: ToolId }) {
       return (await (await apiRequest("GET", `/api/ai-studio/history?${p.toString()}`)).json()) as Gen[];
     },
     staleTime: 0,
-    refetchInterval: 30_000,
   });
 
   if (!items.length && !q) return null;

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
+import { realClientIp } from "./utils/clientIp";
 import { registerRoutes } from "./routes";
 import { setupVite, log } from "./vite";
 import { logger } from "./utils/logger";
@@ -31,6 +32,8 @@ app.use(compression({
 }));
 
 app.set('trust proxy', 1);
+// IP real do visitante (atrás do Cloudflare o req.ip seria o do servidor do Cloudflare).
+app.use(realClientIp);
 
 // SEO: 301 de www, http, URLs antigas e barra no final (só no domínio principal).
 app.use(seoRedirects);
