@@ -12,7 +12,7 @@ import {
 import { useStudio } from "./store";
 import { postLong } from "./runners";
 import { FieldLabel, FormPanel, PageGrid, PageHeader, PillGroup, PreviewPanel, useLocalForm } from "./page-kit";
-import { ebookCss, paginate, printEbook, PALETAS } from "./EbookRender";
+import { ebookCss, paginate, printEbook, PALETAS, FONTES, FONTES_LINK } from "./EbookRender";
 import type { EBook, EbookKind, Paleta, Sheet } from "./EbookRender";
 
 const KINDS: { v: EbookKind; label: string; desc: string; icon: any }[] = [
@@ -36,7 +36,7 @@ interface Chapter { title: string; sections: { heading: string; brief: string }[
 interface Outline { title: string; subtitle: string; sinopse?: string; paletas?: Paleta[]; chapters: Chapter[] }
 
 const DEFAULTS = {
-  passo: 1, kind: "guia" as EbookKind, tema: "", publico: "", autor: "", paginas: "20", estilo: "editorial", imagens: true, accent: "", paleta: "",
+  passo: 1, kind: "guia" as EbookKind, tema: "", publico: "", autor: "", paginas: "20", estilo: "editorial", imagens: true, accent: "", paleta: "", fonte: "",
   outline: null as Outline | null, jobId: "", ebook: null as EBook | null,
 };
 
@@ -95,7 +95,7 @@ export default function EbookPage() {
     if (!f.outline) return;
     try {
       const r = await apiRequest("POST", "/api/ebook/v2/build", {
-        brief: { kind, tema: f.tema, publico: f.publico, autor: f.autor, paginas: Number(f.paginas), estilo, imagens: f.imagens, idioma: brief.lang, ...corEscolhida() },
+        brief: { kind, tema: f.tema, publico: f.publico, autor: f.autor, paginas: Number(f.paginas), estilo, imagens: f.imagens, idioma: brief.lang, fonte: f.fonte || undefined, ...corEscolhida() },
         outline: f.outline,
       });
       const d = (await r.json()) as { jobId: string };
@@ -314,7 +314,11 @@ export default function EbookPage() {
                 <div>
                   <FieldLabel optional>Cores do livro</FieldLabel>
                   <Cores value={f.accent} sugestaoIa onChange={(c) => patch({ accent: c?.accent || "", paleta: c?.nome || "" })} />
-                  <p className="text-[11px] text-muted-foreground mt-1.5">{f.accent ? `Paleta ${f.paleta || "personalizada"} na capa, nos títulos e nos destaques.` : "A IA sugere cores que combinam com o tema no próximo passo."}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">{f.accent ? `O livro inteiro sai nesta cor: capa, títulos e destaques.` : "A IA escolhe cores que combinam com o tema (você vê e pode trocar no próximo passo)."}</p>
+                </div>
+                <div>
+                  <FieldLabel optional>Fonte</FieldLabel>
+                  <Fontes value={f.fonte} padrao={illustrated ? "divertida" : estilo === "moderno" ? "moderna" : estilo === "minimal" ? "minimalista" : "classica"} onChange={(v) => patch({ fonte: v })} />
                 </div>
                 {!illustrated && (
                   <label className="flex items-center gap-2.5 text-sm cursor-pointer">
@@ -383,6 +387,11 @@ export default function EbookPage() {
                   <FieldLabel>Cor dos títulos e destaques</FieldLabel>
                   <Cores value={ebook.accent || ""} opcoes={ebook.paletas} extras onChange={(c) => { const next = { ...ebook, accent: c?.accent || undefined }; patch({ ebook: next }); void salvar(next, true); }} />
                   <p className="text-[11px] text-muted-foreground mt-1.5">Muda o miolo na hora. A capa e a contracapa mantêm as cores com que foram criadas (use “Refazer capa” se quiser outra).</p>
+                </div>
+                <div>
+                  <FieldLabel>Fonte</FieldLabel>
+                  <Fontes value={ebook.fonte || ""} padrao={ebook.kind === "infantil" || ebook.kind === "colorir" ? "divertida" : ebook.theme === "moderno" ? "moderna" : ebook.theme === "minimal" ? "minimalista" : "classica"}
+                    onChange={(v) => { const next = { ...ebook, fonte: v || undefined }; patch({ ebook: next }); void salvar(next, true); }} />
                 </div>
                 <p className="text-[12px] text-muted-foreground">
                   Use os botões sobre a página para refazer só aquela foto, a capa ou a contracapa. O PDF abre numa nova aba: escolha <b>“Salvar como PDF”</b> na janela de impressão.
@@ -506,6 +515,29 @@ function Cores({ value, onChange, opcoes, extras, sugestaoIa }: {
           className="w-6 h-6 rounded-full border-0 p-0 bg-transparent cursor-pointer [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-black/10" />
         Outra
       </label>
+    </div>
+  );
+}
+
+/** Escolha de fonte, cada opção escrita na própria fonte. */
+function Fontes({ value, padrao, onChange }: { value: string; padrao: string; onChange: (v: string) => void }) {
+  useEffect(() => {
+    if (document.querySelector(`link[href="${FONTES_LINK}"]`)) return;
+    document.head.appendChild(Object.assign(document.createElement("link"), { rel: "stylesheet", href: FONTES_LINK }));
+  }, []);
+  const atual = value || padrao;
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {FONTES.map((ft) => {
+        const ativo = atual === ft.id;
+        return (
+          <button key={ft.id} type="button" onClick={() => onChange(ft.id)}
+            className={`text-left rounded-xl border px-3 py-2 transition ${ativo ? "border-[color-mix(in_srgb,var(--primary)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent)_100%,transparent)] shadow-sm" : "hover:bg-muted"}`}>
+            <span className="block text-[17px] leading-tight font-bold" style={{ fontFamily: ft.head }}>{ft.nome}</span>
+            <span className="block text-[11px] text-muted-foreground" style={{ fontFamily: ft.body }}>{ft.desc}{!value && ft.id === padrao ? " · padrão do estilo" : ""}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

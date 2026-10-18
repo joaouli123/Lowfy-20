@@ -75,6 +75,7 @@ import * as aiStudio from "./services/aiStudio";
 import * as motionService from "./services/motion";
 import * as motionAudio from "./services/motionAudio";
 import { registerAdminCostRoutes } from "./adminCosts";
+import { registerAdminAnalyticsRoutes } from "./adminAnalytics";
 import { iaLiberada } from "./services/usage";
 import { registerHackAdsRoutes } from "./hackAds/routes";
 import { generateEbook } from "./services/ebookStudio";
@@ -6965,6 +6966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     imagens: b?.imagens !== false,
     accent: /^#[0-9a-f]{6}$/i.test(String(b?.accent || '')) ? String(b.accent) : undefined,
     paleta: b?.paleta ? String(b.paleta).slice(0, 30) : undefined,
+    fonte: ['classica', 'elegante', 'moderna', 'minimalista', 'arredondada', 'divertida'].includes(b?.fonte) ? b.fonte : undefined,
   });
 
   app.post('/api/ebook/v2/outline', authMiddleware, fullAccessMiddleware, studioLimit, async (req: any, res) => {
@@ -19840,6 +19842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Consumo e custos de IA (plataforma e por usuário) + receita do período.
   registerAdminCostRoutes(app);
+  registerAdminAnalyticsRoutes(app);
   // Hack Ads: minerador de criativos da Biblioteca de Anúncios da Meta.
   registerHackAdsRoutes(app);
 

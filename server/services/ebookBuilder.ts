@@ -25,7 +25,47 @@ export interface EbookBrief {
   imagens?: boolean;   // ilustrações no miolo (guia/receitas/workbook)
   accent?: string;     // cor principal escolhida (#hex)
   paleta?: string;     // nome da paleta (vai para o prompt da capa)
+  fonte?: string;      // família tipográfica escolhida (classica, elegante, moderna, minimalista, arredondada, divertida)
 }
+
+/** Cor quando nem a pessoa nem a IA definiram: sóbria e de acordo com o tipo de livro. */
+const COR_PADRAO: Record<EbookKind, Paleta> = {
+  guia: { nome: "Grafite", accent: "#1f2937" },
+  workbook: { nome: "Oceano", accent: "#1d4ed8" },
+  receitas: { nome: "Terracota", accent: "#c2410c" },
+  infantil: { nome: "Laranja alegre", accent: "#f97316" },
+  colorir: { nome: "Laranja alegre", accent: "#f97316" },
+};
+
+/** Nome da cor em português (a IA de imagem entende melhor "vinho" do que um hex). */
+function nomeDaCor(h: string): string {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h || "");
+  if (!m) return "";
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (s < 0.15 || (l < 0.25 && s < 0.35)) return l < 0.12 ? "preto" : l < 0.45 ? "grafite" : l < 0.8 ? "cinza" : "branco";
+  let hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  hue = (hue * 60 + 360) % 360;
+  const escuro = l < 0.36;
+  if (hue < 12 || hue >= 340) return l < 0.4 ? "vinho" : "vermelho";
+  if (hue < 40) return escuro ? "marrom" : l > 0.5 ? "laranja" : "terracota";
+  if (hue < 65) return escuro ? "mostarda escuro" : "dourado/amarelo";
+  if (hue < 150) return escuro ? "verde-oliva escuro" : "verde";
+  if (hue < 190) return escuro ? "verde-petróleo" : "verde-água/turquesa";
+  if (hue < 250) return escuro ? "azul-marinho" : "azul";
+  if (hue < 290) return escuro ? "roxo escuro" : "roxo/lavanda";
+  return escuro ? "vinho/bordô" : "rosa/magenta";
+}
+
+const FONTE_DESC: Record<string, string> = {
+  classica: "serifada clássica de livro (estilo Playfair Display)",
+  elegante: "serifada refinada e elegante (estilo Cormorant Garamond)",
+  moderna: "sem serifa moderna e forte (estilo Poppins)",
+  minimalista: "sem serifa limpa e minimalista (estilo Inter)",
+  arredondada: "arredondada, suave e amigável (estilo Nunito)",
+  divertida: "arredondada divertida infantil (estilo Baloo)",
+};
 
 export interface Paleta { nome: string; accent: string }
 export interface OutlineChapter { title: string; sections: { heading: string; brief: string }[] }
@@ -79,7 +119,7 @@ Nada além disso na página. Receitas reais e testáveis, quantidades coerentes.
 
 const OUTLINE_SYSTEM = `Você é um autor e editor profissional de livros digitais vendidos em lojas e livrarias. Crie a ESTRUTURA (sumário) do livro, a sinopse da contracapa e sugestões de cor.
 Responda SOMENTE com JSON válido: {"title":"Título forte e vendável","subtitle":"Subtítulo que promete um resultado (até 10 palavras)","sinopse":"Texto de contracapa: 2 frases, até 35 palavras, que vendem o livro","paletas":[{"nome":"Nome curto da paleta","accent":"#RRGGBB"}],"chapters":[{"title":"Título do capítulo","sections":[{"heading":"Título da seção/página","brief":"1 frase do que ela cobre"}]}]}
-Regras: específico e original ao tema; títulos atraentes e curtos (título com até 7 palavras); progressão lógica; 3 paletas cuja cor principal (accent) combine com o tema e o público e tenha bom contraste com fundo branco (nada de amarelo-claro ou pastel fraco); tudo no idioma pedido. Só o JSON.`;
+Regras: específico e original ao tema; títulos atraentes e curtos (título com até 7 palavras); progressão lógica; 3 paletas, da melhor para a menos indicada, cuja cor principal (accent) combine com o assunto e o público (ex.: receitas saudáveis → verde/oliva ou terracota; finanças e negócios → azul-marinho ou grafite; infantil → cores alegres; temas sóbrios ou profissionais → preto/grafite) e tenha bom contraste com fundo branco (nada de amarelo-claro ou pastel fraco); tudo no idioma pedido. Só o JSON.`;
 
 const CHAPTER_SYSTEM = `Você é um autor profissional escrevendo o CONTEÚDO de um livro digital de nível comercial, já diagramado em páginas A4 com blocos.
 Responda SOMENTE com JSON válido:
@@ -110,6 +150,8 @@ function pagesFor(kind: EbookKind, paginas: number) {
   const chapters = Math.max(3, Math.min(12, Math.round(miolo / 2.4)));
   return { chapters, perChapter: Math.max(1, Math.round(miolo / chapters)) };
 }
+
+export const _nomeDaCor = nomeDaCor;
 
 export async function ebookOutline(b: EbookBrief): Promise<EbookOutline> {
   const kind = KIND_GUIDE[b.kind] ? b.kind : "guia";
@@ -171,14 +213,15 @@ const curto = (s: string, max: number) => (s.length <= max ? s : "");
 
 function coverPrompt(b: EbookBrief, o: EbookOutline, kind: EbookKind) {
   const illustrated = kind === "infantil" || kind === "colorir";
-  const paleta = b.paleta || b.accent ? `Paleta de cores predominante: ${b.paleta || ""} ${b.accent ? `(cor principal ${b.accent})` : ""}.` : "";
+  const paleta = b.accent ? `COR PRINCIPAL OBRIGATÓRIA: ${nomeDaCor(b.accent)} (${b.accent})${b.paleta && b.paleta !== "Personalizada" ? `, paleta "${b.paleta}"` : ""}. Use essa cor como a cor dominante da identidade da capa (tipografia, elementos gráficos ou fundo), combinada com neutros.` : "";
   const sub = curto(o.subtitle, 90);
+  const fonte = b.fonte && FONTE_DESC[b.fonte] ? FONTE_DESC[b.fonte] : illustrated ? "divertidas e arredondadas" : "elegantes e modernas";
   return `Capa frontal de ${illustrated ? "livro infantil" : "e-book profissional"}, formato retrato (proporção 2:3), pronta para vender em livraria, nível de capa best-seller desenhada por um designer de capas premiado.
 Tema do livro: ${o.title}${o.subtitle ? ` — ${o.subtitle}` : ""}. Público: ${b.publico || "geral"}.
 Direção de arte: ${KIND_GUIDE[kind].capa}. ${paleta}
 TIPOGRAFIA OBRIGATÓRIA — escreva exatamente estes textos, em ${langName(b.idioma)}, com todos os acentos e sem erros de grafia:
 • Título, grande e em destaque: "${o.title}"
-${sub ? `• Subtítulo, menor: "${sub}"\n` : ""}${b.autor ? `• Nome do autor, na base: "${b.autor}"\n` : ""}Hierarquia tipográfica profissional, fontes ${illustrated ? "divertidas e arredondadas" : "elegantes e modernas"}, ótimo contraste com a arte, margens seguras (nada encostado nas bordas), texto integrado à composição.
+${sub ? `• Subtítulo, menor: "${sub}"\n` : ""}${b.autor ? `• Nome do autor, na base: "${b.autor}"\n` : ""}Hierarquia tipográfica profissional, tipografia ${fonte}, ótimo contraste com a arte, margens seguras (nada encostado nas bordas), texto integrado à composição.
 Não escreva nenhum outro texto além desses. Sem selos, preço, código de barras ou logotipos.`;
 }
 
@@ -208,13 +251,19 @@ export async function ebookBuild(
   const illustrated = kind === "infantil" || kind === "colorir";
   const withImages = illustrated || b.imagens !== false;
   const tom = b.tom || "didático e acolhedor";
+  // Cor do livro: a escolhida, senão a 1ª sugestão da IA para o tema, senão a padrão do tipo.
+  if (!hex(b.accent)) {
+    const sug = outline.paletas?.find((p) => hex(p.accent)) || COR_PADRAO[kind];
+    b = { ...b, accent: sug.accent, paleta: sug.nome };
+  }
 
   const ebook: Ebook = {
     title: outline.title, subtitle: outline.subtitle, author: String(b.autor || "").slice(0, 80),
     theme: b.estilo || (illustrated ? "infantil" : "editorial"), withImages, pageCount: 0, pages: [],
   };
   (ebook as any).kind = kind;
-  if (hex(b.accent)) (ebook as any).accent = hex(b.accent);
+  (ebook as any).accent = hex(b.accent);
+  if (b.fonte && FONTE_DESC[b.fonte]) (ebook as any).fonte = b.fonte;
   if (outline.paletas?.length) (ebook as any).paletas = outline.paletas;
   const cover: EbookPage = { type: "cover", title: outline.title, subtitle: outline.subtitle, blocks: [] };
   const toc: EbookPage = { type: "toc", title: "Sumário", blocks: [{ type: "list", items: outline.chapters.map((c, i) => `${i + 1}. ${c.title}`) }] };
@@ -354,7 +403,7 @@ Entre 200 e 280 palavras. Tom: ${tom}. Idioma: ${lang}. Sem blocos image. Exatam
   const imgs = content.flatMap((pg) => pg.blocks.filter((x) => x.type === "image" && !x.imageUrl));
   const aspect = kind === "colorir" ? "3:4" : kind === "infantil" ? "4:3" : "16:9";
   const stylePrefix = b.estilo === "minimal" ? "visual minimalista" : b.estilo === "moderno" ? "visual moderno e vibrante" : "visual elegante";
-  const tons = b.paleta || b.accent ? `, tons que harmonizam com a paleta ${b.paleta || b.accent}` : "";
+  const tons = `, paleta de cores que harmoniza com ${nomeDaCor(b.accent || "")} (cor do livro)`;
   for (let k = 0; k < imgs.length; k += 3) {
     await Promise.all(imgs.slice(k, k + 3).map(async (blk) => {
       try {

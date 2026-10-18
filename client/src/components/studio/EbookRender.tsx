@@ -10,7 +10,7 @@ export interface EBlock {
 }
 export interface EPage { type: "cover" | "toc" | "intro" | "chapter" | "content" | "cta" | "back"; title?: string; subtitle?: string; chapter?: number; blocks: EBlock[] }
 export interface Paleta { nome: string; accent: string }
-export interface EBook { title: string; subtitle: string; author: string; theme: string; kind?: EbookKind; accent?: string; paletas?: Paleta[]; pages: EPage[]; pageCount?: number; slug?: string }
+export interface EBook { title: string; subtitle: string; author: string; theme: string; kind?: EbookKind; accent?: string; fonte?: string; paletas?: Paleta[]; pages: EPage[]; pageCount?: number; slug?: string }
 
 interface Theme { accent: string; ink: string; head: string; body: string; font: string }
 export const THEMES: Record<string, Theme> = {
@@ -19,7 +19,24 @@ export const THEMES: Record<string, Theme> = {
   minimal: { accent: "#111827", ink: "#374151", head: "'Inter', Arial, sans-serif", body: "'Inter', Arial, sans-serif", font: "Inter:wght@400;600;800" },
   infantil: { accent: "#f97316", ink: "#1f2937", head: "'Baloo 2', 'Comic Sans MS', sans-serif", body: "'Baloo 2', 'Comic Sans MS', sans-serif", font: "Baloo+2:wght@500;700;800" },
 };
-export const themeOf = (b: EBook) => THEMES[b.theme] || THEMES.editorial;
+/** Fontes que a pessoa pode escolher (títulos + texto). Sem escolha, vale a do estilo. */
+export interface Fonte { id: string; nome: string; desc: string; head: string; body: string; font: string }
+export const FONTES: Fonte[] = [
+  { id: "classica", nome: "Clássica", desc: "Serifada, de livro", head: "'Playfair Display', Georgia, serif", body: "'Source Serif 4', Georgia, serif", font: "Playfair+Display:wght@600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600" },
+  { id: "elegante", nome: "Elegante", desc: "Serifada refinada", head: "'Cormorant Garamond', Georgia, serif", body: "'Lora', Georgia, serif", font: "Cormorant+Garamond:wght@600;700&family=Lora:wght@400;600" },
+  { id: "moderna", nome: "Moderna", desc: "Sem serifa, forte", head: "'Poppins', Arial, sans-serif", body: "'Inter', Arial, sans-serif", font: "Poppins:wght@600;700;800&family=Inter:wght@400;600" },
+  { id: "minimalista", nome: "Minimalista", desc: "Limpa e neutra", head: "'Inter', Arial, sans-serif", body: "'Inter', Arial, sans-serif", font: "Inter:wght@400;600;800" },
+  { id: "arredondada", nome: "Arredondada", desc: "Suave e amigável", head: "'Nunito', Arial, sans-serif", body: "'Nunito', Arial, sans-serif", font: "Nunito:wght@400;600;800" },
+  { id: "divertida", nome: "Divertida", desc: "Para crianças", head: "'Baloo 2', 'Comic Sans MS', sans-serif", body: "'Baloo 2', 'Comic Sans MS', sans-serif", font: "Baloo+2:wght@500;700;800" },
+];
+/** Link do Google Fonts com todas as opções (para a pessoa ver cada fonte antes de escolher). */
+export const FONTES_LINK = `https://fonts.googleapis.com/css2?${FONTES.map((f) => `family=${f.font}`).join("&")}&display=swap`;
+
+export const themeOf = (b: EBook): Theme => {
+  const t = THEMES[b.theme] || THEMES.editorial;
+  const f = FONTES.find((x) => x.id === b.fonte);
+  return f ? { ...t, head: f.head, body: f.body, font: f.font } : t;
+};
 
 /** Paletas prontas (a IA também sugere as dela, a partir do tema do livro). */
 export const PALETAS: Paleta[] = [
