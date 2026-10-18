@@ -105,8 +105,37 @@ function normalizar(p: string) {
   return partes.join("/") || "/";
 }
 
-export function registerAdminAnalyticsRoutes(app: Express, opts: { guard?: any[]; auth?: any } = {}) {
+// ---------- limpeza ----------
+// page_views cresce a cada página aberta: guarda só os últimos 90 dias. Apaga em lotes para não travar a
+// tabela, a cada 6 horas (a primeira 2 min depois de subir, para não pesar no boot).
+const RETENCAO_DIAS = 90;
+let limpezaAgendada = false;
+async function limparPageViews() {
+  try {
+    if (!(await pageViewsExiste())) return;
+    let total = 0;
+    for (let i = 0; i < 40; i++) {
+      const r = await pool.query(
+        `DELETE FROM page_views WHERE id IN (SELECT id FROM page_views WHERE created_at < now() - interval '${RETENCAO_DIAS} days' LIMIT 20000)`,
+      );
+      total += r.rowCount || 0;
+      if ((r.rowCount || 0) < 20000) break;
+    }
+    if (total) logger.warn(`[Analytics] limpeza: ${total} páginas vistas com mais de ${RETENCAO_DIAS} dias apagadas`);
+  } catch (e: any) {
+    logger.error(`[Analytics] limpeza de page_views: ${e?.message}`);
+  }
+}
+function agendarLimpezaPageViews() {
+  if (limpezaAgendada) return;
+  limpezaAgendada = true;
+  setTimeout(() => void limparPageViews(), 2 * 60_000).unref?.();
+  setInterval(() => void limparPageViews(), 6 * 60 * 60_000).unref?.();
+}
+
+export function registerAdminAnalyticsRoutes(app: Express, opts: { guard?: any[]; auth?: any; cleanup?: boolean } = {}) {
   const G = opts.guard || [authMiddleware, adminMiddleware];
+  if (opts.cleanup !== false) agendarLimpezaPageViews();
 
   app.post("/api/track/pv", opts.auth || optionalAuthMiddleware, async (req: any, res) => {
     res.status(204).end();
@@ -240,21 +269,33 @@ export function registerAdminAnalyticsRoutes(app: Express, opts: { guard?: any[]
         : ordem === "activity" ? "(topics + replies + posts + comments) DESC, created_at DESC"
         : "last_seen DESC NULLS LAST, created_at DESC";
 
-      const viewsSub = pv ? `(SELECT count(*) FROM page_views p WHERE p.user_id = u.id AND ${RANGE("p.created_at")})` : "0";
+      // Cada tabela é agregada UMA vez no período e cruzada com os usuários (antes eram 5 subconsultas
+      // por usuário, para todos os usuários, antes do LIMIT). Barato para qualquer ordenação.
+      const POR = (tabela: string, col: string, extra = "") =>
+        `SELECT ${col} AS user_id, count(*) AS c FROM ${tabela} WHERE ${RANGE("created_at")} ${extra} GROUP BY 1`;
+      const pvCte = pv ? POR("page_views", "user_id", "AND user_id IS NOT NULL") : `SELECT NULL::varchar AS user_id, 0::bigint AS c WHERE false`;
       const rows = await q(
-        `WITH ls AS (SELECT user_id, max(created_at) last_login FROM sessions GROUP BY user_id)
-         SELECT * FROM (
-         SELECT u.id, u.name, u.email, u.created_at, u.subscription_status, u.access_plan, u.account_status, u.is_admin,
-                GREATEST(u.last_seen_at, ls.last_login::timestamptz) AS last_seen,
-                ${viewsSub} AS views,
-                (SELECT count(*) FROM forum_topics t WHERE t.author_id = u.id AND ${RANGE("t.created_at")}) AS topics,
-                (SELECT count(*) FROM forum_replies r WHERE r.author_id = u.id AND ${RANGE("r.created_at")}) AS replies,
-                (SELECT count(*) FROM timeline_posts tp WHERE tp.user_id = u.id AND ${RANGE("tp.created_at")}) AS posts,
-                (SELECT count(*) FROM post_comments c WHERE c.user_id = u.id AND ${RANGE("c.created_at")}) AS comments,
-                count(*) OVER() AS total
-         FROM users u LEFT JOIN ls ON ls.user_id = u.id
-         ${W}
-         ) x
+        `WITH ls AS (SELECT user_id, max(created_at) last_login FROM sessions GROUP BY user_id),
+              pv AS (${pvCte}),
+              tp AS (${POR("forum_topics", "author_id")}),
+              rp AS (${POR("forum_replies", "author_id")}),
+              po AS (${POR("timeline_posts", "user_id")}),
+              co AS (${POR("post_comments", "user_id")}),
+              base AS (
+                SELECT u.id, u.name, u.email, u.created_at, u.subscription_status, u.access_plan, u.account_status, u.is_admin,
+                       GREATEST(u.last_seen_at, ls.last_login::timestamptz) AS last_seen,
+                       COALESCE(pv.c, 0) AS views, COALESCE(tp.c, 0) AS topics, COALESCE(rp.c, 0) AS replies,
+                       COALESCE(po.c, 0) AS posts, COALESCE(co.c, 0) AS comments
+                FROM users u
+                LEFT JOIN ls ON ls.user_id = u.id
+                LEFT JOIN pv ON pv.user_id = u.id
+                LEFT JOIN tp ON tp.user_id = u.id
+                LEFT JOIN rp ON rp.user_id = u.id
+                LEFT JOIN po ON po.user_id = u.id
+                LEFT JOIN co ON co.user_id = u.id
+                ${W}
+              )
+         SELECT *, count(*) OVER() AS total FROM base
          ORDER BY ${ORD}
          LIMIT ${porPagina} OFFSET ${(pagina - 1) * porPagina}`,
         params,
