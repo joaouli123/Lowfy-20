@@ -23,7 +23,7 @@ function period(q: any): [string, string] {
 }
 // Pagamentos confirmados: o histórico (lowfy_subscription_payments) mais o 1º pagamento de cada
 // assinatura, que muitas vezes só existe em lowfy_subscriptions.paid_at (sem contar duas vezes).
-const PAGAMENTOS = `(
+export const PAGAMENTOS = `(
   SELECT p.user_id, p.amount AS cents, p.paid_at FROM lowfy_subscription_payments p WHERE p.status = 'paid' AND p.paid_at IS NOT NULL
   UNION ALL
   SELECT s.user_id, s.amount, s.paid_at FROM lowfy_subscriptions s
@@ -87,7 +87,7 @@ async function balances() {
   return out;
 }
 
-async function revenue(from: string, to: string, feePct: number) {
+export async function revenue(from: string, to: string, feePct: number) {
   const [pay, ref, com] = await Promise.all([
     pool.query(`SELECT COALESCE(SUM(cents),0) AS cents, COUNT(*) AS qtd, COUNT(DISTINCT user_id) AS pagantes FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")}`, [from, to]),
     pool.query(`SELECT COALESCE(SUM(amount),0) AS cents, COUNT(*) AS qtd FROM lowfy_subscriptions WHERE status = 'refunded' AND ${RANGE("COALESCE(status_changed_at, updated_at)")}`, [from, to]),
@@ -114,12 +114,12 @@ export function registerAdminCostRoutes(app: Express, opts: { guard?: any[] } = 
         pool.query(`SELECT provider, SUM(cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1 ORDER BY 2 DESC`, [from, to]),
         pool.query(`SELECT tool, SUM(cost_usd) AS usd, COUNT(*) AS ev, COUNT(DISTINCT user_id) AS users FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1 ORDER BY 2 DESC LIMIT 30`, [from, to]),
         pool.query(`SELECT kind, SUM(cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1 ORDER BY 2 DESC`, [from, to]),
-        pool.query(`SELECT to_char(date_trunc('${g}', created_at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, SUM(cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1 ORDER BY 1`, [from, to]),
+        pool.query(`SELECT to_char(date_trunc('${g}', created_at::timestamptz AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, SUM(cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1 ORDER BY 1`, [from, to]),
         revenue(from, to, s.paymentFeePct),
         pool.query(`SELECT a.user_id AS id, u.name, u.email, SUM(a.cost_usd) AS usd, COUNT(*) AS ev FROM ai_usage a LEFT JOIN users u ON u.id = a.user_id WHERE ${RANGE("a.created_at")} AND a.user_id IS NOT NULL GROUP BY 1,2,3 ORDER BY 4 DESC LIMIT 10`, [from, to]),
-        pool.query(`SELECT to_char(date_trunc('${g}', paid_at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, SUM(cents) AS cents FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")} GROUP BY 1`, [from, to]),
+        pool.query(`SELECT to_char(date_trunc('${g}', paid_at::timestamptz AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, SUM(cents) AS cents FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")} GROUP BY 1`, [from, to]),
         balances(),
-        pool.query(`SELECT to_char(date_trunc('${g}', created_at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, provider, SUM(cost_usd) AS usd FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1, 2 ORDER BY 1`, [from, to]),
+        pool.query(`SELECT to_char(date_trunc('${g}', created_at::timestamptz AT TIME ZONE '${TZ}'), 'YYYY-MM-DD') AS d, provider, SUM(cost_usd) AS usd FROM ai_usage WHERE ${RANGE("created_at")} GROUP BY 1, 2 ORDER BY 1`, [from, to]),
       ]);
       // Gasto por dia e por provedor (R$), para o gráfico empilhado.
       const porDia = new Map<string, any>();

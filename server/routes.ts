@@ -76,6 +76,7 @@ import * as motionService from "./services/motion";
 import * as motionAudio from "./services/motionAudio";
 import { registerAdminCostRoutes } from "./adminCosts";
 import { registerAdminAnalyticsRoutes } from "./adminAnalytics";
+import { registerAdminFinanceRoutes } from "./adminFinance";
 import { iaLiberada } from "./services/usage";
 import { registerHackAdsRoutes } from "./hackAds/routes";
 import { generateEbook } from "./services/ebookStudio";
@@ -19843,6 +19844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Consumo e custos de IA (plataforma e por usuário) + receita do período.
   registerAdminCostRoutes(app);
   registerAdminAnalyticsRoutes(app);
+  registerAdminFinanceRoutes(app);
   // Hack Ads: minerador de criativos da Biblioteca de Anúncios da Meta.
   registerHackAdsRoutes(app);
 
