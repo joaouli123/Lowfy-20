@@ -22,13 +22,16 @@ function period(q: any): [string, string] {
   return [from, ok(q.endDate) ? q.endDate : today];
 }
 // Pagamentos confirmados: o histórico (lowfy_subscription_payments) mais o 1º pagamento de cada
-// assinatura, que muitas vezes só existe em lowfy_subscriptions.paid_at (sem contar duas vezes).
+// assinatura, que muitas vezes só existe em lowfy_subscriptions.paid_at (sem contar duas vezes),
+// mais os pacotes de créditos do Estúdio IA pagos (credit_orders; "estornado" foi pago e devolvido).
 export const PAGAMENTOS = `(
   SELECT p.user_id, p.amount AS cents, p.paid_at FROM lowfy_subscription_payments p WHERE p.status = 'paid' AND p.paid_at IS NOT NULL
   UNION ALL
   SELECT s.user_id, s.amount, s.paid_at FROM lowfy_subscriptions s
   WHERE s.paid_at IS NOT NULL AND s.status NOT IN ('awaiting_payment', 'pending')
     AND NOT EXISTS (SELECT 1 FROM lowfy_subscription_payments p WHERE p.subscription_id = s.id AND p.status = 'paid' AND COALESCE(p.billing_period, 1) = 1)
+  UNION ALL
+  SELECT c.user_id, c.valor_centavos, c.pago_em FROM credit_orders c WHERE c.status IN ('pago', 'estornado') AND c.pago_em IS NOT NULL
 )`;
 
 const groupOf = (g: any) => (g === "week" || g === "month" ? g : "day");
@@ -88,16 +91,24 @@ async function balances() {
 }
 
 export async function revenue(from: string, to: string, feePct: number) {
-  const [pay, ref, com] = await Promise.all([
+  const [pay, ref, com, cred] = await Promise.all([
     pool.query(`SELECT COALESCE(SUM(cents),0) AS cents, COUNT(*) AS qtd, COUNT(DISTINCT user_id) AS pagantes FROM ${PAGAMENTOS} x WHERE ${RANGE("paid_at")}`, [from, to]),
     pool.query(`SELECT COALESCE(SUM(amount),0) AS cents, COUNT(*) AS qtd FROM lowfy_subscriptions WHERE status = 'refunded' AND ${RANGE("COALESCE(status_changed_at, updated_at)")}`, [from, to]),
     pool.query(`SELECT COALESCE(SUM(commission_amount_cents),0) AS cents FROM referral_commissions WHERE status NOT IN ('canceled','cancelled','refunded') AND ${RANGE("created_at")}`, [from, to]).catch(() => ({ rows: [{ cents: 0 }] })),
+    pool.query(`SELECT COALESCE(SUM(valor_centavos),0) AS cents, COUNT(*) AS qtd, COALESCE(SUM(valor_centavos) FILTER (WHERE status = 'estornado'),0) AS estornado
+                FROM credit_orders WHERE status IN ('pago','estornado') AND ${RANGE("pago_em")}`, [from, to]).catch(() => ({ rows: [{ cents: 0, qtd: 0, estornado: 0 }] })),
   ]);
   const gross = n(pay.rows[0].cents) / 100;
-  const refunds = n(ref.rows[0].cents) / 100;
+  const creditsBrl = n(cred.rows[0].cents) / 100;
+  const refunds = n(ref.rows[0].cents) / 100 + n(cred.rows[0].estornado) / 100;
   const fees = gross * (feePct / 100);
   const commissions = n(com.rows[0].cents) / 100;
-  return { grossBrl: gross, refundsBrl: refunds, feesBrl: fees, commissionsBrl: commissions, netBrl: gross - refunds - fees - commissions, payments: n(pay.rows[0].qtd), payingUsers: n(pay.rows[0].pagantes) };
+  return {
+    grossBrl: gross, refundsBrl: refunds, feesBrl: fees, commissionsBrl: commissions, netBrl: gross - refunds - fees - commissions,
+    payments: n(pay.rows[0].qtd), payingUsers: n(pay.rows[0].pagantes),
+    // parte da receita bruta que veio de créditos do Estúdio IA
+    creditsBrl, creditOrders: n(cred.rows[0].qtd),
+  };
 }
 
 export function registerAdminCostRoutes(app: Express, opts: { guard?: any[] } = {}) {

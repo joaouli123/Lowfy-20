@@ -55,6 +55,10 @@ const PAGAMENTOS_DET = `(
   FROM lowfy_subscriptions s
   WHERE s.paid_at IS NOT NULL AND s.status NOT IN ('awaiting_payment', 'pending')
     AND NOT EXISTS (SELECT 1 FROM lowfy_subscription_payments p WHERE p.subscription_id = s.id AND p.status = 'paid' AND COALESCE(p.billing_period, 1) = 1)
+  UNION ALL
+  -- pacotes de créditos do Estúdio IA (Pix)
+  SELECT c.user_id, c.valor_centavos, c.pago_em, 'pix', 'creditos', 1
+  FROM credit_orders c WHERE c.status IN ('pago', 'estornado') AND c.pago_em IS NOT NULL
 )`;
 const CANCELADA = `status IN ('canceled', 'cancelled', 'expired')`;
 const QUANDO_MUDOU = `COALESCE(canceled_at, status_changed_at, updated_at)`;
@@ -75,7 +79,7 @@ export function registerAdminFinanceRoutes(app: Express, opts: { guard?: any[] }
 
       const [
         rev, revPrev, ativas, novas, novasPrev, cancel, cancelPrev, reemb, mkt, mktPrev, ia, iaPrev,
-        sReceita, sNovas, sCancel, sReemb, sMkt, porPlano, porMetodo, recentes, renovacoes, pedidosReembolso, pendentes,
+        sReceita, sNovas, sCancel, sReemb, sMkt, porPlano, porMetodo, recentes, renovacoes, pedidosReembolso, pendentes, sCred,
       ] = await Promise.all([
         revenue(from, to, settings.paymentFeePct),
         revenue(pFrom, pTo, settings.paymentFeePct),
@@ -105,6 +109,7 @@ export function registerAdminFinanceRoutes(app: Express, opts: { guard?: any[] }
            ORDER BY s.next_payment_date ASC LIMIT 20`),
         q(`SELECT count(*) c, COALESCE(sum(amount_cents),0) cents FROM subscription_refund_requests WHERE status = 'pending'`).catch(() => [{ c: 0, cents: 0 }]),
         q(`SELECT count(*) c, COALESCE(sum(amount),0) cents FROM lowfy_subscriptions WHERE status IN ('awaiting_payment','pending') AND created_at > now() - interval '7 days'`),
+        q(`SELECT ${BUCKET("pago_em", g)} k, sum(valor_centavos) v FROM credit_orders WHERE status IN ('pago','estornado') AND ${RANGE("pago_em")} GROUP BY 1`, [from, to]).catch(() => []),
       ]);
 
       const planos = Object.fromEntries(ativas.map((r: any) => [r.plan || "mensal", { count: n(r.c), cents: n(r.cents) }]));
@@ -120,10 +125,12 @@ export function registerAdminFinanceRoutes(app: Express, opts: { guard?: any[] }
       const resultado = rev.netBrl + mktTaxa - iaBrl;
       const resultadoPrev = revPrev.netBrl + n(mktPrev[0]?.taxa) / 100 - n(iaPrev[0]?.usd) * fx.rate;
 
-      const [mR, mN, mC, mRe, mM] = [mapa(sReceita), mapa(sNovas), mapa(sCancel), mapa(sReemb), mapa(sMkt)];
+      const [mR, mN, mC, mRe, mM, mCr] = [mapa(sReceita), mapa(sNovas), mapa(sCancel), mapa(sReemb), mapa(sMkt), mapa(sCred as any[])];
       const series = buckets(from, to, g).map((date) => ({
         date,
-        revenueBrl: (mR[date] || 0) / 100, refundsBrl: (mRe[date] || 0) / 100, marketplaceFeeBrl: (mM[date] || 0) / 100,
+        // revenueBrl = só assinaturas; créditos vêm à parte para empilhar no gráfico
+        revenueBrl: ((mR[date] || 0) - (mCr[date] || 0)) / 100, creditsBrl: (mCr[date] || 0) / 100,
+        refundsBrl: (mRe[date] || 0) / 100, marketplaceFeeBrl: (mM[date] || 0) / 100,
         newSubs: mN[date] || 0, cancels: mC[date] || 0,
       }));
 

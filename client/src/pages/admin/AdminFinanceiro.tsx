@@ -15,7 +15,7 @@ import {
   CHART_COLORS, gridProps, axisProps, tooltipStyle, formatBRLValue, formatNumber,
 } from "@/components/admin";
 
-interface Revenue { grossBrl: number; refundsBrl: number; feesBrl: number; commissionsBrl: number; netBrl: number; payments: number; payingUsers: number }
+interface Revenue { grossBrl: number; refundsBrl: number; feesBrl: number; commissionsBrl: number; netBrl: number; payments: number; payingUsers: number; creditsBrl?: number; creditOrders?: number }
 interface Finance {
   period: { from: string; to: string; groupBy: string };
   revenue: Revenue; revenuePrev: Revenue;
@@ -27,7 +27,7 @@ interface Finance {
   awaitingPayment: { count: number; brl: number };
   marketplace: { orders: number; gmvBrl: number; feeBrl: number };
   aiCostBrl: number; resultBrl: number; resultPrevBrl: number;
-  series: { date: string; revenueBrl: number; refundsBrl: number; marketplaceFeeBrl: number; newSubs: number; cancels: number }[];
+  series: { date: string; revenueBrl: number; creditsBrl?: number; refundsBrl: number; marketplaceFeeBrl: number; newSubs: number; cancels: number }[];
   byPlan: { plan: string; count: number; brl: number }[];
   byMethod: { method: string; count: number; brl: number }[];
   recentPayments: { userId: string; name: string; email: string; brl: number; paidAt: string; method: string; plan: string; renewal: boolean }[];
@@ -35,7 +35,7 @@ interface Finance {
 }
 
 const delta = (a?: number, b?: number) => (a == null || !b ? null : ((a - b) / Math.abs(b)) * 100);
-const PLANO: Record<string, string> = { mensal: "Mensal", anual: "Anual" };
+const PLANO: Record<string, string> = { mensal: "Mensal", anual: "Anual", creditos: "Créditos IA" };
 const METODO: Record<string, string> = { pix: "Pix", credit_card: "Cartão", boleto: "Boleto", "—": "Não informado" };
 const nomePlano = (p?: string) => PLANO[p || ""] || p || "—";
 const nomeMetodo = (m?: string) => METODO[m || ""] || m || "—";
@@ -95,7 +95,7 @@ export default function AdminFinanceiro() {
           </StatGrid>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <ChartCard title="Receita por intervalo" description="Assinaturas e taxa do marketplace; linha: reembolsos" loading={f.isLoading} empty={!dados.length} className="xl:col-span-2" height={300}>
+            <ChartCard title="Receita por intervalo" description="Assinaturas, créditos do Estúdio IA e taxa do marketplace; linha: reembolsos" loading={f.isLoading} empty={!dados.length} className="xl:col-span-2" height={300}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={dados} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid {...gridProps} />
@@ -104,6 +104,7 @@ export default function AdminFinanceiro() {
                   <Tooltip {...tooltipStyle} formatter={(v: any, k: any) => [formatBRLValue(Number(v)), k]} />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="revenueBrl" name="Assinaturas" stackId="r" fill={CHART_COLORS.primary} maxBarSize={30} />
+                  <Bar dataKey="creditsBrl" name="Créditos IA" stackId="r" fill={CHART_COLORS.violet} maxBarSize={30} />
                   <Bar dataKey="marketplaceFeeBrl" name="Marketplace (taxa)" stackId="r" fill={CHART_COLORS.amber} radius={[4, 4, 0, 0]} maxBarSize={30} />
                   <Line dataKey="refundsBrl" name="Reembolsos" stroke={CHART_COLORS.rose} strokeWidth={2} dot={false} type="monotone" />
                 </ComposedChart>
@@ -157,7 +158,9 @@ export default function AdminFinanceiro() {
                     <TableRow key={i}>
                       <TableCell><p className="font-medium truncate max-w-[180px]">{x.name || "—"}</p><p className="text-xs text-muted-foreground truncate max-w-[180px]">{x.email}</p></TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <StatusBadge tone={x.renewal ? "info" : "success"}>{x.renewal ? "Renovação" : "Nova"}</StatusBadge>
+                        {x.plan === "creditos"
+                          ? <StatusBadge tone="violet">Créditos</StatusBadge>
+                          : <StatusBadge tone={x.renewal ? "info" : "success"}>{x.renewal ? "Renovação" : "Nova"}</StatusBadge>}
                         <p className="text-xs text-muted-foreground mt-1">{nomePlano(x.plan)} · {nomeMetodo(x.method)}</p>
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatBRLValue(x.brl)}</TableCell>
@@ -216,7 +219,9 @@ function DaReceitaAoResultado({ d, loading }: { d?: Finance; loading: boolean })
   if (loading || !d) return <div className="rounded-xl border bg-card shadow-sm h-[360px] animate-pulse" />;
   const r = d.revenue;
   const linhas: { rotulo: string; valor: number; tipo: "base" | "menos" | "mais" | "total"; link?: string }[] = [
-    { rotulo: "Receita bruta (assinaturas)", valor: r.grossBrl, tipo: "base" },
+    { rotulo: "Assinaturas", valor: r.grossBrl - (r.creditsBrl || 0), tipo: "base" },
+    ...((r.creditsBrl || 0) > 0 ? [{ rotulo: "Créditos do Estúdio IA", valor: r.creditsBrl || 0, tipo: "mais" as const }] : []),
+    ...((r.creditsBrl || 0) > 0 ? [{ rotulo: "Receita bruta", valor: r.grossBrl, tipo: "total" as const }] : []),
     { rotulo: "Reembolsos", valor: -r.refundsBrl, tipo: "menos", link: "/admin/subscription-refunds" },
     { rotulo: "Taxa do gateway*", valor: -r.feesBrl, tipo: "menos" },
     { rotulo: "Comissões de afiliados", valor: -r.commissionsBrl, tipo: "menos", link: "/admin/afiliados" },
