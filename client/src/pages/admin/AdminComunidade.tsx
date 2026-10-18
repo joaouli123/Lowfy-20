@@ -23,6 +23,7 @@ const TICKET_STATUS: Record<string, { label: string; tone: "success" | "warning"
   open: { label: "Aberto", tone: "success" },
   in_progress: { label: "Em progresso", tone: "warning" },
   closed: { label: "Fechado", tone: "neutral" },
+  archived: { label: "Arquivado", tone: "neutral" },
 };
 
 const TICKET_PRIORITY: Record<string, { label: string; tone: "danger" | "warning" | "neutral" }> = {
@@ -224,7 +225,7 @@ function TicketsManagement() {
   };
 
   const stats = useMemo(() => {
-    const list = tickets || [];
+    const list = (tickets || []).filter(t => t.status !== "archived");
     return {
       total: list.length,
       open: list.filter(t => t.status === "open").length,
@@ -236,7 +237,7 @@ function TicketsManagement() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (tickets || []).filter(t => {
-      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (statusFilter === "all" ? t.status === "archived" : t.status !== statusFilter) return false;
       if (q && !`${t.subject} ${t.user?.name || ""}`.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -273,10 +274,11 @@ function TicketsManagement() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="all">Todos (sem arquivados)</SelectItem>
             <SelectItem value="open">Abertos</SelectItem>
             <SelectItem value="in_progress">Em progresso</SelectItem>
             <SelectItem value="closed">Fechados</SelectItem>
+            <SelectItem value="archived">Arquivados</SelectItem>
           </SelectContent>
         </Select>
       </FilterBar>

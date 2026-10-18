@@ -7311,8 +7311,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/admin/support-tickets/:id/status', authMiddleware, adminMiddleware, async (req: any, res) => {
     try {
       const { status } = req.body;
-      if (!status) {
-        return res.status(400).json({ message: "Status é obrigatório" });
+      if (!status || !['open', 'in_progress', 'closed', 'archived'].includes(status)) {
+        return res.status(400).json({ message: "Status inválido" });
       }
       const updatedTicket = await storage.updateSupportTicketStatus(req.params.id, status);
       if (!updatedTicket) {
@@ -7322,6 +7322,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating support ticket status:", error);
       res.status(500).json({ message: "Falha ao atualizar ticket de suporte" });
+    }
+  });
+
+  // Arquiva (sem apagar) os tickets resolvidos há mais de N dias, para a lista ficar só com o que importa.
+  app.post('/api/admin/support-tickets/archive-old', authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const dias = Math.max(1, Math.min(365, parseInt(req.body?.days) || 30));
+      const r: any = await db.execute(sql`UPDATE support_tickets SET status = 'archived', updated_at = now()
+        WHERE status = 'closed' AND COALESCE(updated_at, created_at) < now() - (${dias} * interval '1 day') RETURNING id`);
+      res.json({ archived: (r.rows ?? r).length, days: dias });
+    } catch (error) {
+      logger.error('[Admin Bugs] arquivar antigos:', error);
+      res.status(500).json({ message: "Falha ao arquivar tickets antigos" });
     }
   });
 
@@ -18559,6 +18572,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       logger.debug(`[Admin Users Management] Found ${sortedUsers.length} users, total: ${total}`);
 
+      // Contagem por situação da base inteira (os cards não podem contar só a página atual)
+      const statusRows = await db
+        .select({ status: users.subscriptionStatus, count: sql<number>`count(*)::int` })
+        .from(users)
+        .groupBy(users.subscriptionStatus);
+      const statusCounts: Record<string, number> = {};
+      for (const r of statusRows) {
+        const k = r.status || 'none';
+        statusCounts[k] = (statusCounts[k] || 0) + Number(r.count || 0);
+      }
+
       res.json({
         users: sortedUsers,
         pagination: {
@@ -18567,6 +18591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total,
           totalPages: Math.ceil(total / limit),
         },
+        statusCounts,
       });
     } catch (error: any) {
       logger.error('[Admin Users Management] Error:', error);

@@ -460,12 +460,14 @@ export default function AdminUsuarios() {
   const users = data?.users || [];
   const pagination = data?.pagination || { page: 1, limit: 15, total: 0, totalPages: 1 };
 
+  // Contagens da base inteira (vêm do servidor); o total acompanha a busca e o filtro.
+  const sc = (data as any)?.statusCounts as Record<string, number> | undefined;
   const stats = {
     total: pagination.total,
-    active: users.filter(u => u.subscriptionStatus === "active").length,
-    expired: users.filter(u => u.subscriptionStatus === "expired").length,
-    refunded: users.filter(u => u.subscriptionStatus === "refunded").length,
-    none: users.filter(u => !u.subscriptionStatus || u.subscriptionStatus === "none").length,
+    active: sc?.active ?? 0,
+    expired: sc?.expired ?? 0,
+    refunded: sc?.refunded ?? 0,
+    none: (sc?.none ?? 0) + (sc?.[""] ?? 0),
   };
 
   return (
@@ -509,7 +511,6 @@ export default function AdminUsuarios() {
           value={formatNumber(stats.active)}
           icon={UserCheck}
           tone="success"
-          hint="na página atual"
           loading={isLoading}
           testId="stat-active"
         />
@@ -518,7 +519,6 @@ export default function AdminUsuarios() {
           value={formatNumber(stats.expired)}
           icon={UserX}
           tone="danger"
-          hint="na página atual"
           loading={isLoading}
           testId="stat-expired"
         />
@@ -527,7 +527,6 @@ export default function AdminUsuarios() {
           value={formatNumber(stats.refunded)}
           icon={AlertTriangle}
           tone="warning"
-          hint="na página atual"
           loading={isLoading}
           testId="stat-refunded"
         />
@@ -536,7 +535,6 @@ export default function AdminUsuarios() {
           value={formatNumber(stats.none)}
           icon={AlertCircle}
           tone="default"
-          hint="na página atual"
           loading={isLoading}
           testId="stat-none"
         />

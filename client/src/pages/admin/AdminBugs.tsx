@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Bug, Trash2, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Bug, CheckCircle, Clock, AlertCircle, Archive, ArchiveRestore } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +32,7 @@ export default function AdminBugs() {
   const { toast } = useToast();
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
 
   const { data: tickets = [], isLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/admin/support-tickets"],
@@ -48,20 +48,31 @@ export default function AdminBugs() {
     },
   });
 
-  const deleteTicketMutation = useMutation({
-    mutationFn: async (id: string) => apiRequest("DELETE", `/api/admin/support-tickets/${id}`),
+  // Nada é apagado: arquivar tira da lista e dá para desarquivar quando quiser.
+  const archiveMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("PATCH", `/api/admin/support-tickets/${id}/status`, { status: "archived" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/support-tickets"] });
-      toast({ title: "Bug removido", description: "O bug foi removido com sucesso." });
+      toast({ title: "Arquivado", description: "Saiu da lista. Fica em Arquivados se precisar." });
       setSelectedTicket(null);
     },
+  });
+
+  const archiveOldMutation = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/admin/support-tickets/archive-old", { days: 30 })).json(),
+    onSuccess: (r: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support-tickets"] });
+      toast({ title: r?.archived ? `${r.archived} arquivado${r.archived === 1 ? "" : "s"}` : "Nada para arquivar", description: "Resolvidos há mais de 30 dias." });
+    },
+    onError: (e: any) => toast({ title: "Não deu para arquivar", description: e?.message, variant: "destructive" }),
   });
 
   const statusBadge = (status: string) => {
     switch (status) {
       case "open": return <StatusBadge tone="danger" dot>Aberto</StatusBadge>;
       case "in_progress": return <StatusBadge tone="warning" dot>Em progresso</StatusBadge>;
-      case "closed": return <StatusBadge tone="success" dot>Fechado</StatusBadge>;
+      case "closed": return <StatusBadge tone="success" dot>Resolvido</StatusBadge>;
+      case "archived": return <StatusBadge tone="neutral">Arquivado</StatusBadge>;
       default: return <StatusBadge>{status}</StatusBadge>;
     }
   };
@@ -79,12 +90,14 @@ export default function AdminBugs() {
     open: tickets.filter(t => t.status === "open").length,
     inProgress: tickets.filter(t => t.status === "in_progress").length,
     closed: tickets.filter(t => t.status === "closed").length,
+    archived: tickets.filter(t => t.status === "archived").length,
+    oldClosed: tickets.filter(t => t.status === "closed" && Date.now() - new Date((t as any).updatedAt || t.createdAt).getTime() > 30 * 864e5).length,
   }), [tickets]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tickets.filter(t => {
-      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (statusFilter === "active" ? t.status === "archived" : statusFilter !== "all" && t.status !== statusFilter) return false;
       if (q && !`${t.subject} ${t.name} ${t.email}`.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -96,12 +109,18 @@ export default function AdminBugs() {
         title="Bugs reportados"
         description="Acompanhe e resolva os problemas reportados pelos usuários"
         icon={Bug}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => archiveOldMutation.mutate()} disabled={archiveOldMutation.isPending || counts.oldClosed === 0} data-testid="button-archive-old">
+            <Archive className="w-4 h-4 mr-2" /> Arquivar resolvidos antigos{counts.oldClosed ? ` (${counts.oldClosed})` : ""}
+          </Button>
+        }
       />
 
-      <StatGrid cols={3}>
+      <StatGrid cols={4}>
         <StatCard label="Abertos" value={counts.open} icon={AlertCircle} tone={counts.open > 0 ? "danger" : "default"} colorValue={counts.open > 0} loading={isLoading} testId="text-open-count" />
         <StatCard label="Em progresso" value={counts.inProgress} icon={Clock} tone="warning" loading={isLoading} testId="text-progress-count" />
-        <StatCard label="Fechados" value={counts.closed} icon={CheckCircle} tone="success" loading={isLoading} testId="text-closed-count" />
+        <StatCard label="Resolvidos" value={counts.closed} icon={CheckCircle} tone="success" loading={isLoading} testId="text-closed-count" />
+        <StatCard label="Arquivados" value={counts.archived} icon={Archive} loading={isLoading} testId="text-archived-count" />
       </StatGrid>
 
       <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Buscar por assunto, nome ou e-mail...">
@@ -110,10 +129,12 @@ export default function AdminBugs() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="active">Sem os arquivados</SelectItem>
             <SelectItem value="open">Abertos</SelectItem>
             <SelectItem value="in_progress">Em progresso</SelectItem>
-            <SelectItem value="closed">Fechados</SelectItem>
+            <SelectItem value="closed">Resolvidos</SelectItem>
+            <SelectItem value="archived">Arquivados</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
           </SelectContent>
         </Select>
       </FilterBar>
@@ -160,14 +181,17 @@ export default function AdminBugs() {
                     {format(new Date(ticket.createdAt), "dd/MM/yy HH:mm", { locale: ptBR })}
                   </TableCell>
                   <TableCell className="text-right pr-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); deleteTicketMutation.mutate(ticket.id); }}
-                      data-testid={`button-delete-${ticket.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {ticket.status !== "archived" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Arquivar"
+                        onClick={(e) => { e.stopPropagation(); archiveMutation.mutate(ticket.id); }}
+                        data-testid={`button-archive-${ticket.id}`}
+                      >
+                        <Archive className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -238,7 +262,17 @@ export default function AdminBugs() {
             </div>
 
             <div className="flex gap-2 justify-end pt-4 border-t">
-              {selectedTicket?.status !== "closed" && (
+              {selectedTicket?.status === "archived" && (
+                <Button
+                  variant="outline"
+                  onClick={() => selectedTicket && updateStatusMutation.mutate({ id: selectedTicket.id, status: "closed" })}
+                  disabled={updateStatusMutation.isPending}
+                  data-testid="button-unarchive"
+                >
+                  <ArchiveRestore className="h-4 w-4 mr-2" /> Desarquivar
+                </Button>
+              )}
+              {selectedTicket?.status !== "closed" && selectedTicket?.status !== "archived" && (
                 <>
                   {selectedTicket?.status === "open" && (
                     <Button
@@ -260,14 +294,24 @@ export default function AdminBugs() {
                 </>
               )}
               {selectedTicket?.status === "closed" && (
-                <Button
-                  variant="outline"
-                  onClick={() => selectedTicket && updateStatusMutation.mutate({ id: selectedTicket.id, status: "open" })}
-                  disabled={updateStatusMutation.isPending}
-                  data-testid="button-reopen"
-                >
-                  <AlertCircle className="h-4 w-4 mr-2" /> Reabrir
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => selectedTicket && archiveMutation.mutate(selectedTicket.id)}
+                    disabled={archiveMutation.isPending}
+                    data-testid="button-archive"
+                  >
+                    <Archive className="h-4 w-4 mr-2" /> Arquivar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => selectedTicket && updateStatusMutation.mutate({ id: selectedTicket.id, status: "open" })}
+                    disabled={updateStatusMutation.isPending}
+                    data-testid="button-reopen"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-2" /> Reabrir
+                  </Button>
+                </>
               )}
             </div>
           </div>

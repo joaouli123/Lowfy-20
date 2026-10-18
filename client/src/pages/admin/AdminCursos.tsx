@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
-  Plus, Edit, Trash, RefreshCw, ChevronLeft, ChevronRight,
+  Plus, Edit, Trash, ChevronLeft, ChevronRight,
   GraduationCap, BookOpen, CheckCircle2, Sparkles, Flame,
 } from "lucide-react";
 import {
@@ -135,27 +135,6 @@ export default function AdminCursos() {
     },
   });
 
-  const syncMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/sync/courses", {});
-      return response;
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: "Sincronização concluída!",
-        description: `${data.coursesCount} cursos sincronizados do Google Drive`
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro ao sincronizar cursos",
-        description: error.message,
-        variant: "destructive"
-      });
-    },
-  });
-
   const openDialog = (course?: Course) => {
     if (course) {
       setEditingCourse(course);
@@ -189,20 +168,10 @@ export default function AdminCursos() {
     <AdminPage>
       <AdminPageHeader
         title="Gestão de cursos"
-        description="Crie, edite e sincronize os cursos disponíveis na plataforma"
+        description="Crie e edite os cursos disponíveis na plataforma"
         icon={GraduationCap}
         actions={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => syncMutation.mutate()}
-              disabled={syncMutation.isPending}
-              data-testid="button-sync-courses"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar do Drive'}
-            </Button>
             <Button size="sm" onClick={() => openDialog()} data-testid="button-create-course">
               <Plus className="w-4 h-4 mr-2" />
               Novo curso
